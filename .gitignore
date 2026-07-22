@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.supabase/
+node_modules/
+build/
+coverage/
+*.log
+.DS_Store
+supabase/.branches/
+/supabase/.temp/

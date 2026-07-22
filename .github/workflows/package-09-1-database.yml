@@ -1,0 +1,54 @@
+name: Stage 09 Package 09.1 Database
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'scripts/static_validate.py'
+      - '.github/workflows/package-09-1-database.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'supabase/**'
+      - 'scripts/static_validate.py'
+      - '.github/workflows/package-09-1-database.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pglast==7.2 PyYAML==6.0.2
+      - run: python scripts/static_validate.py
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  clean-database-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset --local
+      - run: supabase test db
+      - if: always()
+        run: supabase stop --no-backup
+
+  package-09-1-gate:
+    if: always()
+    needs: [static-validation, clean-database-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block merge on migration, constraint, scope, or secret failure
+        run: |
+          test '${{ needs.static-validation.result }}' = 'success'
+          test '${{ needs.clean-database-tests.result }}' = 'success'

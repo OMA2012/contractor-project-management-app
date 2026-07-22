@@ -1,0 +1,32 @@
+# SHA-256 manifest for Stage 09 Package 09.1
+# FILES_MANIFEST.txt intentionally excludes its own hash.
+sha256                                                            bytes  path
+3ce0a297749b29a7b445902a900a8ac580c98114547d3aa885fa18a88884142a       262  .env.example
+1ae717f25e136b58ff09d30f004198fffa540e6a13aa5efd7194e7249744286f      1492  .github/workflows/package-09-1-database.yml
+3967add1e0f80894a8358ce7d635660ccf9901e9a34adad4bb28ada1ef8dd27e        84  .gitignore
+99c87e03eb3cc034efe809c535a496e4b2ca826d6677324b52e12c965b754ae9      5699  PACKAGE_09_1_IMPLEMENTATION_RESULT.md
+ac393dc50bebe6eeea55e925a6cc90a9e56bb676e7df7625bba0f208a2b206c9      2018  README.md
+47b44df6454ae617b9b23bd9d789f387213064867f72131e2e8204d99efbfb8d      1481  docs/COMMANDS.md
+6a12e5ec5bdde01534623b0d94597ea8b669ed61fde28ec4c4d2d2df8729676f      2913  docs/DATABASE_DESIGN_REVIEW.md
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865         2  docs/ENVIRONMENT_VERIFICATION_EXIT_CODE.txt
+4114d3fe58e3b1f49719af816ad2fd9b9729fc91337893175bca79394cabb7f1       658  docs/ENVIRONMENT_VERIFICATION_OUTPUT.txt
+fb030582b9f14d02b8eca14113797cb00d02baffcaffe208e9b03f38ec13e475      1439  docs/EXECUTION_REPORT.md
+0973ad057a6fe449445d01b21a67e54b1d746236710aae8238793464a1279b98      1648  docs/ISSUES_AND_DEVIATIONS.md
+b53f5aa6463e04610a40b75f84835f8902117ef0e666d90976103400a8bb1395      2246  docs/MIGRATION_MANIFEST.md
+e0c4a076eadf8c07ee8557581ec4e7281b48e52947d94e1f92613d40d7dd410b      1558  docs/REPOSITORY_ENVIRONMENT_VERIFICATION.md
+1e26d559c571c9b653e9f03ef598e2ec0e503e8a1d4f08db2817eaf79afd3a4f      5372  docs/STATIC_VALIDATION_REPORT.txt
+d646078cb40fc91fc973b4d634ba3c69b4e2b3691fc1f80180613fd9cd9f607c      2607  docs/TEST_PLAN.md
+3f96728ef6eda49dc5dfc2a06b8c481a1feabf9abdd2fe85ae6f8e7f055f5fd1      4500  scripts/static_validate.py
+9f172fb6795a898c48eb06f9c629e9fc4a26257362f0dad56d33010fff010a1e      1527  scripts/verify_environment.sh
+b89f7e21bf6fd0a908b5d992b59ab95eb5843d8ee7002067efc69e914e04d479       598  supabase/config.toml
+6013dd37c008ec86e08468d44fee146008c0ac335e05cc69e5c0585988bf8fa0       462  supabase/migrations/20260721220100_0901_extensions_and_identity_types.sql
+510c7bf5e2cca6c5ac908a35ee1c943b5e85f1afbda16d7665c3d2fce34276dd       977  supabase/migrations/20260721220200_0902_currency_reference.sql
+32cb6090a467d73d8dcde36bb3328cd03104c08aad036f8124bf3e0f90b376cb      1355  supabase/migrations/20260721220300_0903_contractor_profiles.sql
+d2d8181484e85e7d24a412e72cb2857679daa7f7538c56e1ae85deb24cd4b441      3426  supabase/migrations/20260721220400_0904_users_and_user_profiles.sql
+59e77d7eb93617906b2ed03d131b7d17b154c3acd3cfcad55853f38fe12b2e58      1630  supabase/migrations/20260721220500_0905_predefined_roles.sql
+ecf3db55dd8dcbf076256f2b4016d49609370744d586676cc62121b5b26ada0f      1526  supabase/migrations/20260721220600_0906_user_role_assignments.sql
+7b2c7663dc285607af8fb10f1a72a90356b16b5ca32bd63a72bb3ded9d73627a      9257  supabase/migrations/20260721220700_0907_foundation_integrity_triggers.sql
+6b1326ba75943195af84a662d4b4f5b635e3d33e6cd476a0a43525eeef0b21c8      1396  supabase/migrations/20260721220800_0908_default_deny_rls.sql
+3caee42e2ed6bf63521bfdf6adff34f367133368088d9dc4526cd283806826a9      3467  supabase/tests/00_package_09_1_schema.test.sql
+1f7c31c2f6bd1c4f41e867362a1e3630b2cfa1b844fce41cf9b47096ed4a8e24     11148  supabase/tests/01_package_09_1_constraints.test.sql
+aee837f129c45259868ec84ca4f2f500a7fae35fa7af17cac85b9b1282f49241      2971  supabase/tests/02_package_09_1_default_deny.test.sql

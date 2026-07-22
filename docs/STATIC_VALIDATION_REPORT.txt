@@ -1,0 +1,79 @@
+PASSED: 77
+  PASS exactly eight Package 09.1 migrations
+  PASS exactly three Package 09.1 pgTAP suites
+  PASS migration names are ordered
+  PASS PostgreSQL syntax parsed: 20260721220100_0901_extensions_and_identity_types.sql
+  PASS PostgreSQL syntax parsed: 20260721220200_0902_currency_reference.sql
+  PASS PostgreSQL syntax parsed: 20260721220300_0903_contractor_profiles.sql
+  PASS PostgreSQL syntax parsed: 20260721220400_0904_users_and_user_profiles.sql
+  PASS PostgreSQL syntax parsed: 20260721220500_0905_predefined_roles.sql
+  PASS PostgreSQL syntax parsed: 20260721220600_0906_user_role_assignments.sql
+  PASS PostgreSQL syntax parsed: 20260721220700_0907_foundation_integrity_triggers.sql
+  PASS PostgreSQL syntax parsed: 20260721220800_0908_default_deny_rls.sql
+  PASS pgTAP SQL syntax parsed: 00_package_09_1_schema.test.sql
+  PASS pgTAP plan exists: 00_package_09_1_schema.test.sql
+  PASS pgTAP plan matches 56 assertions: 00_package_09_1_schema.test.sql
+  PASS pgTAP SQL syntax parsed: 01_package_09_1_constraints.test.sql
+  PASS pgTAP plan exists: 01_package_09_1_constraints.test.sql
+  PASS pgTAP plan matches 30 assertions: 01_package_09_1_constraints.test.sql
+  PASS pgTAP SQL syntax parsed: 02_package_09_1_default_deny.test.sql
+  PASS pgTAP plan exists: 02_package_09_1_default_deny.test.sql
+  PASS pgTAP plan matches 25 assertions: 02_package_09_1_default_deny.test.sql
+  PASS required object present: create table app.contractor_profiles
+  PASS required object present: create table app.users
+  PASS required object present: create table app.user_profiles
+  PASS required object present: create table app.roles
+  PASS required object present: create table app.user_roles
+  PASS prohibited Package 09.1 object absent: create table app.clients
+  PASS prohibited Package 09.1 object absent: create table app.projects
+  PASS prohibited Package 09.1 object absent: create table app.project_staff_assignments
+  PASS prohibited Package 09.1 object absent: create table app.financial_accounts
+  PASS prohibited Package 09.1 object absent: create table app.financial_transactions
+  PASS prohibited Package 09.1 object absent: create table app.ledger_entries
+  PASS prohibited Package 09.1 object absent: create table app.client_payments
+  PASS prohibited Package 09.1 object absent: create table app.project_expenses
+  PASS approved role seeded: owner_admin
+  PASS approved role seeded: project_manager
+  PASS approved role seeded: accountant
+  PASS approved role seeded: site_supervisor
+  PASS approved role seeded: client
+  PASS Purchasing Staff role absent
+  PASS Worker account/role absent
+  PASS Supplier account/role absent
+  PASS multi-organisation schema absent
+  PASS concurrency-safe last-owner guard present
+  PASS RLS enabled in default-deny migration
+  PASS no application-facing policies added in Package 09.1
+  PASS supabase/config.toml parsed
+  PASS CI YAML parsed
+  PASS no frontend implementation added in Package 09.1
+  PASS no real service-role assignment in .gitignore
+  PASS no real service-role assignment in README.md
+  PASS no real service-role assignment in FILES_MANIFEST.txt
+  PASS no real service-role assignment in PACKAGE_09_1_IMPLEMENTATION_RESULT.md
+  PASS no real service-role assignment in supabase/config.toml
+  PASS no real service-role assignment in scripts/verify_environment.sh
+  PASS no real service-role assignment in scripts/static_validate.py
+  PASS no real service-role assignment in docs/REPOSITORY_ENVIRONMENT_VERIFICATION.md
+  PASS no real service-role assignment in docs/DATABASE_DESIGN_REVIEW.md
+  PASS no real service-role assignment in docs/MIGRATION_MANIFEST.md
+  PASS no real service-role assignment in docs/TEST_PLAN.md
+  PASS no real service-role assignment in docs/COMMANDS.md
+  PASS no real service-role assignment in docs/EXECUTION_REPORT.md
+  PASS no real service-role assignment in docs/ISSUES_AND_DEVIATIONS.md
+  PASS no real service-role assignment in docs/ENVIRONMENT_VERIFICATION_OUTPUT.txt
+  PASS no real service-role assignment in docs/ENVIRONMENT_VERIFICATION_EXIT_CODE.txt
+  PASS no real service-role assignment in docs/STATIC_VALIDATION_REPORT.txt
+  PASS no real service-role assignment in .github/workflows/package-09-1-database.yml
+  PASS no real service-role assignment in supabase/migrations/20260721220100_0901_extensions_and_identity_types.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220200_0902_currency_reference.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220300_0903_contractor_profiles.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220400_0904_users_and_user_profiles.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220500_0905_predefined_roles.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220600_0906_user_role_assignments.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220700_0907_foundation_integrity_triggers.sql
+  PASS no real service-role assignment in supabase/migrations/20260721220800_0908_default_deny_rls.sql
+  PASS no real service-role assignment in supabase/tests/00_package_09_1_schema.test.sql
+  PASS no real service-role assignment in supabase/tests/01_package_09_1_constraints.test.sql
+  PASS no real service-role assignment in supabase/tests/02_package_09_1_default_deny.test.sql
+FAILED: 0

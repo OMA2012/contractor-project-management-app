@@ -1,0 +1,22 @@
+Package 09.1 repository and environment verification
+Repository root: /mnt/data/contractor_stage09_package_09_1
+
+Git repository: MISSING
+
+git            FOUND   /usr/bin/git
+flutter        MISSING
+dart           MISSING
+supabase       MISSING
+docker         MISSING
+node           FOUND   /opt/nvm/versions/node/v22.16.0/bin/node
+npm            FOUND   /opt/nvm/versions/node/v22.16.0/bin/npm
+deno           MISSING
+psql           MISSING
+python3        FOUND   /opt/pyvenv/bin/python3
+
+supabase/config.toml: FOUND
+supabase/migrations: FOUND
+supabase/tests: FOUND
+.github/workflows: FOUND
+
+Potential committed secret material: none detected by baseline scan

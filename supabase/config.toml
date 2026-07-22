@@ -1,0 +1,29 @@
+project_id = "contractor-project-management-app"
+
+[api]
+enabled = true
+schemas = ["public", "storage", "graphql_public", "app"]
+extra_search_path = ["public", "extensions", "app"]
+max_rows = 1000
+
+[db]
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**"]
+jwt_expiry = 3600
+enable_signup = false
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = true
+max_frequency = "1m"
+otp_expiry = 3600
+
+[storage]
+enabled = true
