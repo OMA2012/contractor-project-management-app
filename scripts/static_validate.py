@@ -44,6 +44,20 @@ require(
     '03_package_09_2_current_account_rpc.test.sql' in test_names,
     'required Package 09.2B pgTAP suite exists: 03_package_09_2_current_account_rpc.test.sql',
 )
+required_09_2c1_migrations = {
+    '20260724094000_0910_first_release_current_account_access.sql',
+    '20260724094100_0911_central_activity_logs.sql',
+    '20260724094200_0912_client_user_invitations.sql',
+}
+required_09_2c1_tests = {
+    '04_package_09_2_first_release_access.test.sql',
+    '05_package_09_2_activity_logs.test.sql',
+    '06_package_09_2_client_invitations.test.sql',
+}
+for name in sorted(required_09_2c1_migrations):
+    require(name in migration_names, f'required Package 09.2C1 migration exists: {name}')
+for name in sorted(required_09_2c1_tests):
+    require(name in test_names, f'required Package 09.2C1 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -56,7 +70,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|'
-    r'has_function|function_lang_is|volatility_is|isnt|is|ok|lives_ok|'
+    r'hasnt_column|col_type_is|has_function|function_lang_is|volatility_is|isnt|is|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -141,6 +155,89 @@ for required in (
 ):
     require(required in current_account_sql,
             f'current_account migration contains required clause: {required}')
+
+first_release_current_account_path = ROOT / 'supabase/migrations/20260724094000_0910_first_release_current_account_access.sql'
+if first_release_current_account_path.exists():
+    first_release_current_account_sql = first_release_current_account_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function public.current_account()',
+        'stable',
+        'security definer',
+        "set search_path = ''",
+        "array['owner_admin']::varchar(40)[]",
+        "array['client']::varchar(40)[]",
+        "'project_manager'",
+        "'accountant'",
+        "'site_supervisor'",
+        'revoke all on function public.current_account() from public',
+        'grant execute on function public.current_account() to authenticated',
+    ):
+        require(required in first_release_current_account_sql,
+                f'0910 current_account replacement contains required clause: {required}')
+
+activity_log_path = ROOT / 'supabase/migrations/20260724094100_0911_central_activity_logs.sql'
+if activity_log_path.exists():
+    activity_log_sql = activity_log_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.activity_logs',
+        'actor_user_id uuid',
+        'actor_auth_subject uuid',
+        'effective_role_code varchar(40)',
+        'project_id uuid',
+        'previous_values jsonb',
+        'new_values jsonb',
+        'metadata jsonb',
+        'foreign key (actor_user_id) references app.users(id) on delete restrict',
+        'foreign key (effective_role_code) references app.roles(code) on delete restrict',
+        'create or replace function app.mask_audit_json',
+        'create or replace function app.write_activity_log',
+        'before update on app.activity_logs',
+        'before delete on app.activity_logs',
+        'before truncate on app.activity_logs',
+        'alter table app.activity_logs enable row level security',
+        'alter table app.activity_logs force row level security',
+        'revoke all on app.activity_logs from public, anon, authenticated',
+        'revoke all on function app.mask_audit_json(jsonb) from public',
+        'revoke all on function app.write_activity_log',
+    ):
+        require(required in activity_log_sql,
+                f'0911 activity log migration contains required clause: {required}')
+    require('foreign key (project_id)' not in activity_log_sql,
+            '0911 does not add Stage 09 project_id foreign key')
+
+invitation_path = ROOT / 'supabase/migrations/20260724094200_0912_client_user_invitations.sql'
+if invitation_path.exists():
+    invitation_sql = invitation_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.user_invitations',
+        'invited_user_id uuid not null',
+        'token_hash bytea not null',
+        'status varchar(20) not null',
+        'expires_at timestamptz not null',
+        'accepted_at timestamptz',
+        'revoked_at timestamptz',
+        'revoked_by uuid',
+        'revoke_reason text',
+        'invited_by uuid not null',
+        'created_at timestamptz not null default now()',
+        'resent_from_invitation_id uuid',
+        'version_number integer not null default 1',
+        'foreign key (invited_user_id) references app.users(id) on delete restrict',
+        'foreign key (invited_by) references app.users(id) on delete restrict',
+        "status in ('pending', 'accepted', 'revoked', 'expired')",
+        'octet_length(token_hash) = 32',
+        "expires_at = created_at + interval '7 days'",
+        'on app.user_invitations(token_hash)',
+        'where status = \'pending\'',
+        'alter table app.user_invitations enable row level security',
+        'alter table app.user_invitations force row level security',
+        'revoke all on app.user_invitations from public, anon, authenticated',
+    ):
+        require(required in invitation_sql,
+                f'0912 invitation migration contains required clause: {required}')
+    for prohibited in (' email ', ' auth_subject ', 'plaintext_token', 'application_user_id'):
+        require(prohibited not in invitation_sql,
+                f'0912 invitation migration omits prohibited duplicate column/token: {prohibited.strip()}')
 
 with (ROOT / '.github/workflows/package-09-1-database.yml').open('r', encoding='utf-8') as fh:
     yaml.safe_load(fh)

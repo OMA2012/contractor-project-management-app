@@ -158,6 +158,25 @@ void main() {
     expect(find.text('No active role'), findsOneWidget);
   });
 
+  testWidgets('reserved staff roles cannot enter a protected shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      appWithTrustedAccount(
+        statusRow(
+          'ACTIVE',
+          accessAllowed: false,
+          activeRoleCodes: ['project_manager'],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No active role'), findsOneWidget);
+    expect(find.text('Staff workspace'), findsNothing);
+    expect(find.text('Client workspace'), findsNothing);
+  });
+
   testWidgets('rpc failure stays retryable and does not enter shell', (
     tester,
   ) async {
@@ -231,6 +250,7 @@ List<Map<String, dynamic>> activeClientRow() {
 List<Map<String, dynamic>> statusRow(
   String status, {
   bool accessAllowed = false,
+  List<String> activeRoleCodes = const <String>[],
 }) {
   return [
     {
@@ -241,7 +261,7 @@ List<Map<String, dynamic>> statusRow(
       'user_type': 'STAFF',
       'full_name': status == 'ACTIVE' ? 'Person' : null,
       'job_title': status == 'ACTIVE' ? 'Role' : null,
-      'active_role_codes': const <String>[],
+      'active_role_codes': activeRoleCodes,
     },
   ];
 }
