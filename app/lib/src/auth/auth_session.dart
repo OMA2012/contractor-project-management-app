@@ -8,56 +8,50 @@ enum AccountRole { staff, client }
 enum AuthSessionStatus {
   initializing,
   unauthenticated,
-  accountLoading,
   authenticated,
   passwordRecovery,
-  inactive,
 }
 
 class AuthSessionState {
-  const AuthSessionState({required this.status, this.role, this.email});
+  const AuthSessionState({
+    required this.status,
+    this.role,
+    this.authUserId,
+    this.email,
+  });
 
   const AuthSessionState.initializing()
     : status = AuthSessionStatus.initializing,
       role = null,
-      email = null;
+      email = null,
+      authUserId = null;
 
   const AuthSessionState.unauthenticated()
     : status = AuthSessionStatus.unauthenticated,
       role = null,
-      email = null;
+      email = null,
+      authUserId = null;
 
-  const AuthSessionState.accountLoading({this.email})
-    : status = AuthSessionStatus.accountLoading,
+  const AuthSessionState.authenticated({this.authUserId, this.email})
+    : status = AuthSessionStatus.authenticated,
       role = null;
-
-  const AuthSessionState.authenticated({
-    required AccountRole this.role,
-    this.email,
-  }) : status = AuthSessionStatus.authenticated;
 
   const AuthSessionState.passwordRecovery({this.email})
     : status = AuthSessionStatus.passwordRecovery,
-      role = null;
-
-  const AuthSessionState.inactive({this.email})
-    : status = AuthSessionStatus.inactive,
-      role = null;
+      role = null,
+      authUserId = null;
 
   final AuthSessionStatus status;
   final AccountRole? role;
+  final String? authUserId;
   final String? email;
 
-  bool get isAuthenticated =>
-      status == AuthSessionStatus.accountLoading ||
-      status == AuthSessionStatus.authenticated;
+  bool get isAuthenticated => status == AuthSessionStatus.authenticated;
 
   bool get isInitializing => status == AuthSessionStatus.initializing;
 }
 
 final initialAuthSessionProvider = Provider<AuthSessionState?>((ref) => null);
-
-final trustedAccountRoleProvider = Provider<AccountRole?>((ref) => null);
 
 final authSessionSourceProvider = Provider<AuthSessionSource>((ref) {
   return SupabaseAuthSessionSource();
@@ -94,7 +88,10 @@ class AuthSessionController extends Notifier<AuthSessionState> {
       return;
     }
 
-    state = _authenticatedStateFor(restoredSession.email);
+    state = AuthSessionState.authenticated(
+      authUserId: restoredSession.authUserId,
+      email: restoredSession.email,
+    );
   }
 
   void _applyAuthChange(AuthSessionChange change) {
@@ -107,7 +104,10 @@ class AuthSessionController extends Notifier<AuthSessionState> {
           state = const AuthSessionState.unauthenticated();
           return;
         }
-        state = _authenticatedStateFor(change.session!.email);
+        state = AuthSessionState.authenticated(
+          authUserId: change.session!.authUserId,
+          email: change.session!.email,
+        );
       case AuthSessionChangeEvent.signedOut:
         state = const AuthSessionState.unauthenticated();
       case AuthSessionChangeEvent.passwordRecovery:
@@ -115,27 +115,12 @@ class AuthSessionController extends Notifier<AuthSessionState> {
     }
   }
 
-  AuthSessionState _authenticatedStateFor(String? email) {
-    final trustedRole = ref.read(trustedAccountRoleProvider);
-    if (trustedRole == null) {
-      return AuthSessionState.accountLoading(email: email);
-    }
-
-    return AuthSessionState.authenticated(role: trustedRole, email: email);
-  }
-
   void signInAsStaff(String email) {
-    state = AuthSessionState.authenticated(
-      role: AccountRole.staff,
-      email: email,
-    );
+    state = AuthSessionState.authenticated(email: email);
   }
 
   void signInAsClient(String email) {
-    state = AuthSessionState.authenticated(
-      role: AccountRole.client,
-      email: email,
-    );
+    state = AuthSessionState.authenticated(email: email);
   }
 
   void requestPasswordReset(String email) {
@@ -144,10 +129,6 @@ class AuthSessionController extends Notifier<AuthSessionState> {
 
   void updatePassword() {
     state = const AuthSessionState.unauthenticated();
-  }
-
-  void markInactive(String email) {
-    state = AuthSessionState.inactive(email: email);
   }
 
   void signOut() {
@@ -165,8 +146,9 @@ enum AuthSessionChangeEvent {
 }
 
 class AuthSessionSnapshot {
-  const AuthSessionSnapshot({this.email});
+  const AuthSessionSnapshot({this.authUserId, this.email});
 
+  final String? authUserId;
   final String? email;
 }
 
@@ -220,6 +202,9 @@ class SupabaseAuthSessionSource implements AuthSessionSource {
       return null;
     }
 
-    return AuthSessionSnapshot(email: session.user.email);
+    return AuthSessionSnapshot(
+      authUserId: session.user.id,
+      email: session.user.email,
+    );
   }
 }

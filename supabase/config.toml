@@ -2,8 +2,8 @@ project_id = "contractor-project-management-app"
 
 [api]
 enabled = true
-schemas = ["public", "storage", "graphql_public", "app"]
-extra_search_path = ["public", "extensions", "app"]
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]

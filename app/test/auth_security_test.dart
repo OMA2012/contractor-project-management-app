@@ -14,6 +14,8 @@ void main() {
       expect(authCode, isNot(contains('appMetadata')));
       expect(authCode, isNot(contains('rawUserMetaData')));
       expect(authCode, isNot(contains('rawAppMetaData')));
+      expect(authCode, isNot(contains('email.endsWith')));
+      expect(authCode, isNot(contains('localStorage')));
     },
   );
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../account/current_account.dart';
+import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 
 class ProtectedShellScreen extends ConsumerWidget {
@@ -11,6 +13,11 @@ class ProtectedShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authSessionProvider);
+    final account = ref.watch(currentAccountProvider);
+    final displayName = switch (account) {
+      CurrentAccountLoaded(:final account) => account.fullName,
+      _ => null,
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -18,7 +25,9 @@ class ProtectedShellScreen extends ConsumerWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Center(child: Text(session.email ?? 'Signed in')),
+            child: Center(
+              child: Text(displayName ?? session.email ?? 'Signed in'),
+            ),
           ),
           IconButton(
             tooltip: 'Sign out',

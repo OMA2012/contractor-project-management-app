@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../account/current_account.dart';
+import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 import '../screens/account_loading_screen.dart';
 import '../screens/inactive_account_screen.dart';
@@ -12,14 +14,15 @@ import '../screens/role_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final session = ref.watch(authSessionProvider);
+  final account = ref.watch(currentAccountProvider);
 
   return GoRouter(
     initialLocation: '/',
-    redirect: (context, state) => authRedirect(session, state.uri),
+    redirect: (context, state) => authRedirect(session, account, state.uri),
     routes: [
       GoRoute(
         path: '/',
-        redirect: (context, state) => rootRedirect(session),
+        redirect: (context, state) => rootRedirect(session, account),
         builder: (context, state) => const AccountLoadingScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
@@ -58,7 +61,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-String? authRedirect(AuthSessionState session, Uri uri) {
+String? authRedirect(
+  AuthSessionState session,
+  CurrentAccountState account,
+  Uri uri,
+) {
   final path = uri.path;
   final isLogin = path == '/login';
   final isPasswordReset = path == '/reset-password';
@@ -69,10 +76,6 @@ String? authRedirect(AuthSessionState session, Uri uri) {
 
   if (session.isInitializing) {
     return null;
-  }
-
-  if (session.status == AuthSessionStatus.inactive) {
-    return isInactive ? null : '/inactive-account';
   }
 
   if (session.status == AuthSessionStatus.passwordRecovery) {
@@ -86,39 +89,54 @@ String? authRedirect(AuthSessionState session, Uri uri) {
     return '/login';
   }
 
-  if (session.status == AuthSessionStatus.accountLoading) {
+  final target = account.routeTarget;
+  if (target == TrustedAccountRouteTarget.loading ||
+      target == TrustedAccountRouteTarget.failure) {
     return isAccountLoading ? null : '/account-loading';
   }
 
+  if (target == TrustedAccountRouteTarget.notProvisioned ||
+      target == TrustedAccountRouteTarget.pendingInvite ||
+      target == TrustedAccountRouteTarget.suspended ||
+      target == TrustedAccountRouteTarget.deactivated ||
+      target == TrustedAccountRouteTarget.noActiveRole) {
+    return isInactive ? null : '/inactive-account';
+  }
+
   if (isPublic) {
-    return defaultHomeFor(session);
+    return defaultHomeFor(account);
   }
 
-  if (path == '/staff' && session.role != AccountRole.staff) {
-    return defaultHomeFor(session);
+  if (path == '/staff' && target != TrustedAccountRouteTarget.staff) {
+    return defaultHomeFor(account);
   }
 
-  if (path == '/client' && session.role != AccountRole.client) {
-    return defaultHomeFor(session);
+  if (path == '/client' && target != TrustedAccountRouteTarget.client) {
+    return defaultHomeFor(account);
   }
 
   return null;
 }
 
-String? rootRedirect(AuthSessionState session) {
+String? rootRedirect(AuthSessionState session, CurrentAccountState account) {
   return switch (session.status) {
     AuthSessionStatus.initializing => null,
     AuthSessionStatus.unauthenticated => '/login',
-    AuthSessionStatus.accountLoading => '/account-loading',
     AuthSessionStatus.passwordRecovery => '/update-password',
-    AuthSessionStatus.inactive => '/inactive-account',
-    AuthSessionStatus.authenticated => defaultHomeFor(session),
+    AuthSessionStatus.authenticated => defaultHomeFor(account),
   };
 }
 
-String defaultHomeFor(AuthSessionState session) {
-  return switch (session.role) {
-    AccountRole.client => '/client',
-    AccountRole.staff || null => '/staff',
+String defaultHomeFor(CurrentAccountState account) {
+  return switch (account.routeTarget) {
+    TrustedAccountRouteTarget.staff => '/staff',
+    TrustedAccountRouteTarget.client => '/client',
+    TrustedAccountRouteTarget.loading ||
+    TrustedAccountRouteTarget.failure => '/account-loading',
+    TrustedAccountRouteTarget.notProvisioned ||
+    TrustedAccountRouteTarget.pendingInvite ||
+    TrustedAccountRouteTarget.suspended ||
+    TrustedAccountRouteTarget.deactivated ||
+    TrustedAccountRouteTarget.noActiveRole => '/inactive-account',
   };
 }

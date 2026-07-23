@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:contractor_project_management/src/account/current_account_provider.dart';
+import 'package:contractor_project_management/src/account/current_account_repository.dart';
 import 'package:contractor_project_management/src/app.dart';
 import 'package:contractor_project_management/src/auth/auth_session.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,16 +34,26 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authSessionSourceProvider.overrideWithValue(source)],
+        overrides: [
+          authSessionSourceProvider.overrideWithValue(source),
+          currentAccountRepositoryProvider.overrideWithValue(
+            CurrentAccountRepository(
+              rpc: (_) async => <Map<String, dynamic>>[],
+            ),
+          ),
+        ],
         child: const ContractorProjectManagementApp(),
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('Sign in'), findsNothing);
     expect(find.text('Account loading'), findsOneWidget);
-    expect(find.text('person@example.com'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account not provisioned'), findsOneWidget);
   });
 
   testWidgets('sign-out auth event returns to login', (tester) async {
@@ -51,7 +63,12 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [authSessionSourceProvider.overrideWithValue(source)],
+        overrides: [
+          authSessionSourceProvider.overrideWithValue(source),
+          currentAccountRepositoryProvider.overrideWithValue(
+            CurrentAccountRepository(rpc: (_) async => activeStaffRow()),
+          ),
+        ],
         child: const ContractorProjectManagementApp(),
       ),
     );
@@ -89,47 +106,144 @@ void main() {
     expect(find.text('Choose a new password to continue.'), findsOneWidget);
   });
 
-  testWidgets('staff shell requires an injected trusted account role', (
-    tester,
-  ) async {
-    final source = FakeAuthSessionSource(
-      restoredSession: const AuthSessionSnapshot(email: 'person@example.com'),
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authSessionSourceProvider.overrideWithValue(source),
-          trustedAccountRoleProvider.overrideWithValue(AccountRole.staff),
-        ],
-        child: const ContractorProjectManagementApp(),
-      ),
-    );
+  testWidgets('trusted staff account opens staff shell only', (tester) async {
+    await tester.pumpWidget(appWithTrustedAccount(activeStaffRow()));
     await tester.pumpAndSettle();
 
     expect(find.text('Staff workspace'), findsOneWidget);
+    expect(find.text('Client workspace'), findsNothing);
   });
 
-  testWidgets('client shell requires an injected trusted account role', (
+  testWidgets('trusted client account opens client shell only', (tester) async {
+    await tester.pumpWidget(appWithTrustedAccount(activeClientRow()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client workspace'), findsOneWidget);
+    expect(find.text('Staff workspace'), findsNothing);
+  });
+
+  testWidgets('pending invite cannot enter a protected shell', (tester) async {
+    await tester.pumpWidget(appWithTrustedAccount(statusRow('INVITED')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account pending'), findsOneWidget);
+  });
+
+  testWidgets('suspended account cannot enter a protected shell', (
     tester,
   ) async {
-    final source = FakeAuthSessionSource(
-      restoredSession: const AuthSessionSnapshot(email: 'person@example.com'),
-    );
+    await tester.pumpWidget(appWithTrustedAccount(statusRow('SUSPENDED')));
+    await tester.pumpAndSettle();
 
+    expect(find.text('Account suspended'), findsOneWidget);
+  });
+
+  testWidgets('deactivated account cannot enter a protected shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(appWithTrustedAccount(statusRow('DISABLED')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account deactivated'), findsOneWidget);
+  });
+
+  testWidgets('active account with no role cannot enter a protected shell', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      appWithTrustedAccount(statusRow('ACTIVE', accessAllowed: false)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No active role'), findsOneWidget);
+  });
+
+  testWidgets('rpc failure stays retryable and does not enter shell', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authSessionSourceProvider.overrideWithValue(source),
-          trustedAccountRoleProvider.overrideWithValue(AccountRole.client),
+          initialAuthSessionProvider.overrideWithValue(
+            const AuthSessionState.authenticated(email: 'person@example.com'),
+          ),
+          currentAccountRepositoryProvider.overrideWithValue(
+            CurrentAccountRepository(
+              rpc: (_) async => throw StateError('down'),
+            ),
+          ),
         ],
         child: const ContractorProjectManagementApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Client workspace'), findsOneWidget);
+    expect(find.text('Account loading'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Staff workspace'), findsNothing);
   });
+}
+
+ProviderScope appWithTrustedAccount(dynamic rpcResponse) {
+  return ProviderScope(
+    overrides: [
+      initialAuthSessionProvider.overrideWithValue(
+        const AuthSessionState.authenticated(email: 'person@example.com'),
+      ),
+      currentAccountRepositoryProvider.overrideWithValue(
+        CurrentAccountRepository(rpc: (_) async => rpcResponse),
+      ),
+    ],
+    child: const ContractorProjectManagementApp(),
+  );
+}
+
+List<Map<String, dynamic>> activeStaffRow() {
+  return [
+    {
+      'application_user_id': '10000000-0000-0000-0000-000000000201',
+      'account_status': 'ACTIVE',
+      'is_active': true,
+      'access_allowed': true,
+      'user_type': 'STAFF',
+      'full_name': 'Staff Person',
+      'job_title': 'Project Manager',
+      'active_role_codes': ['owner_admin'],
+    },
+  ];
+}
+
+List<Map<String, dynamic>> activeClientRow() {
+  return [
+    {
+      'application_user_id': '10000000-0000-0000-0000-000000000202',
+      'account_status': 'ACTIVE',
+      'is_active': true,
+      'access_allowed': true,
+      'user_type': 'CLIENT',
+      'full_name': 'Client Person',
+      'job_title': null,
+      'active_role_codes': ['client'],
+    },
+  ];
+}
+
+List<Map<String, dynamic>> statusRow(
+  String status, {
+  bool accessAllowed = false,
+}) {
+  return [
+    {
+      'application_user_id': '10000000-0000-0000-0000-000000000203',
+      'account_status': status,
+      'is_active': status == 'ACTIVE',
+      'access_allowed': accessAllowed,
+      'user_type': 'STAFF',
+      'full_name': status == 'ACTIVE' ? 'Person' : null,
+      'job_title': status == 'ACTIVE' ? 'Role' : null,
+      'active_role_codes': const <String>[],
+    },
+  ];
 }
 
 class FakeAuthSessionSource implements AuthSessionSource {
