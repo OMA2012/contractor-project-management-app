@@ -410,10 +410,17 @@ if functions_dir.exists():
         'revoke-client-invitation',
         'accept-client-invitation',
     }
+    stage_09_2c3d_functions = {
+        'suspend-client-account',
+        'reactivate-client-account',
+        'disable-client-account',
+    }
     allowed_shared_files = {
         'auth.ts',
         'client_invitation_handler.ts',
         'client_invitation_handler_test.ts',
+        'client_lifecycle_handler.ts',
+        'client_lifecycle_handler_test.ts',
         'cors.ts',
         'denied_log.ts',
         'env.ts',
@@ -433,6 +440,8 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] == '_shared' and relative.name in allowed_shared_files
             ) or (
                 len(relative.parts) == 2 and relative.parts[0] in stage_09_2c3c_functions and relative.name in {'index.ts', 'deno.json'}
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] in stage_09_2c3d_functions and relative.name in {'index.ts', 'deno.json'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in allowed_shared_files:
@@ -449,6 +458,18 @@ if functions_dir.exists():
                     f'09.2C3C function pins @supabase/server exactly: {function_name}')
             require('"@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.8"' in function_deno,
                     f'09.2C3C function pins @supabase/supabase-js exactly: {function_name}')
+    for function_name in sorted(stage_09_2c3d_functions):
+        function_dir = functions_dir / function_name
+        require(function_dir.exists(), f'09.2C3D Edge Function directory exists: {function_name}')
+        require((function_dir / 'index.ts').exists(), f'09.2C3D Edge Function entrypoint exists: {function_name}/index.ts')
+        function_deno_path = function_dir / 'deno.json'
+        require(function_deno_path.exists(), f'09.2C3D function-level deno.json exists: {function_name}/deno.json')
+        if function_deno_path.exists():
+            function_deno = function_deno_path.read_text(encoding='utf-8')
+            require('"@supabase/server": "npm:@supabase/server@1.4.1"' in function_deno,
+                    f'09.2C3D function pins @supabase/server exactly: {function_name}')
+            require('"@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.8"' in function_deno,
+                    f'09.2C3D function pins @supabase/supabase-js exactly: {function_name}')
 
 deno_json_path = functions_dir / 'deno.json'
 deno_lock_path = functions_dir / 'deno.lock'
@@ -461,7 +482,15 @@ if deno_json_path.exists():
     require('deno fmt --check .' in deno_json, 'Deno format check task exists')
     require('deno lint .' in deno_json, 'Deno lint task exists')
     require('deno check _shared/*.ts _shared/*_test.ts' in deno_json, 'Deno type-check task exists')
-    for function_name in ('create-client-invitation', 'resend-client-invitation', 'revoke-client-invitation', 'accept-client-invitation'):
+    for function_name in (
+        'create-client-invitation',
+        'resend-client-invitation',
+        'revoke-client-invitation',
+        'accept-client-invitation',
+        'suspend-client-account',
+        'reactivate-client-account',
+        'disable-client-account',
+    ):
         require(f'{function_name}/index.ts' in deno_json,
                 f'Deno tasks include function entrypoint: {function_name}')
     require('deno test' in deno_json, 'Deno unit test task exists')
@@ -481,6 +510,10 @@ shared_prod_code = '\n'.join(
     for p in (functions_dir / '_shared').glob('*.ts')
     if not p.name.endswith('_test.ts')
 ) if (functions_dir / '_shared').exists() else ''
+lifecycle_prod_code = (functions_dir / '_shared' / 'client_lifecycle_handler.ts').read_text(
+    encoding='utf-8',
+    errors='ignore',
+).lower() if (functions_dir / '_shared' / 'client_lifecycle_handler.ts').exists() else ''
 require('access-control-allow-origin", "*"' not in shared_code and "access-control-allow-origin': '*'" not in shared_code,
         'shared CORS code does not use wildcard origin')
 require('withsupabase' in shared_code and 'auth: "user"' in shared_code,
@@ -492,13 +525,39 @@ require('/accept-invitation?token=' not in shared_prod_code,
 for prohibited_body_field in ('actor_id', 'actor_auth_subject', 'role_code', 'user_type', 'account_status'):
     require(not re.search(rf'rejectunknownfields\([^)]*"{re.escape(prohibited_body_field)}"', shared_prod_code, re.S),
             f'shared function code does not accept prohibited body field: {prohibited_body_field}')
-for business_dir in ('suspend-client-account', 'reactivate-client-account', 'disable-client-account'):
-    require(not (functions_dir / business_dir).exists(), f'out-of-scope Edge Function directory absent: {business_dir}')
+require('deleteuser' not in lifecycle_prod_code, 'lifecycle handlers do not delete Auth users')
+require('inviteuserbyemail' not in lifecycle_prod_code, 'lifecycle handlers do not send invitations')
+require('generatelink' not in lifecycle_prod_code, 'lifecycle handlers do not generate invitation links')
+require('updateuserbyid' in lifecycle_prod_code, 'lifecycle handlers use Auth Admin updateUserById')
+require('const long_ban_duration = "876000h"' in lifecycle_prod_code, 'lifecycle handlers use documented long Auth ban')
+require('ban_duration: "none"' in lifecycle_prod_code, 'reactivation removes Auth ban')
+require(
+    lifecycle_prod_code.find('"server_suspend_client_account"') < lifecycle_prod_code.find('ban_duration: operation.banduration'),
+    'suspend database call is before Auth ban update',
+)
+require(
+    lifecycle_prod_code.find('"server_disable_client_account"') < lifecycle_prod_code.find('ban_duration: operation.banduration'),
+    'disable database call is before Auth ban update',
+)
+require(
+    lifecycle_prod_code.find('ban_duration: "none"') < lifecycle_prod_code.find('"server_reactivate_client_account"'),
+    'reactivation removes Auth ban before database reactivation',
+)
+require('auth_update: compensation.error ? "compensation_failed" : "compensated"' in lifecycle_prod_code,
+        'reactivation includes re-ban compensation handling')
 
 function_config = config.get('functions', {})
-for function_name in ('create-client-invitation', 'resend-client-invitation', 'revoke-client-invitation', 'accept-client-invitation'):
+for function_name in (
+    'create-client-invitation',
+    'resend-client-invitation',
+    'revoke-client-invitation',
+    'accept-client-invitation',
+    'suspend-client-account',
+    'reactivate-client-account',
+    'disable-client-account',
+):
     require(function_config.get(function_name, {}).get('verify_jwt') is False,
-            f'09.2C3C function verify_jwt disabled for handler-owned auth: {function_name}')
+            f'Edge Function verify_jwt disabled for handler-owned auth: {function_name}')
 
 require(not (ROOT / 'scripts/bootstrap_production_owner.mjs').exists(),
         'Owner bootstrap script absent')

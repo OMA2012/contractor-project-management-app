@@ -88,6 +88,28 @@ If database creation fails after `generateLink`, retain the unconfirmed Auth ide
 
 Hosted CORS and preflight behavior remains a production verification gate before deployment.
 
+Stage 09 Package 09.2C3D adds only these Client account lifecycle functions:
+
+- `suspend-client-account`
+- `reactivate-client-account`
+- `disable-client-account`
+
+Each lifecycle function uses the same handler-owned authentication model: `verify_jwt = false` in local Supabase config, strict handler Origin validation, and `withSupabase({ auth: "user" })` for every non-OPTIONS request. The Owner Auth subject is derived only from verified claims. Request JSON must never supply actor IDs, roles, user types, or lifecycle statuses.
+
+All three lifecycle requests use:
+
+```json
+{ "client_user_id": "uuid", "reason": "text" }
+```
+
+Database lifecycle state remains authoritative for application access. Supabase Auth banning is defense-in-depth and must not replace `public.current_account()` or database gateway authorization checks. A suspended or disabled Client must receive no application access even when presenting an existing JWT.
+
+Suspend and disable use database-first ordering: retrieve minimal trusted Client context with `public.server_client_identity_context(...)`, call `public.server_suspend_client_account(...)` or `public.server_disable_client_account(...)`, then apply the long Auth ban with `auth.admin.updateUserById(..., { ban_duration: "876000h" })`. If Auth banning fails after database success, preserve the database state and return a safe consistency warning.
+
+Reactivate uses Auth-first ordering: retrieve trusted suspended Client context, remove the Auth ban with `auth.admin.updateUserById(..., { ban_duration: "none" })`, then call `public.server_reactivate_client_account(...)`. If database reactivation fails after Auth unban, attempt to restore the long Auth ban and report a safe compensation status without claiming the account is active.
+
+Disabled status is terminal in this checkpoint. Do not hard-delete Auth or application identities, do not call `deleteUser`, and do not reactivate disabled Clients.
+
 ## Inspect schema manually
 
 ```bash

@@ -39,3 +39,12 @@ verify_jwt = false
 
 [functions.accept-client-invitation]
 verify_jwt = false
+
+[functions.suspend-client-account]
+verify_jwt = false
+
+[functions.reactivate-client-account]
+verify_jwt = false
+
+[functions.disable-client-account]
+verify_jwt = false
