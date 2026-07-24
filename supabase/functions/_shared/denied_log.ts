@@ -5,6 +5,7 @@ const ACTIONS = new Set([
   "client_invitation_create",
   "client_invitation_resend",
   "client_invitation_revoke",
+  "client_invitation_accept",
   "client_account_suspend",
   "client_account_reactivate",
   "client_account_disable",

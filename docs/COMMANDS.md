@@ -55,6 +55,39 @@ Hosted Supabase Auth must be configured with an equivalent seven-day email OTP/i
 
 Authenticated Stage 09.2C3 Edge Functions are expected to use handler-owned authentication and response behavior: platform JWT verification disabled, strict handler Origin checks for non-OPTIONS requests, and `withSupabase({ auth: "user" })` for verified claims. Local Kong may intercept preflight and add permissive CORS headers, so hosted preflight and handler CORS behavior remain a required production-readiness verification gate. CORS controls browser access to responses; it does not replace JWT verification or database authorization.
 
+Stage 09 Package 09.2C3C adds only these Client invitation functions:
+
+- `create-client-invitation`
+- `resend-client-invitation`
+- `revoke-client-invitation`
+- `accept-client-invitation`
+
+Each function has `verify_jwt = false` in local Supabase config so the handler can own strict CORS, authentication, and safe error responses. This does not make any mutation public: every non-OPTIONS request must validate the configured application Origin, authenticate with `withSupabase({ auth: "user" })`, derive the actor only from verified JWT claims, and authorize only through `public.server_*` database gateways before any privileged operation.
+
+Request contracts:
+
+```json
+{ "email": "client@example.com" }
+```
+
+```json
+{ "invited_user_id": "uuid" }
+```
+
+```json
+{ "invitation_id": "uuid", "revoke_reason": "text" }
+```
+
+```json
+{ "token": "base64url-token", "full_name": "Client Name" }
+```
+
+Create ordering is `auth.admin.generateLink({ type: "invite", ... })`, then `public.server_create_client_invitation(...)`, then `auth.admin.inviteUserByEmail(...)`. Resend uses the same safe delivery order after `public.server_client_identity_context(...)`: refresh Auth invite state without sending, replace the application token digest in the database, then send exactly one email.
+
+If database creation fails after `generateLink`, retain the unconfirmed Auth identity for safe future reuse. If email delivery fails after database success, the pending invitation remains recoverable through resend. Mailpit tests must assert message counts and safe redirect host/path only; never snapshot full email bodies, action links, OTPs, application tokens, token digests, JWTs, or service credentials.
+
+Hosted CORS and preflight behavior remains a production verification gate before deployment.
+
 ## Inspect schema manually
 
 ```bash

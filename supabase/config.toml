@@ -27,3 +27,15 @@ otp_expiry = 604800
 
 [storage]
 enabled = true
+
+[functions.create-client-invitation]
+verify_jwt = false
+
+[functions.resend-client-invitation]
+verify_jwt = false
+
+[functions.revoke-client-invitation]
+verify_jwt = false
+
+[functions.accept-client-invitation]
+verify_jwt = false

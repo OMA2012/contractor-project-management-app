@@ -404,8 +404,16 @@ if functions_dir.exists():
         Path('deno.json'),
         Path('deno.lock'),
     }
+    stage_09_2c3c_functions = {
+        'create-client-invitation',
+        'resend-client-invitation',
+        'revoke-client-invitation',
+        'accept-client-invitation',
+    }
     allowed_shared_files = {
         'auth.ts',
+        'client_invitation_handler.ts',
+        'client_invitation_handler_test.ts',
         'cors.ts',
         'denied_log.ts',
         'env.ts',
@@ -423,10 +431,24 @@ if functions_dir.exists():
             relative = path.relative_to(functions_dir)
             allowed = relative in allowed_function_paths or (
                 len(relative.parts) == 2 and relative.parts[0] == '_shared' and relative.name in allowed_shared_files
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] in stage_09_2c3c_functions and relative.name in {'index.ts', 'deno.json'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in allowed_shared_files:
         require((functions_dir / '_shared' / name).exists(), f'shared helper file exists: _shared/{name}')
+    for function_name in sorted(stage_09_2c3c_functions):
+        function_dir = functions_dir / function_name
+        require(function_dir.exists(), f'09.2C3C Edge Function directory exists: {function_name}')
+        require((function_dir / 'index.ts').exists(), f'09.2C3C Edge Function entrypoint exists: {function_name}/index.ts')
+        function_deno_path = function_dir / 'deno.json'
+        require(function_deno_path.exists(), f'09.2C3C function-level deno.json exists: {function_name}/deno.json')
+        if function_deno_path.exists():
+            function_deno = function_deno_path.read_text(encoding='utf-8')
+            require('"@supabase/server": "npm:@supabase/server@1.4.1"' in function_deno,
+                    f'09.2C3C function pins @supabase/server exactly: {function_name}')
+            require('"@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.8"' in function_deno,
+                    f'09.2C3C function pins @supabase/supabase-js exactly: {function_name}')
 
 deno_json_path = functions_dir / 'deno.json'
 deno_lock_path = functions_dir / 'deno.lock'
@@ -439,6 +461,9 @@ if deno_json_path.exists():
     require('deno fmt --check .' in deno_json, 'Deno format check task exists')
     require('deno lint .' in deno_json, 'Deno lint task exists')
     require('deno check _shared/*.ts _shared/*_test.ts' in deno_json, 'Deno type-check task exists')
+    for function_name in ('create-client-invitation', 'resend-client-invitation', 'revoke-client-invitation', 'accept-client-invitation'):
+        require(f'{function_name}/index.ts' in deno_json,
+                f'Deno tasks include function entrypoint: {function_name}')
     require('deno test' in deno_json, 'Deno unit test task exists')
     require('--frozen --lock=deno.lock' in deno_json, 'Deno frozen lock cache task exists')
 require(deno_lock_path.exists(), 'Deno lock file is committed')
@@ -451,18 +476,29 @@ shared_code = '\n'.join(
     p.read_text(encoding='utf-8', errors='ignore').lower()
     for p in (functions_dir / '_shared').glob('*.ts')
 ) if (functions_dir / '_shared').exists() else ''
+shared_prod_code = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (functions_dir / '_shared').glob('*.ts')
+    if not p.name.endswith('_test.ts')
+) if (functions_dir / '_shared').exists() else ''
 require('access-control-allow-origin", "*"' not in shared_code and "access-control-allow-origin': '*'" not in shared_code,
         'shared CORS code does not use wildcard origin')
-for business_dir in (
-    'create-client-invitation',
-    'resend-client-invitation',
-    'revoke-client-invitation',
-    'accept-client-invitation',
-    'suspend-client-account',
-    'reactivate-client-account',
-    'disable-client-account',
-):
-    require(not (functions_dir / business_dir).exists(), f'business Edge Function directory absent: {business_dir}')
+require('withsupabase' in shared_code and 'auth: "user"' in shared_code,
+        'shared handler authentication uses auth: "user"')
+require('createserviceclient(env)' in shared_code and shared_code.find('authenticate') < shared_code.find('createserviceclient(env)'),
+        'service client creation remains behind authentication helper')
+require('/accept-invitation?token=' not in shared_prod_code,
+        'shared function code does not log or embed complete invitation URLs')
+for prohibited_body_field in ('actor_id', 'actor_auth_subject', 'role_code', 'user_type', 'account_status'):
+    require(not re.search(rf'rejectunknownfields\([^)]*"{re.escape(prohibited_body_field)}"', shared_prod_code, re.S),
+            f'shared function code does not accept prohibited body field: {prohibited_body_field}')
+for business_dir in ('suspend-client-account', 'reactivate-client-account', 'disable-client-account'):
+    require(not (functions_dir / business_dir).exists(), f'out-of-scope Edge Function directory absent: {business_dir}')
+
+function_config = config.get('functions', {})
+for function_name in ('create-client-invitation', 'resend-client-invitation', 'revoke-client-invitation', 'accept-client-invitation'):
+    require(function_config.get(function_name, {}).get('verify_jwt') is False,
+            f'09.2C3C function verify_jwt disabled for handler-owned auth: {function_name}')
 
 require(not (ROOT / 'scripts/bootstrap_production_owner.mjs').exists(),
         'Owner bootstrap script absent')

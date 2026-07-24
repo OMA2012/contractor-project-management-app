@@ -6,8 +6,8 @@
   "tasks": {
     "fmt": "deno fmt --check .",
     "lint": "deno lint .",
-    "check": "deno check _shared/*.ts _shared/*_test.ts",
-    "test": "deno test --allow-env --allow-net=127.0.0.1,localhost _shared",
-    "cache:frozen": "deno cache --frozen --lock=deno.lock _shared/*.ts"
+    "check": "deno check _shared/*.ts _shared/*_test.ts create-client-invitation/index.ts resend-client-invitation/index.ts revoke-client-invitation/index.ts accept-client-invitation/index.ts",
+    "test": "deno test --allow-env --allow-net=127.0.0.1,localhost _shared create-client-invitation resend-client-invitation revoke-client-invitation accept-client-invitation",
+    "cache:frozen": "deno cache --frozen --lock=deno.lock _shared/*.ts create-client-invitation/index.ts resend-client-invitation/index.ts revoke-client-invitation/index.ts accept-client-invitation/index.ts"
   }
 }
