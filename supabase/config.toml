@@ -23,7 +23,7 @@ double_confirm_changes = true
 enable_confirmations = true
 secure_password_change = true
 max_frequency = "1m"
-otp_expiry = 3600
+otp_expiry = 604800
 
 [storage]
 enabled = true

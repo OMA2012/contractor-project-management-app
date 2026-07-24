@@ -72,6 +72,16 @@ for name in sorted(required_09_2c2_migrations):
     require(name in migration_names, f'required Package 09.2C2 migration exists: {name}')
 for name in sorted(required_09_2c2_tests):
     require(name in test_names, f'required Package 09.2C2 pgTAP suite exists: {name}')
+required_09_2c3b_migrations = {
+    '20260724095300_0916_identity_service_lookup_context.sql',
+}
+required_09_2c3b_tests = {
+    '10_package_09_2_identity_service_context.test.sql',
+}
+for name in sorted(required_09_2c3b_migrations):
+    require(name in migration_names, f'required Package 09.2C3B migration exists: {name}')
+for name in sorted(required_09_2c3b_tests):
+    require(name in test_names, f'required Package 09.2C3B pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -145,6 +155,8 @@ require('app' not in api_config.get('schemas', []),
         'app schema is not exposed through PostgREST schemas')
 require('app' not in api_config.get('extra_search_path', []),
         'app schema is not exposed through PostgREST extra_search_path')
+require(config.get('auth', {}).get('email', {}).get('otp_expiry') == 604800,
+        'local Auth email OTP expiry is seven days')
 
 current_account_path = ROOT / 'supabase/migrations/20260723092000_0909_public_current_account_rpc.sql'
 current_account_sql = current_account_path.read_text(encoding='utf-8').lower()
@@ -347,11 +359,113 @@ if grants_path.exists():
     require('grant execute on function app.' not in grants_sql,
             '0915 does not grant private app functions')
 
-for forbidden_path in (
-    ROOT / 'supabase/functions',
-    ROOT / 'scripts/bootstrap_production_owner.mjs',
+service_context_path = ROOT / 'supabase/migrations/20260724095300_0916_identity_service_lookup_context.sql'
+if service_context_path.exists():
+    service_context_sql = service_context_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.client_identity_context_for_service',
+        'returns table',
+        'client_user_id uuid',
+        'auth_subject uuid',
+        'normalized_email text',
+        'account_status text',
+        'is_active boolean',
+        'latest_invitation_id uuid',
+        'latest_invitation_status text',
+        'language sql',
+        'stable',
+        'security definer',
+        "set search_path = ''",
+        'app.require_active_owner_admin',
+        "u.user_type = 'client'",
+        'order by ui.created_at desc, ui.id desc',
+        'create or replace function public.server_client_identity_context',
+        'from app.client_identity_context_for_service',
+        'revoke all on function app.client_identity_context_for_service(uuid, uuid) from public, anon, authenticated, service_role',
+        'revoke all on function public.server_client_identity_context(uuid, uuid) from public, anon, authenticated',
+        'grant execute on function public.server_client_identity_context(uuid, uuid) to service_role',
+    ):
+        require(required in service_context_sql,
+                f'0916 service context migration contains required clause: {required}')
+    for prohibited in (
+        'app.user_profiles',
+        'app.activity_logs',
+        'grant execute on function app.client_identity_context_for_service',
+        'grant select on app.',
+        'create policy',
+    ):
+        require(prohibited not in service_context_sql,
+                f'0916 service context omits prohibited exposure/grant: {prohibited}')
+
+functions_dir = ROOT / 'supabase/functions'
+require(functions_dir.exists(), 'shared Edge Function helper directory exists')
+if functions_dir.exists():
+    allowed_function_paths = {
+        Path('deno.json'),
+        Path('deno.lock'),
+    }
+    allowed_shared_files = {
+        'auth.ts',
+        'cors.ts',
+        'denied_log.ts',
+        'env.ts',
+        'errors.ts',
+        'helpers_test.ts',
+        'http.ts',
+        'invitation_url.ts',
+        'redaction.ts',
+        'supabase.ts',
+        'token.ts',
+        'validation.ts',
+    }
+    for path in functions_dir.rglob('*'):
+        if path.is_file():
+            relative = path.relative_to(functions_dir)
+            allowed = relative in allowed_function_paths or (
+                len(relative.parts) == 2 and relative.parts[0] == '_shared' and relative.name in allowed_shared_files
+            )
+            require(allowed, f'only approved shared Deno helper files exist: {relative}')
+    for name in allowed_shared_files:
+        require((functions_dir / '_shared' / name).exists(), f'shared helper file exists: _shared/{name}')
+
+deno_json_path = functions_dir / 'deno.json'
+deno_lock_path = functions_dir / 'deno.lock'
+if deno_json_path.exists():
+    deno_json = deno_json_path.read_text(encoding='utf-8')
+    require('"@supabase/server": "npm:@supabase/server@1.4.1"' in deno_json,
+            'Deno import pins @supabase/server exactly')
+    require('"@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.8"' in deno_json,
+            'Deno import pins @supabase/supabase-js exactly')
+    require('deno fmt --check .' in deno_json, 'Deno format check task exists')
+    require('deno lint .' in deno_json, 'Deno lint task exists')
+    require('deno check _shared/*.ts _shared/*_test.ts' in deno_json, 'Deno type-check task exists')
+    require('deno test' in deno_json, 'Deno unit test task exists')
+    require('--frozen --lock=deno.lock' in deno_json, 'Deno frozen lock cache task exists')
+require(deno_lock_path.exists(), 'Deno lock file is committed')
+if deno_lock_path.exists():
+    deno_lock = deno_lock_path.read_text(encoding='utf-8')
+    require('@supabase/server@1.4.1' in deno_lock, 'Deno lock contains @supabase/server pin')
+    require('@supabase/supabase-js@2.110.8' in deno_lock, 'Deno lock contains @supabase/supabase-js pin')
+
+shared_code = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (functions_dir / '_shared').glob('*.ts')
+) if (functions_dir / '_shared').exists() else ''
+require('access-control-allow-origin", "*"' not in shared_code and "access-control-allow-origin': '*'" not in shared_code,
+        'shared CORS code does not use wildcard origin')
+for business_dir in (
+    'create-client-invitation',
+    'resend-client-invitation',
+    'revoke-client-invitation',
+    'accept-client-invitation',
+    'suspend-client-account',
+    'reactivate-client-account',
+    'disable-client-account',
 ):
-    require(not forbidden_path.exists(), f'09.2C2 forbidden artifact absent: {forbidden_path.relative_to(ROOT)}')
+    require(not (functions_dir / business_dir).exists(), f'business Edge Function directory absent: {business_dir}')
+
+require(not (ROOT / 'scripts/bootstrap_production_owner.mjs').exists(),
+        'Owner bootstrap script absent')
 
 flutter_invitation_ui_mentions = [
     p for p in (ROOT / 'app/lib').glob('**/*.dart')

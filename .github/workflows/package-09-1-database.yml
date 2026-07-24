@@ -45,12 +45,31 @@ jobs:
       - if: always()
         run: supabase stop --no-backup
 
+  deno-edge-helper-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.4
+      - working-directory: supabase/functions
+        run: deno task cache:frozen
+      - working-directory: supabase/functions
+        run: deno task fmt
+      - working-directory: supabase/functions
+        run: deno task lint
+      - working-directory: supabase/functions
+        run: deno task check
+      - working-directory: supabase/functions
+        run: deno task test
+
   package-09-1-gate:
     if: always()
-    needs: [static-validation, clean-database-tests]
+    needs: [static-validation, clean-database-tests, deno-edge-helper-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Block merge on migration, constraint, scope, or secret failure
         run: |
           test '${{ needs.static-validation.result }}' = 'success'
           test '${{ needs.clean-database-tests.result }}' = 'success'
+          test '${{ needs.deno-edge-helper-tests.result }}' = 'success'

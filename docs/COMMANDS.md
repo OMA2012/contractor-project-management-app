@@ -25,6 +25,36 @@ supabase migration list --local
 supabase status
 ```
 
+Use `supabase status` to discover the local Mailpit URL. The local Supabase CLI stack captures Auth email through Mailpit.
+
+## Stage 09 Package 09.2 Edge helper checks
+
+The shared Edge Function helper layer is pinned to:
+
+- Deno `2.9.4`
+- `@supabase/server@1.4.1`
+- `@supabase/supabase-js@2.110.8`
+
+```bash
+cd supabase/functions
+deno task fmt
+deno task lint
+deno task check
+deno task test
+deno task cache:frozen
+```
+
+Local Auth email OTP/invitation expiry is configured with:
+
+```toml
+[auth.email]
+otp_expiry = 604800
+```
+
+Hosted Supabase Auth must be configured with an equivalent seven-day email OTP/invitation expiry before production deployment. This checkpoint does not alter hosted configuration.
+
+Authenticated Stage 09.2C3 Edge Functions are expected to use handler-owned authentication and response behavior: platform JWT verification disabled, strict handler Origin checks for non-OPTIONS requests, and `withSupabase({ auth: "user" })` for verified claims. Local Kong may intercept preflight and add permissive CORS headers, so hosted preflight and handler CORS behavior remain a required production-readiness verification gate. CORS controls browser access to responses; it does not replace JWT verification or database authorization.
+
 ## Inspect schema manually
 
 ```bash

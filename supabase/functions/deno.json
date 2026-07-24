@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@supabase/server": "npm:@supabase/server@1.4.1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.8"
+  },
+  "tasks": {
+    "fmt": "deno fmt --check .",
+    "lint": "deno lint .",
+    "check": "deno check _shared/*.ts _shared/*_test.ts",
+    "test": "deno test --allow-env --allow-net=127.0.0.1,localhost _shared",
+    "cache:frozen": "deno cache --frozen --lock=deno.lock _shared/*.ts"
+  }
+}
