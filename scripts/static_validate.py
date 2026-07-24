@@ -58,6 +58,20 @@ for name in sorted(required_09_2c1_migrations):
     require(name in migration_names, f'required Package 09.2C1 migration exists: {name}')
 for name in sorted(required_09_2c1_tests):
     require(name in test_names, f'required Package 09.2C1 pgTAP suite exists: {name}')
+required_09_2c2_migrations = {
+    '20260724095000_0913_identity_mutation_private_functions.sql',
+    '20260724095100_0914_identity_mutation_public_gateways.sql',
+    '20260724095200_0915_identity_mutation_security_grants.sql',
+}
+required_09_2c2_tests = {
+    '07_package_09_2_identity_private_functions.test.sql',
+    '08_package_09_2_identity_gateways.test.sql',
+    '09_package_09_2_identity_mutations.test.sql',
+}
+for name in sorted(required_09_2c2_migrations):
+    require(name in migration_names, f'required Package 09.2C2 migration exists: {name}')
+for name in sorted(required_09_2c2_tests):
+    require(name in test_names, f'required Package 09.2C2 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -238,6 +252,112 @@ if invitation_path.exists():
     for prohibited in (' email ', ' auth_subject ', 'plaintext_token', 'application_user_id'):
         require(prohibited not in invitation_sql,
                 f'0912 invitation migration omits prohibited duplicate column/token: {prohibited.strip()}')
+
+private_functions_path = ROOT / 'supabase/migrations/20260724095000_0913_identity_mutation_private_functions.sql'
+if private_functions_path.exists():
+    private_sql = private_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.require_active_owner_admin',
+        'stable',
+        'create or replace function app.record_denied_privileged_operation',
+        'p_reason_code varchar(40)',
+        "p_action !~ '^[a-z][a-z0-9_]{0,119}$'",
+        "p_entity_type !~ '^[a-z][a-z0-9_]{0,79}$'",
+        "'authorization_denied'",
+        "'inactive_actor'",
+        "'insufficient_role'",
+        "'invalid_actor_type'",
+        "'invalid_target_state'",
+        'create or replace function app.create_client_invitation',
+        'create or replace function app.resend_client_invitation',
+        'create or replace function app.revoke_client_invitation',
+        'create or replace function app.accept_client_invitation',
+        'create or replace function app.suspend_client_account',
+        'create or replace function app.reactivate_client_account',
+        'create or replace function app.disable_client_account',
+        'create or replace function app.bootstrap_first_owner',
+        'p_owner_full_name text',
+        'create or replace function app.activate_current_invited_owner',
+        'security definer',
+        "set search_path = ''",
+        'volatile',
+        "pg_advisory_xact_lock(hashtextextended('app.first_owner_bootstrap'",
+        'for update',
+        'app.write_activity_log',
+        "set_config('app.allow_owner_bootstrap', 'on', true)",
+        'where i.id = p_invitation_id',
+        'where u.id = invite_row.invited_user_id',
+        "invited_row.user_type <> 'client'",
+        "invited_row.status <> 'invited'",
+        'invited_row.is_active',
+        'invite_row.accepted_at is not null',
+        'invite_row.revoked_at is not null',
+    ):
+        require(required in private_sql,
+                f'0913 private mutation migration contains required clause: {required}')
+    for prohibited in (
+        'disable trigger',
+        'drop trigger',
+        "role_code = 'project_manager' and",
+        "role_code = 'accountant' and",
+        "role_code = 'site_supervisor' and",
+    ):
+        require(prohibited not in private_sql,
+                f'0913 avoids prohibited trigger/reserved-role pattern: {prohibited}')
+    require(not re.search(r'(?im)^\s*delete\s+from\s+app\.', private_sql),
+            '0913 performs no hard deletes from app tables')
+
+gateways_path = ROOT / 'supabase/migrations/20260724095100_0914_identity_mutation_public_gateways.sql'
+if gateways_path.exists():
+    gateways_sql = gateways_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function public.server_create_client_invitation',
+        'create or replace function public.server_resend_client_invitation',
+        'create or replace function public.server_revoke_client_invitation',
+        'create or replace function public.server_accept_client_invitation',
+        'create or replace function public.server_suspend_client_account',
+        'create or replace function public.server_reactivate_client_account',
+        'create or replace function public.server_disable_client_account',
+        'create or replace function public.server_bootstrap_first_owner',
+        'p_owner_full_name text',
+        'create or replace function public.server_record_denied_privileged_operation',
+        'p_reason_code varchar(40)',
+        'create or replace function public.activate_current_invited_owner()',
+        'volatile',
+        'security definer',
+        "set search_path = ''",
+    ):
+        require(required in gateways_sql,
+                f'0914 gateway migration contains required clause: {required}')
+
+grants_path = ROOT / 'supabase/migrations/20260724095200_0915_identity_mutation_security_grants.sql'
+if grants_path.exists():
+    grants_sql = grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on function app.create_client_invitation',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.server_create_client_invitation',
+        'to service_role',
+        'grant execute on function public.server_record_denied_privileged_operation',
+        'public.server_record_denied_privileged_operation(uuid, varchar, varchar, uuid, varchar, text, text, text, inet, jsonb)',
+        'grant execute on function public.activate_current_invited_owner() to authenticated',
+    ):
+        require(required in grants_sql,
+                f'0915 grants migration contains required clause: {required}')
+    require('grant execute on function app.' not in grants_sql,
+            '0915 does not grant private app functions')
+
+for forbidden_path in (
+    ROOT / 'supabase/functions',
+    ROOT / 'scripts/bootstrap_production_owner.mjs',
+):
+    require(not forbidden_path.exists(), f'09.2C2 forbidden artifact absent: {forbidden_path.relative_to(ROOT)}')
+
+flutter_invitation_ui_mentions = [
+    p for p in (ROOT / 'app/lib').glob('**/*.dart')
+    if p.is_file() and re.search(r'invitation|invite[-_ ]?client|user_invitations', p.read_text(encoding='utf-8', errors='ignore'), re.I)
+]
+require(not flutter_invitation_ui_mentions, 'no Flutter invitation UI added')
 
 with (ROOT / '.github/workflows/package-09-1-database.yml').open('r', encoding='utf-8') as fh:
     yaml.safe_load(fh)
