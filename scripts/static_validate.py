@@ -90,6 +90,20 @@ require(
     '11_package_09_2_first_owner_delivery_recovery.test.sql' in test_names,
     'required Package 09.2C3E pgTAP suite exists: 11_package_09_2_first_owner_delivery_recovery.test.sql',
 )
+required_10_1_migrations = {
+    '20260724095500_1001_client_business_records.sql',
+    '20260724095600_1002_client_business_record_functions.sql',
+    '20260724095700_1003_client_business_record_grants.sql',
+}
+required_10_1_tests = {
+    '12_package_10_1_client_records_schema.test.sql',
+    '13_package_10_1_client_records_security.test.sql',
+    '14_package_10_1_client_records_operations.test.sql',
+}
+for name in sorted(required_10_1_migrations):
+    require(name in migration_names, f'required Package 10.1 migration exists: {name}')
+for name in sorted(required_10_1_tests):
+    require(name in test_names, f'required Package 10.1 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -132,7 +146,6 @@ for required in (
     require(required in all_sql, f'required object present: {required}')
 
 for prohibited in (
-    'create table app.clients',
     'create table app.projects',
     'create table app.project_staff_assignments',
     'create table app.financial_accounts',
@@ -449,6 +462,153 @@ if first_owner_delivery_context_path.exists():
     ):
         require(prohibited not in delivery_sql,
                 f'0917 delivery recovery omits prohibited exposure/grant: {prohibited}')
+
+client_schema_path = ROOT / 'supabase/migrations/20260724095500_1001_client_business_records.sql'
+client_functions_path = ROOT / 'supabase/migrations/20260724095600_1002_client_business_record_functions.sql'
+client_grants_path = ROOT / 'supabase/migrations/20260724095700_1003_client_business_record_grants.sql'
+if client_schema_path.exists():
+    client_schema_sql = client_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create sequence app.client_number_seq',
+        'start with 1',
+        'increment by 1',
+        'minvalue 1',
+        'maxvalue 999999',
+        'no cycle',
+        "create type app.client_record_status as enum ('active', 'inactive')",
+        'create table app.clients',
+        "default ('cl-' || lpad(nextval('app.client_number_seq')::text, 6, '0'))",
+        'constraint clients_client_number_uk unique (client_number)',
+        'constraint clients_portal_user_uk unique (portal_user_id)',
+        "client_number ~ '^cl-[0-9]{6}$'",
+        'alter table app.clients enable row level security',
+        'alter table app.clients force row level security',
+        'create or replace function app.prevent_client_delete',
+        'create or replace function app.clients_trusted_update_guard',
+        'new.client_number is distinct from old.client_number',
+        'new.version_number := old.version_number + 1',
+        'before delete on app.clients',
+        'before update on app.clients',
+        'revoke all on app.clients from public, anon, authenticated',
+        'revoke all on sequence app.client_number_seq from public, anon, authenticated, service_role',
+    ):
+        require(required in client_schema_sql,
+                f'1001 client schema migration contains required clause: {required}')
+    approved_client_columns = [
+        'id', 'client_number', 'portal_user_id', 'display_name', 'legal_name', 'email',
+        'phone', 'address', 'status', 'internal_notes', 'is_active', 'archived_at',
+        'archived_by', 'created_at', 'created_by', 'updated_at', 'updated_by',
+        'version_number',
+    ]
+    for column in approved_client_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', client_schema_sql) is not None,
+                f'1001 app.clients approved column exists: {column}')
+    for forbidden in (
+        'client_type',
+        'country_of_residence',
+        'time_zone',
+        'whatsapp_number',
+        'preferred_currency_code',
+        'archive_reason',
+        'total_paid',
+        'outstanding_amount',
+        'identification_document',
+        'editable_balance',
+        'max(',
+    ):
+        require(forbidden not in client_schema_sql,
+                f'1001 app.clients omits forbidden field/pattern: {forbidden}')
+    require(client_schema_sql.count('unique (portal_user_id)') == 1,
+            '1001 has exactly one portal_user_id uniqueness declaration')
+if client_functions_path.exists():
+    client_functions_sql = client_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.create_client_record',
+        'create or replace function app.update_client_record',
+        'create or replace function app.link_client_portal_user',
+        'create or replace function app.unlink_client_portal_user',
+        'create or replace function app.archive_client_record',
+        'create or replace function app.owner_client_record_detail',
+        'create or replace function app.owner_client_record_list',
+        'create or replace function app.current_client_record_for_authenticated_user',
+        'create or replace function public.current_client_record()',
+        'create or replace function public.server_create_client_record',
+        'create or replace function public.server_update_client_record',
+        'create or replace function public.server_link_client_portal_user',
+        'create or replace function public.server_unlink_client_portal_user',
+        'create or replace function public.server_archive_client_record',
+        'create or replace function public.server_owner_client_record_detail',
+        'create or replace function public.server_owner_client_record_list',
+        'security definer',
+        "set search_path = ''",
+        'app.require_active_owner_admin',
+        "u.user_type = 'client'",
+        "u.status = 'active'",
+        "ur.role_code = 'client'",
+        'r.is_staff_role',
+        "c.status = 'active'",
+        'c.archived_at is null',
+        'auth.uid()',
+        'p_expected_version_number',
+        'client record version conflict',
+        'portal_user_id = null',
+        "client_record_created",
+        "client_record_updated",
+        "client_portal_user_linked",
+        "client_portal_user_unlinked",
+        "client_portal_user_replaced",
+        "client_record_archived",
+        "'[masked]'",
+    ):
+        require(required in client_functions_sql,
+                f'1002 client function migration contains required clause: {required}')
+    for forbidden in (
+        'delete from app.clients',
+        'drop table',
+        'disable trigger',
+        'execute ',
+        'format(',
+        'internal_notes' + ', portal_user_id',
+    ):
+        require(forbidden not in client_functions_sql,
+                f'1002 avoids prohibited dynamic/destructive/exposure pattern: {forbidden}')
+    public_self_read_match = re.search(
+        r'create or replace function public\.current_client_record\(\).*?returns table \((.*?)\)',
+        client_functions_sql,
+        re.S,
+    )
+    if public_self_read_match:
+        public_self_fields = public_self_read_match.group(1)
+        for safe_field in ('id uuid', 'client_number text', 'display_name text', 'legal_name text', 'email text', 'phone text', 'address text', 'status text'):
+            require(safe_field in public_self_fields,
+                    f'public.current_client_record returns safe field: {safe_field}')
+        for forbidden_field in ('internal_notes', 'portal_user_id', 'created_by', 'updated_by', 'archived_by'):
+            require(forbidden_field not in public_self_fields,
+                    f'public.current_client_record omits private field: {forbidden_field}')
+if client_grants_path.exists():
+    client_grants_sql = client_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.clients from public, anon, authenticated, service_role',
+        'revoke all on sequence app.client_number_seq from public, anon, authenticated, service_role',
+        'revoke all on function app.create_client_record',
+        'from public, anon, authenticated, service_role',
+        'revoke all on function public.current_client_record() from public, anon, service_role',
+        'grant execute on function public.current_client_record() to authenticated',
+        'grant execute on function public.server_create_client_record',
+        'grant execute on function public.server_update_client_record',
+        'grant execute on function public.server_link_client_portal_user',
+        'grant execute on function public.server_unlink_client_portal_user',
+        'grant execute on function public.server_archive_client_record',
+        'grant execute on function public.server_owner_client_record_detail',
+        'grant execute on function public.server_owner_client_record_list',
+        'to service_role',
+    ):
+        require(required in client_grants_sql,
+                f'1003 client grants migration contains required clause: {required}')
+    require('grant select on app.clients' not in client_grants_sql, '1003 grants no direct clients table SELECT')
+    require('grant insert on app.clients' not in client_grants_sql, '1003 grants no direct clients table INSERT')
+    require('grant update on app.clients' not in client_grants_sql, '1003 grants no direct clients table UPDATE')
+    require('grant delete on app.clients' not in client_grants_sql, '1003 grants no direct clients table DELETE')
 
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')
