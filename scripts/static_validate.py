@@ -82,6 +82,14 @@ for name in sorted(required_09_2c3b_migrations):
     require(name in migration_names, f'required Package 09.2C3B migration exists: {name}')
 for name in sorted(required_09_2c3b_tests):
     require(name in test_names, f'required Package 09.2C3B pgTAP suite exists: {name}')
+require(
+    '20260724095400_0917_first_owner_delivery_recovery_context.sql' in migration_names,
+    'required Package 09.2C3E migration exists: 20260724095400_0917_first_owner_delivery_recovery_context.sql',
+)
+require(
+    '11_package_09_2_first_owner_delivery_recovery.test.sql' in test_names,
+    'required Package 09.2C3E pgTAP suite exists: 11_package_09_2_first_owner_delivery_recovery.test.sql',
+)
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -397,6 +405,51 @@ if service_context_path.exists():
         require(prohibited not in service_context_sql,
                 f'0916 service context omits prohibited exposure/grant: {prohibited}')
 
+first_owner_delivery_context_path = ROOT / 'supabase/migrations/20260724095400_0917_first_owner_delivery_recovery_context.sql'
+if first_owner_delivery_context_path.exists():
+    delivery_sql = first_owner_delivery_context_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.first_owner_delivery_context_for_service',
+        'p_owner_auth_subject uuid',
+        'p_normalized_email citext',
+        'returns table',
+        'owner_user_id uuid',
+        'auth_subject uuid',
+        'normalized_email text',
+        'account_status text',
+        'is_active boolean',
+        'invitation_id uuid',
+        'invitation_status text',
+        'expires_at timestamptz',
+        'stable',
+        'security definer',
+        "set search_path = ''",
+        "u.user_type = 'staff'",
+        "u.status = 'invited'",
+        'not u.is_active',
+        "ur.role_code = 'owner_admin'",
+        'ur.is_active',
+        "latest_invitation.status = 'pending'",
+        'latest_invitation.expires_at > now()',
+        'order by ui.created_at desc, ui.id desc',
+        'create or replace function public.server_first_owner_delivery_context',
+        'from app.first_owner_delivery_context_for_service',
+        'revoke all on function app.first_owner_delivery_context_for_service(uuid, citext) from public, anon, authenticated, service_role',
+        'revoke all on function public.server_first_owner_delivery_context(uuid, citext) from public, anon, authenticated',
+        'grant execute on function public.server_first_owner_delivery_context(uuid, citext) to service_role',
+    ):
+        require(required in delivery_sql,
+                f'0917 delivery recovery migration contains required clause: {required}')
+    for prohibited in (
+        'grant select on app.',
+        'create policy',
+        'app.activity_logs',
+        'full_name text',
+        'role_history',
+    ):
+        require(prohibited not in delivery_sql,
+                f'0917 delivery recovery omits prohibited exposure/grant: {prohibited}')
+
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')
 if functions_dir.exists():
@@ -559,14 +612,63 @@ for function_name in (
     require(function_config.get(function_name, {}).get('verify_jwt') is False,
             f'Edge Function verify_jwt disabled for handler-owned auth: {function_name}')
 
-require(not (ROOT / 'scripts/bootstrap_production_owner.mjs').exists(),
-        'Owner bootstrap script absent')
+bootstrap_script_path = ROOT / 'scripts/bootstrap_production_owner.mjs'
+bootstrap_test_path = ROOT / 'scripts/bootstrap_production_owner_test.mjs'
+require(bootstrap_script_path.exists(), 'guarded first-Owner bootstrap script exists')
+require(bootstrap_test_path.exists(), 'guarded first-Owner bootstrap Deno tests exist')
+if bootstrap_script_path.exists():
+    bootstrap_script = bootstrap_script_path.read_text(encoding='utf-8')
+    bootstrap_lower = bootstrap_script.lower()
+    for required in (
+        'create first contractor owner',
+        'if (import.meta.main)',
+        'createclient',
+        'generatelink',
+        'server_bootstrap_first_owner',
+        'server_first_owner_delivery_context',
+        'inviteuserbyemail',
+        '/owner/activate',
+        'generateTokenBytes',
+        'sha-256',
+        'exit = object.freeze',
+        'validation: 1',
+        'authpreparation: 2',
+        'recoverynotproven: 3',
+        'deliveryunconfirmed: 4',
+        'expiredinvitation: 5',
+        'internal: 6',
+    ):
+        require(required.lower() in bootstrap_lower,
+                f'bootstrap script contains required safety/flow marker: {required}')
+    require(bootstrap_lower.count('inviteuserbyemail') == 1,
+            'bootstrap script performs one invitation delivery attempt per execution')
+    require('deleteuser' not in bootstrap_lower, 'bootstrap script does not delete Auth users')
+    require('process.env' not in bootstrap_lower and 'require(' not in bootstrap_lower,
+            'bootstrap script does not require Node/npm runtime')
+    require('console.log(config.' not in bootstrap_lower and 'console.log(env.' not in bootstrap_lower,
+            'bootstrap script does not print raw environment values')
+    for forbidden in ('token=', 'token_hash=', 'action_link', 'hashed_token', 'service_role_key='):
+        require(forbidden not in bootstrap_lower,
+                f'bootstrap script avoids unsafe output marker: {forbidden}')
+    require(not re.search(r'(?<![a-z])otp(?![a-z])', bootstrap_lower),
+            'bootstrap script avoids unsafe output marker: otp')
+
+for node_manifest in ('package.json', 'package-lock.json', 'npm-shrinkwrap.json'):
+    require(not (ROOT / node_manifest).exists(), f'no Node/npm manifest introduced: {node_manifest}')
+
+require(not (ROOT / 'supabase/functions/bootstrap-production-owner').exists(), 'no first-Owner Edge Function directory added')
+require(not (ROOT / 'supabase/functions/bootstrap-first-owner').exists(), 'no first-Owner Edge Function directory added')
 
 flutter_invitation_ui_mentions = [
     p for p in (ROOT / 'app/lib').glob('**/*.dart')
     if p.is_file() and re.search(r'invitation|invite[-_ ]?client|user_invitations', p.read_text(encoding='utf-8', errors='ignore'), re.I)
 ]
 require(not flutter_invitation_ui_mentions, 'no Flutter invitation UI added')
+flutter_activation_ui_mentions = [
+    p for p in (ROOT / 'app/lib').glob('**/*.dart')
+    if p.is_file() and re.search(r'owner/activate|activate_current_invited_owner|bootstrap[-_ ]?owner', p.read_text(encoding='utf-8', errors='ignore'), re.I)
+]
+require(not flutter_activation_ui_mentions, 'no Flutter Owner activation UI added')
 
 with (ROOT / '.github/workflows/package-09-1-database.yml').open('r', encoding='utf-8') as fh:
     yaml.safe_load(fh)
