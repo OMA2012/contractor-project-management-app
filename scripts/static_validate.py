@@ -554,6 +554,29 @@ if deno_lock_path.exists():
     require('@supabase/server@1.4.1' in deno_lock, 'Deno lock contains @supabase/server pin')
     require('@supabase/supabase-js@2.110.8' in deno_lock, 'Deno lock contains @supabase/supabase-js pin')
 
+env_example = (ROOT / '.env.example').read_text(encoding='utf-8')
+require('SUPABASE_URL=' in env_example, '.env.example documents SUPABASE_URL')
+require('SUPABASE_JWKS_URL=' not in env_example, '.env.example does not require standalone SUPABASE_JWKS_URL')
+env_helper_path = functions_dir / '_shared' / 'env.ts'
+if env_helper_path.exists():
+    env_helper = env_helper_path.read_text(encoding='utf-8')
+    env_helper_lower = env_helper.lower()
+    require('new URL("/auth/v1/.well-known/jwks.json", supabaseUrl)' in env_helper,
+            'JWKS URL is derived from trusted SUPABASE_URL')
+    require('requireEnvValue(source, "SUPABASE_JWKS_URL")' not in env_helper,
+            'JWKS URL is not a mandatory standalone environment variable')
+    require('validateSupabaseUrl(requireEnvValue(source, "SUPABASE_URL"))' in env_helper,
+            'SUPABASE_URL is validated before JWKS derivation')
+    for local_host in ('localhost', '127.0.0.1', 'host.docker.internal', 'kong'):
+        require(f'url.hostname === "{local_host}"' in env_helper,
+                f'local HTTP URL exception includes only approved local host: {local_host}')
+    require('url.hostname === "host.docker.internal"' in env_helper,
+            'local HTTP URL exception supports Supabase Edge runtime Docker host bridge')
+    require('url.hostname === "kong"' in env_helper,
+            'local HTTP URL exception supports Supabase Edge runtime internal Kong host')
+    require('http://example.com' not in env_helper_lower and 'request-controlled' not in env_helper_lower,
+            'env helper does not hard-code untrusted JWKS hosts')
+
 shared_code = '\n'.join(
     p.read_text(encoding='utf-8', errors='ignore').lower()
     for p in (functions_dir / '_shared').glob('*.ts')

@@ -83,7 +83,6 @@ function testEnv(overrides: Record<string, string | undefined> = {}) {
     SUPABASE_URL: "http://127.0.0.1:54321",
     SUPABASE_PUBLISHABLE_KEY: "publishable-placeholder",
     SUPABASE_SERVICE_ROLE_KEY: "service-placeholder",
-    SUPABASE_JWKS_URL: "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json",
     APP_BASE_URL: "http://localhost:3000",
     ...overrides,
   };
@@ -91,8 +90,50 @@ function testEnv(overrides: Record<string, string | undefined> = {}) {
 
 Deno.test("required environment validation keeps secret values out of errors", () => {
   const env = loadAppEnv(testEnv());
+  assertEquals(env.supabaseUrl, "http://127.0.0.1:54321");
+  assertEquals(
+    env.jwksUrl,
+    "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json",
+  );
   assertEquals(env.appOrigin, "http://localhost:3000");
   assertEquals(env.appBaseUrl, "http://localhost:3000");
+  assertEquals(
+    loadAppEnv(testEnv({ SUPABASE_URL: "http://127.0.0.1:54321/" })).jwksUrl,
+    "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json",
+  );
+  assertEquals(
+    loadAppEnv(testEnv({
+      SUPABASE_URL: "http://host.docker.internal:54321",
+    })).jwksUrl,
+    "http://host.docker.internal:54321/auth/v1/.well-known/jwks.json",
+  );
+  assertEquals(
+    loadAppEnv(testEnv({ SUPABASE_URL: "http://kong:8000" })).jwksUrl,
+    "http://kong:8000/auth/v1/.well-known/jwks.json",
+  );
+  const hosted = loadAppEnv(testEnv({
+    SUPABASE_URL: "https://project-ref.supabase.co",
+    APP_BASE_URL: "https://app.example.test",
+  }));
+  assertEquals(hosted.supabaseUrl, "https://project-ref.supabase.co");
+  assertEquals(
+    hosted.jwksUrl,
+    "https://project-ref.supabase.co/auth/v1/.well-known/jwks.json",
+  );
+  assertThrows(
+    () => loadAppEnv(testEnv({ SUPABASE_URL: "" })),
+    "SUPABASE_URL",
+  );
+  assertThrows(
+    () => loadAppEnv(testEnv({ SUPABASE_URL: "http://example.com" })),
+    "SUPABASE_URL",
+  );
+  assertEquals(
+    loadAppEnv(testEnv({
+      SUPABASE_JWKS_URL: "https://request-controlled.example.test/jwks.json",
+    })).jwksUrl,
+    "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json",
+  );
   assertThrows(
     () => loadAppEnv(testEnv({ SUPABASE_SERVICE_ROLE_KEY: "" })),
     "SUPABASE_SERVICE_ROLE_KEY",
@@ -306,7 +347,6 @@ Deno.test("auth helper extracts verified claims and creates service client only 
   };
   const env = {
     ...loadAppEnv(testEnv({
-      SUPABASE_JWKS_URL: "https://jwks.example.test",
       SUPABASE_SERVICE_ROLE_KEY: "server-only-placeholder",
     })),
     jwks,

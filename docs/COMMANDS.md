@@ -55,6 +55,14 @@ Hosted Supabase Auth must be configured with an equivalent seven-day email OTP/i
 
 Authenticated Stage 09.2C3 Edge Functions are expected to use handler-owned authentication and response behavior: platform JWT verification disabled, strict handler Origin checks for non-OPTIONS requests, and `withSupabase({ auth: "user" })` for verified claims. Local Kong may intercept preflight and add permissive CORS headers, so hosted preflight and handler CORS behavior remain a required production-readiness verification gate. CORS controls browser access to responses; it does not replace JWT verification or database authorization.
 
+The shared helpers derive the JWKS endpoint from the trusted `SUPABASE_URL` as `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` and pass that URL explicitly to `withSupabase`. Hosted project URLs must use HTTPS. Local development permits HTTP only for localhost, `127.0.0.1`, and Supabase local Edge runtime Docker hosts. Do not configure or accept a request-supplied JWKS URL. For local serving, create a temporary UTF-8 no-BOM env file containing only non-Supabase custom values such as:
+
+```text
+APP_BASE_URL=http://localhost:3000
+```
+
+Then run `supabase functions serve --env-file <temporary-no-bom-env-file>` from the repository root. The Supabase CLI injects its own local `SUPABASE_*` values; do not place service credentials in the temporary env file.
+
 Stage 09 Package 09.2C3C adds only these Client invitation functions:
 
 - `create-client-invitation`
