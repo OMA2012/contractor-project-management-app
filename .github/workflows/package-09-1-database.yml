@@ -4,12 +4,16 @@ on:
   pull_request:
     paths:
       - 'supabase/**'
+      - 'scripts/bootstrap_production_owner*.mjs'
+      - 'scripts/package_09_2_e2e_local*.mjs'
       - 'scripts/static_validate.py'
       - '.github/workflows/package-09-1-database.yml'
   push:
     branches: [main, develop]
     paths:
       - 'supabase/**'
+      - 'scripts/bootstrap_production_owner*.mjs'
+      - 'scripts/package_09_2_e2e_local*.mjs'
       - 'scripts/static_validate.py'
       - '.github/workflows/package-09-1-database.yml'
 
@@ -21,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -43,12 +49,41 @@ jobs:
       - if: always()
         run: supabase stop --no-backup
 
+  deno-edge-helper-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.4
+      - working-directory: supabase/functions
+        run: deno task cache:frozen
+      - working-directory: supabase/functions
+        run: deno task fmt
+      - working-directory: supabase/functions
+        run: deno task lint
+      - working-directory: supabase/functions
+        run: deno task check
+      - working-directory: supabase/functions
+        run: deno task test
+      - run: deno cache --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/bootstrap_production_owner.mjs
+      - run: deno fmt --check --config supabase/functions/deno.json scripts/bootstrap_production_owner.mjs scripts/bootstrap_production_owner_test.mjs
+      - run: deno lint --config supabase/functions/deno.json scripts/bootstrap_production_owner.mjs scripts/bootstrap_production_owner_test.mjs
+      - run: deno check --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/bootstrap_production_owner.mjs scripts/bootstrap_production_owner_test.mjs
+      - run: deno test --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen --allow-env scripts/bootstrap_production_owner_test.mjs
+      - run: deno cache --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/package_09_2_e2e_local.mjs
+      - run: deno fmt --check --config supabase/functions/deno.json scripts/package_09_2_e2e_local.mjs scripts/package_09_2_e2e_local_test.mjs
+      - run: deno lint --config supabase/functions/deno.json scripts/package_09_2_e2e_local.mjs scripts/package_09_2_e2e_local_test.mjs
+      - run: deno check --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/package_09_2_e2e_local.mjs scripts/package_09_2_e2e_local_test.mjs
+      - run: deno test --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen --allow-env scripts/package_09_2_e2e_local_test.mjs
+
   package-09-1-gate:
     if: always()
-    needs: [static-validation, clean-database-tests]
+    needs: [static-validation, clean-database-tests, deno-edge-helper-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Block merge on migration, constraint, scope, or secret failure
         run: |
           test '${{ needs.static-validation.result }}' = 'success'
           test '${{ needs.clean-database-tests.result }}' = 'success'
+          test '${{ needs.deno-edge-helper-tests.result }}' = 'success'
