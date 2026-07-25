@@ -7,6 +7,7 @@ on:
       - 'scripts/bootstrap_production_owner*.mjs'
       - 'scripts/package_09_2_e2e_local*.mjs'
       - 'scripts/static_validate.py'
+      - 'docs/COMMANDS.md'
       - '.github/workflows/package-09-1-database.yml'
   push:
     branches: [main, develop]
@@ -15,6 +16,7 @@ on:
       - 'scripts/bootstrap_production_owner*.mjs'
       - 'scripts/package_09_2_e2e_local*.mjs'
       - 'scripts/static_validate.py'
+      - 'docs/COMMANDS.md'
       - '.github/workflows/package-09-1-database.yml'
 
 permissions:
