@@ -5,6 +5,7 @@ on:
     paths:
       - 'supabase/**'
       - 'scripts/bootstrap_production_owner*.mjs'
+      - 'scripts/package_09_2_e2e_local*.mjs'
       - 'scripts/static_validate.py'
       - '.github/workflows/package-09-1-database.yml'
   push:
@@ -12,6 +13,7 @@ on:
     paths:
       - 'supabase/**'
       - 'scripts/bootstrap_production_owner*.mjs'
+      - 'scripts/package_09_2_e2e_local*.mjs'
       - 'scripts/static_validate.py'
       - '.github/workflows/package-09-1-database.yml'
 
@@ -69,6 +71,11 @@ jobs:
       - run: deno lint --config supabase/functions/deno.json scripts/bootstrap_production_owner.mjs scripts/bootstrap_production_owner_test.mjs
       - run: deno check --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/bootstrap_production_owner.mjs scripts/bootstrap_production_owner_test.mjs
       - run: deno test --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen --allow-env scripts/bootstrap_production_owner_test.mjs
+      - run: deno cache --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/package_09_2_e2e_local.mjs
+      - run: deno fmt --check --config supabase/functions/deno.json scripts/package_09_2_e2e_local.mjs scripts/package_09_2_e2e_local_test.mjs
+      - run: deno lint --config supabase/functions/deno.json scripts/package_09_2_e2e_local.mjs scripts/package_09_2_e2e_local_test.mjs
+      - run: deno check --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen scripts/package_09_2_e2e_local.mjs scripts/package_09_2_e2e_local_test.mjs
+      - run: deno test --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen --allow-env scripts/package_09_2_e2e_local_test.mjs
 
   package-09-1-gate:
     if: always()

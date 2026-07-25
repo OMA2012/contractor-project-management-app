@@ -183,6 +183,59 @@ deno check --config supabase/functions/deno.json --lock supabase/functions/deno.
 deno test --config supabase/functions/deno.json --lock supabase/functions/deno.lock --frozen --allow-env scripts/bootstrap_production_owner_test.mjs
 ```
 
+## Stage 09 Package 09.2 Local E2E Release Gate
+
+Package 09.2 includes a manual local-only authentication integration harness:
+
+```bash
+deno run \
+  --config supabase/functions/deno.json \
+  --lock supabase/functions/deno.lock \
+  --frozen \
+  --allow-env \
+  --allow-net \
+  --allow-read \
+  --allow-write \
+  --allow-run \
+  scripts/package_09_2_e2e_local.mjs
+```
+
+Prerequisites:
+
+- Docker is running.
+- Local Supabase is available; the harness runs `supabase db reset --local` before and after the flow.
+- The harness discovers API, function and Mailpit URLs from `supabase status`.
+- The harness starts all seven Package 09.2 Client Edge Functions automatically from the repository root with a temporary UTF-8 no-BOM env file containing only `APP_BASE_URL=http://localhost:3000`.
+
+The harness is intentionally not part of normal pull-request CI. CI runs only the mocked Deno tests for `scripts/package_09_2_e2e_local_test.mjs`; the full Docker/Mailpit E2E run is a manual local release gate.
+
+Safe output policy: the harness prints only scenario progress and assertion results. It must not print service-role keys, JWTs, OTPs, Auth verification tokens, application invitation tokens, token hashes, complete Mailpit bodies, or complete action links. Temporary files are removed, function-serving processes started by the harness are stopped, Mailpit is cleared best-effort, and the local database is reset during cleanup.
+
+Successful run summary should include:
+
+- first Owner bootstrap and activation
+- Client invitation creation and acceptance
+- invitation resend with prior-token invalidation
+- invitation revocation
+- Client suspension, reactivation and terminal disabling
+- Owner-only authorization and durable denied-operation activity logging
+
+Exit codes:
+
+- `0`: all Package 09.2 local E2E scenarios passed
+- `1`: environment or local-safety validation failed
+- `2`: Supabase reset/start/status failure
+- `3`: Edge Function startup/readiness failure
+- `4`: Owner bootstrap or activation failure
+- `5`: Client invitation or acceptance failure
+- `6`: resend or revocation failure
+- `7`: lifecycle failure
+- `8`: authorization or activity-log assertion failure
+- `9`: cleanup failure
+- `10`: unexpected safely handled failure
+
+Package 09.2 does not add Flutter `/owner/activate` or `/accept-invitation` routes or invitation UI; those remain future UI work under the current acceptance criteria. Hosted redirect allowlists, hosted seven-day Auth expiry, and hosted CORS/preflight verification remain deployment gates.
+
 ## Inspect schema manually
 
 ```bash

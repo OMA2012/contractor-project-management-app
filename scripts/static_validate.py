@@ -679,6 +679,64 @@ if bootstrap_script_path.exists():
 for node_manifest in ('package.json', 'package-lock.json', 'npm-shrinkwrap.json'):
     require(not (ROOT / node_manifest).exists(), f'no Node/npm manifest introduced: {node_manifest}')
 
+e2e_script_path = ROOT / 'scripts/package_09_2_e2e_local.mjs'
+e2e_test_path = ROOT / 'scripts/package_09_2_e2e_local_test.mjs'
+require(e2e_script_path.exists(), 'Package 09.2 local E2E harness exists')
+require(e2e_test_path.exists(), 'Package 09.2 local E2E mocked Deno tests exist')
+if e2e_script_path.exists():
+    e2e_script = e2e_script_path.read_text(encoding='utf-8')
+    e2e_lower = e2e_script.lower()
+    for required in (
+        'if (import.meta.main)',
+        'assertlocalsupabaseurl',
+        'args: ["functions", "serve", "--env-file", envFile]',
+        'const app_base_url = "http://localhost:3000"',
+        'verifyotp',
+        'token_hash',
+        'type: "invite"',
+        'mailpit_url',
+        'waitformail',
+        'clearMailpit',
+        'cleanupAll',
+        'finally',
+        'create-client-invitation',
+        'resend-client-invitation',
+        'revoke-client-invitation',
+        'accept-client-invitation',
+        'suspend-client-account',
+        'reactivate-client-account',
+        'disable-client-account',
+        'delete',
+        'current_account',
+        'activate_current_invited_owner',
+        'denied_privileged_operation',
+        'package_09_2_e2e',
+    ):
+        require(required.lower() in e2e_lower,
+                f'Package 09.2 local E2E harness contains required marker: {required}')
+    require('signups' not in e2e_lower and 'password:' not in e2e_lower and 'signInWithPassword' not in e2e_script,
+            'local E2E harness does not use temporary passwords')
+    require('createUser(' not in e2e_script and 'admin.createUser' not in e2e_script,
+            'local E2E harness does not create administrator-generated sessions')
+    require('console.log(' not in e2e_script or 'safeLine' in e2e_script,
+            'local E2E harness uses safe output helpers')
+    for forbidden in ('safeLine("access_token"', 'safeLine("refresh_token"', 'safeLine("token"', 'safeLine("token_hash"', 'action_link', 'service_role_key='):
+        require(forbidden not in e2e_lower,
+                f'local E2E harness avoids unsafe output marker: {forbidden}')
+if e2e_test_path.exists():
+    e2e_test = e2e_test_path.read_text(encoding='utf-8')
+    for required in (
+        'local-only URL enforcement',
+        'supabase status parsing',
+        'Mailpit polling',
+        'recursive redaction',
+        'no-BOM env-file generation',
+        'process startup/readiness',
+        'cleanup executes after failure',
+    ):
+        require(required in e2e_test,
+                f'Package 09.2 local E2E mocked test covers: {required}')
+
 require(not (ROOT / 'supabase/functions/bootstrap-production-owner').exists(), 'no first-Owner Edge Function directory added')
 require(not (ROOT / 'supabase/functions/bootstrap-first-owner').exists(), 'no first-Owner Edge Function directory added')
 
