@@ -118,6 +118,20 @@ for name in sorted(required_10_2_migrations):
     require(name in migration_names, f'required Package 10.2 migration exists: {name}')
 for name in sorted(required_10_2_tests):
     require(name in test_names, f'required Package 10.2 pgTAP suite exists: {name}')
+required_10_3_migrations = {
+    '20260724100100_1007_project_staff_assignments.sql',
+    '20260724100200_1008_project_staff_assignment_functions.sql',
+    '20260724100300_1009_project_staff_assignment_grants.sql',
+}
+required_10_3_tests = {
+    '18_package_10_3_project_staff_assignments_schema.test.sql',
+    '19_package_10_3_project_staff_assignments_security.test.sql',
+    '20_package_10_3_project_staff_assignments_operations.test.sql',
+}
+for name in sorted(required_10_3_migrations):
+    require(name in migration_names, f'required Package 10.3 migration exists: {name}')
+for name in sorted(required_10_3_tests):
+    require(name in test_names, f'required Package 10.3 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -130,7 +144,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|'
-    r'hasnt_column|col_type_is|has_function|function_lang_is|volatility_is|isnt|is|ok|lives_ok|'
+    r'hasnt_column|col_type_is|has_function|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -160,7 +174,6 @@ for required in (
     require(required in all_sql, f'required object present: {required}')
 
 for prohibited in (
-    'create table app.project_staff_assignments',
     'create table app.financial_accounts',
     'create table app.financial_transactions',
     'create table app.ledger_entries',
@@ -695,7 +708,6 @@ if project_schema_path.exists():
         'outstanding_amount',
         'assigned_project_manager_id',
         'assigned_supervisor_id',
-        'project_staff_assignments',
         'ledger_entries',
         'financial_transactions',
         'exchange_rate',
@@ -759,7 +771,6 @@ if project_functions_path.exists():
                     f'public.current_client_project_records omits private field: {forbidden_field}')
     for forbidden in (
         'delete from app.projects',
-        'project_staff_assignments',
         'assigned_project_manager',
         'assigned_supervisor',
         'ledger_entries',
@@ -790,6 +801,168 @@ if project_grants_path.exists():
     require('grant insert on app.projects' not in project_grants_sql, '1006 grants no direct Project table INSERT')
     require('grant update on app.projects' not in project_grants_sql, '1006 grants no direct Project table UPDATE')
     require('grant delete on app.projects' not in project_grants_sql, '1006 grants no direct Project table DELETE')
+
+assignment_schema_path = ROOT / 'supabase/migrations/20260724100100_1007_project_staff_assignments.sql'
+assignment_functions_path = ROOT / 'supabase/migrations/20260724100200_1008_project_staff_assignment_functions.sql'
+assignment_grants_path = ROOT / 'supabase/migrations/20260724100300_1009_project_staff_assignment_grants.sql'
+if assignment_schema_path.exists():
+    assignment_schema_sql = assignment_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.project_staff_assignment_status as enum',
+        "'active'",
+        "'removed'",
+        'create table app.project_staff_assignments',
+        'id uuid primary key default gen_random_uuid()',
+        'project_id uuid not null',
+        'user_id uuid not null',
+        'assignment_role_code varchar(40) not null',
+        'status app.project_staff_assignment_status not null default',
+        'assigned_at timestamptz not null default now()',
+        'assigned_by uuid not null',
+        'removed_at timestamptz',
+        'removed_by uuid',
+        'notes text',
+        'foreign key (project_id) references app.projects(id) on delete restrict',
+        'foreign key (user_id) references app.users(id) on delete restrict',
+        'foreign key (assignment_role_code) references app.roles(code) on delete restrict',
+        "assignment_role_code in ('project_manager', 'site_supervisor')",
+        'length(btrim(notes)) <= 4000',
+        "status = 'active'",
+        "status = 'removed'",
+        'create unique index project_staff_assignments_one_active_idx',
+        'where status = \'active\'',
+        'before delete on app.project_staff_assignments',
+        'before update on app.project_staff_assignments',
+        'alter table app.project_staff_assignments enable row level security',
+        'alter table app.project_staff_assignments force row level security',
+        'revoke all on app.project_staff_assignments from public, anon, authenticated, service_role',
+    ):
+        require(required in assignment_schema_sql,
+                f'1007 assignment schema migration contains required clause: {required}')
+    approved_assignment_columns = [
+        'id', 'project_id', 'user_id', 'assignment_role_code', 'status',
+        'assigned_at', 'assigned_by', 'removed_at', 'removed_by', 'notes',
+    ]
+    for column in approved_assignment_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', assignment_schema_sql) is not None,
+                f'1007 app.project_staff_assignments approved column exists: {column}')
+    for forbidden in (
+        'client_id',
+        'phase_id',
+        'milestone_id',
+        'task_id',
+        'permission_flags',
+        'financial_flags',
+        'is_project_owner',
+        'version_number',
+        'created_at',
+        'created_by',
+        'updated_at',
+        'updated_by',
+        'removal_reason',
+        'deleted_at',
+        'archived_at',
+        "'accountant'",
+        "'owner_admin'",
+        "'client'",
+        'delete from app.project_staff_assignments',
+    ):
+        require(forbidden not in assignment_schema_sql,
+                f'1007 assignment schema omits forbidden field/pattern: {forbidden}')
+if assignment_functions_path.exists():
+    assignment_functions_sql = assignment_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.create_project_staff_assignment',
+        'create or replace function app.remove_project_staff_assignment',
+        'create or replace function app.owner_project_staff_assignment_list',
+        'create or replace function app.owner_project_staff_assignment_detail',
+        'create or replace function app.owner_eligible_project_staff_list',
+        'create or replace function app.has_active_project_assignment',
+        'create or replace function app.has_active_project_assignment_role',
+        'create or replace function public.server_create_project_staff_assignment',
+        'create or replace function public.server_remove_project_staff_assignment',
+        'create or replace function public.server_owner_project_staff_assignment_list',
+        'create or replace function public.server_owner_project_staff_assignment_detail',
+        'create or replace function public.server_owner_eligible_project_staff_list',
+        'security definer',
+        "set search_path = ''",
+        'app.require_active_owner_admin',
+        "p_assignment_role_code not in ('project_manager', 'site_supervisor')",
+        "u.user_type = 'staff'",
+        "u.status = 'active'",
+        'u.is_active',
+        'ur.is_active',
+        "project_row.status not in ('draft', 'quotation', 'approved', 'active', 'on_hold')",
+        'project staff assignment already exists',
+        'app.allow_project_staff_assignment_removal',
+        'project_staff_assignment_created',
+        'project_staff_assignment_removed',
+        "'[masked]'",
+        "existing_row.status not in ('draft', 'quotation', 'approved')",
+        'project client cannot be changed after staff assignment history exists',
+        "psa.status = 'active'",
+        'project cannot be archived while active staff assignments exist',
+    ):
+        require(required in assignment_functions_sql,
+                f'1008 assignment functions migration contains required clause: {required}')
+    for forbidden in (
+        'delete from app.project_staff_assignments',
+        'insert into app.user_roles',
+        'update app.user_roles',
+        'create or replace function public.current_staff_project',
+        'create or replace function public.current_project_manager_project',
+        'create or replace function public.current_site_supervisor_project',
+        'execute ',
+        'format(',
+        'raw_app_meta_data',
+        'staff email',
+    ):
+        require(forbidden not in assignment_functions_sql,
+                f'1008 assignment functions omit prohibited pattern: {forbidden}')
+if assignment_grants_path.exists():
+    assignment_grants_sql = assignment_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.project_staff_assignments from public, anon, authenticated, service_role',
+        'revoke all on function app.create_project_staff_assignment',
+        'revoke all on function app.has_active_project_assignment',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.server_create_project_staff_assignment',
+        'grant execute on function public.server_remove_project_staff_assignment',
+        'grant execute on function public.server_owner_project_staff_assignment_list',
+        'grant execute on function public.server_owner_project_staff_assignment_detail',
+        'grant execute on function public.server_owner_eligible_project_staff_list',
+        'to service_role',
+    ):
+        require(required in assignment_grants_sql,
+                f'1009 assignment grants migration contains required clause: {required}')
+    for forbidden in (
+        'grant select on app.project_staff_assignments',
+        'grant insert on app.project_staff_assignments',
+        'grant update on app.project_staff_assignments',
+        'grant delete on app.project_staff_assignments',
+        'to authenticated',
+        'to anon',
+    ):
+        require(forbidden not in assignment_grants_sql,
+                f'1009 assignment grants omit prohibited grant: {forbidden}')
+
+if first_release_current_account_path.exists():
+    current_account_10_3_sql = first_release_current_account_path.read_text(encoding='utf-8').lower()
+    require("then array['owner_admin']::varchar(40)[]" in current_account_10_3_sql,
+            '10.3 preserves owner_admin as usable staff role')
+    require("then array['client']::varchar(40)[]" in current_account_10_3_sql,
+            '10.3 preserves client as usable client role')
+    require("then array['project_manager']" not in current_account_10_3_sql
+            and "then array['site_supervisor']" not in current_account_10_3_sql
+            and "then array['accountant']" not in current_account_10_3_sql,
+            '10.3 does not activate reserved roles in current_account')
+require('create policy' not in all_sql, '10.3 adds no broad application-facing policies')
+require('create table app.project_phases' not in all_sql, '10.3 does not add phases')
+require('create table app.project_milestones' not in all_sql, '10.3 does not add milestones')
+require('create table app.project_tasks' not in all_sql, '10.3 does not add tasks')
+require('create table app.task_assignments' not in all_sql, '10.3 does not add task assignments')
+require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '10.3 does not add documents')
+require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '10.3 does not add finance or ledger objects')
 
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')
