@@ -357,7 +357,7 @@ ARCHIVED -> no transitions
 
 Completion, cancellation, and archive use dedicated trusted functions. Direct status updates are blocked. Completed and cancelled history is retained when archived, and archiving never hard-deletes a Project.
 
-Each Project belongs to exactly one Client business record through `client_id`. New Projects require an active, non-archived Client. Owner-controlled Client reassignment is allowed only while the Project is `DRAFT`, `QUOTATION`, or `APPROVED`; reassignment is prohibited from `ACTIVE` onward. A future dependent-record guard must be added before Package 10.3 or any financial/dependent records are introduced.
+Each Project belongs to exactly one Client business record through `client_id`. New Projects require an active, non-archived Client. Owner-controlled Client reassignment is allowed only while the Project is `DRAFT`, `QUOTATION`, or `APPROVED`; reassignment is prohibited from `ACTIVE` onward. Package 10.3 adds the first dependent-record guard for Project staff assignment history; future financial/dependent-record guards remain required before finance or task packages introduce their own records.
 
 Project monetary fields are metadata only:
 
@@ -395,6 +395,68 @@ Central activity-log actions added by this package:
 - `project_archived`
 
 Activity metadata must omit or mask internal notes, full location, actor Auth subjects, raw request bodies, full cancellation reason, private Client identity details, secrets, and raw monetary values. Monetary changes are logged only as safe field-change indicators and are not ledger entries.
+
+## Stage 10 Package 10.3: Project Staff Assignment Foundation
+
+Package 10.3 adds data-foundation records for Project staff assignments only. It does not activate Project Manager, Site Supervisor, or Accountant application access, does not add staff invitations or activation, does not add public staff Project reads, and does not add Flutter screens or Edge Functions.
+
+`app.project_staff_assignments` contains exactly:
+
+- `id`
+- `project_id`
+- `user_id`
+- `assignment_role_code`
+- `status`
+- `assigned_at`
+- `assigned_by`
+- `removed_at`
+- `removed_by`
+- `notes`
+
+Assignment status is exactly:
+
+- `ACTIVE`
+- `REMOVED`
+
+Allowed assignment role codes are exactly:
+
+- `project_manager`
+- `site_supervisor`
+
+`owner_admin`, `accountant`, and `client` cannot be used as assignment roles. Assignment creation never creates or changes `app.user_roles`; it only records an assignment for an existing active staff user who already holds the matching active global role. Because first-release access remains restricted, these records are future security infrastructure and do not make reserved roles usable.
+
+Assignment creation is Owner-controlled and allowed only when the Project is:
+
+- `DRAFT`
+- `QUOTATION`
+- `APPROVED`
+- `ACTIVE`
+- `ON_HOLD`
+
+Creation is rejected for `COMPLETED`, `CANCELLED`, and `ARCHIVED` Projects. Removal remains allowed for active assignments in every Project status so access can be revoked. Removed rows are immutable historical records; reassignment creates a new row. A partial unique index prevents duplicate active assignments for the same Project, user, and assignment role while allowing removed history.
+
+Private future helpers:
+
+- `app.has_active_project_assignment(...)`
+- `app.has_active_project_assignment_role(...)`
+
+These helpers return false when an assignment is removed, the staff user is no longer active, the matching global role is no longer active, the role is not `project_manager` or `site_supervisor`, or the Project is archived. They have no public grants and do not activate application access.
+
+Package 10.3 also introduces Project dependency guards:
+
+- `app.change_project_client(...)` rejects Client reassignment once any staff assignment history exists for that Project, including removed history.
+- `app.archive_project_record(...)` rejects archive while any active staff assignment exists. Removed historical assignment rows do not block archive.
+
+Clients cannot list, view, or infer Project staff assignments, and Client-safe Project reads contain no assignment fields. Reserved staff roles remain default-denied by `public.current_account()` and have no public Project read RPCs in this package.
+
+Central activity-log actions added by this package:
+
+- `project_staff_assignment_created`
+- `project_staff_assignment_removed`
+
+Assignment activity metadata may include safe Project IDs, assignment role codes, and status transitions. It must mask or omit staff email, phone, Auth subjects, raw notes, Client identity, raw request bodies, and request/session secrets.
+
+Stage 11 and later features remain excluded: phases, milestones, tasks, task assignments, progress updates, documents, photographs, notifications, financial records, ledger entries, Project balances, and assigned-staff UI workflows.
 
 ## Inspect schema manually
 

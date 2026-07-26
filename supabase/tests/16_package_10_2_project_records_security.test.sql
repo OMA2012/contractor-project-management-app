@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(32);
+SELECT plan(31);
 
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_record(uuid, uuid, text, character, text, text, date, date, numeric, character, numeric, character, text, text, text, text, text, inet)'::regprocedure), 'private create Project is security definer');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.change_project_client(uuid, uuid, uuid, integer, text, text, text, inet)'::regprocedure), 'private Client reassignment is security definer');
@@ -33,7 +33,6 @@ SELECT ok(has_function_privilege('service_role', 'public.server_complete_project
 SELECT ok(has_function_privilege('service_role', 'public.server_cancel_project_record(uuid, uuid, integer, text, text, text, text, inet)', 'EXECUTE'), 'service_role can execute cancel gateway');
 SELECT ok(has_function_privilege('service_role', 'public.server_archive_project_record(uuid, uuid, integer, text, text, text, inet)', 'EXECUTE'), 'service_role can execute archive gateway');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_project_record(uuid, uuid, text, character, text, text, date, date, numeric, character, numeric, character, text, text, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute Owner Project gateway');
-SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname LIKE '%project_assignment%'), 'no Project assignment helpers exist');
 
 SELECT * FROM finish();
 ROLLBACK;
