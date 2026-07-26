@@ -132,6 +132,20 @@ for name in sorted(required_10_3_migrations):
     require(name in migration_names, f'required Package 10.3 migration exists: {name}')
 for name in sorted(required_10_3_tests):
     require(name in test_names, f'required Package 10.3 pgTAP suite exists: {name}')
+required_11_1_migrations = {
+    '20260724100400_1101_project_phases.sql',
+    '20260724100500_1102_project_phase_functions.sql',
+    '20260724100600_1103_project_phase_grants.sql',
+}
+required_11_1_tests = {
+    '21_package_11_1_project_phases_schema.test.sql',
+    '22_package_11_1_project_phases_security.test.sql',
+    '23_package_11_1_project_phases_operations.test.sql',
+}
+for name in sorted(required_11_1_migrations):
+    require(name in migration_names, f'required Package 11.1 migration exists: {name}')
+for name in sorted(required_11_1_tests):
+    require(name in test_names, f'required Package 11.1 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -957,7 +971,152 @@ if first_release_current_account_path.exists():
             and "then array['accountant']" not in current_account_10_3_sql,
             '10.3 does not activate reserved roles in current_account')
 require('create policy' not in all_sql, '10.3 adds no broad application-facing policies')
-require('create table app.project_phases' not in all_sql, '10.3 does not add phases')
+phase_schema_path = ROOT / 'supabase/migrations/20260724100400_1101_project_phases.sql'
+phase_functions_path = ROOT / 'supabase/migrations/20260724100500_1102_project_phase_functions.sql'
+phase_grants_path = ROOT / 'supabase/migrations/20260724100600_1103_project_phase_grants.sql'
+if phase_schema_path.exists():
+    phase_schema_sql = phase_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.project_phases',
+        'id uuid primary key default gen_random_uuid()',
+        'project_id uuid not null',
+        'name varchar(160) not null',
+        'description text',
+        'sequence_no integer not null',
+        'client_visible boolean not null default true',
+        'is_active boolean not null default true',
+        'version_number integer not null default 1',
+        'foreign key (project_id) references app.projects(id) on delete restrict',
+        'foreign key (created_by) references app.users(id) on delete restrict',
+        'foreign key (updated_by) references app.users(id) on delete restrict',
+        'unique (project_id, sequence_no)',
+        'deferrable initially immediate',
+        'btrim(name) <>',
+        'length(btrim(description)) <= 4000',
+        'sequence_no > 0',
+        'start_date <= end_date',
+        'version_number >= 1',
+        'before delete on app.project_phases',
+        'before update on app.project_phases',
+        'alter table app.project_phases enable row level security',
+        'alter table app.project_phases force row level security',
+        'revoke all on app.project_phases from public, anon, authenticated, service_role',
+    ):
+        require(required in phase_schema_sql,
+                f'1101 phase schema migration contains required clause: {required}')
+    approved_phase_columns = [
+        'id', 'project_id', 'name', 'description', 'sequence_no', 'start_date', 'end_date',
+        'client_visible', 'is_active', 'created_at', 'created_by', 'updated_at', 'updated_by',
+        'version_number',
+    ]
+    for column in approved_phase_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', phase_schema_sql) is not None,
+                f'1101 app.project_phases approved column exists: {column}')
+    for forbidden in (
+        'completion_percent',
+        'weight_percent',
+        'milestone_count',
+        'task_count',
+        'completed_at',
+        'archived_at',
+        'archived_by',
+        'phase_number',
+        'colour',
+        'template_id',
+        'delete from app.project_phases',
+    ):
+        require(forbidden not in phase_schema_sql,
+                f'1101 phase schema omits forbidden field/pattern: {forbidden}')
+    require('status ' not in re.sub(r'project_record_status|status =|status <>|status not', '', phase_schema_sql),
+            '1101 phase schema omits phase status column')
+if phase_functions_path.exists():
+    phase_functions_sql = phase_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.create_project_phase',
+        'create or replace function app.update_project_phase',
+        'create or replace function app.reorder_project_phases',
+        'create or replace function app.archive_project_phase',
+        'create or replace function app.owner_project_phase_list',
+        'create or replace function app.owner_project_phase_detail',
+        'create or replace function app.current_client_project_phases_for_authenticated_user',
+        'create or replace function app.current_client_project_phase_for_authenticated_user',
+        'create or replace function public.current_client_project_phases',
+        'create or replace function public.current_client_project_phase',
+        'create or replace function public.server_create_project_phase',
+        'create or replace function public.server_update_project_phase',
+        'create or replace function public.server_reorder_project_phases',
+        'create or replace function public.server_archive_project_phase',
+        'create or replace function public.server_owner_project_phase_list',
+        'create or replace function public.server_owner_project_phase_detail',
+        'security definer',
+        "set search_path = ''",
+        'app.require_active_owner_admin',
+        "p_project.status not in ('draft', 'quotation', 'approved', 'active', 'on_hold')",
+        "project_row.status = 'archived'",
+        'p_ordered_phase_ids uuid[]',
+        'p_expected_version_numbers integer[]',
+        'project phase order version conflict',
+        'app.allow_project_phase_ordering_maintenance',
+        'app.allow_project_phase_archive',
+        'project client cannot be changed after phase history exists',
+        'project_phase_created',
+        'project_phase_updated',
+        'project_phases_reordered',
+        'project_phase_archived',
+        "'[masked]'",
+    ):
+        require(required in phase_functions_sql,
+                f'1102 phase functions migration contains required clause: {required}')
+    safe_phase_return = re.search(
+        r'create or replace function public\.current_client_project_phases\(.*?returns table \((.*?)\)\s+language',
+        phase_functions_sql,
+        re.S,
+    )
+    require(safe_phase_return is not None, '1102 public.current_client_project_phases return shape is inspectable')
+    if safe_phase_return:
+        returned = safe_phase_return.group(1)
+        for safe_field in ('id uuid', 'project_id uuid', 'name text', 'description text', 'sequence_no integer', 'start_date date', 'end_date date'):
+            require(safe_field in returned, f'1102 Client phase read returns safe field: {safe_field}')
+        for forbidden_field in ('is_active', 'client_visible', 'created_by', 'updated_by', 'version_number'):
+            require(forbidden_field not in returned, f'1102 Client phase read omits private field: {forbidden_field}')
+    for forbidden in (
+        'create or replace function public.current_staff_project_phase',
+        'create or replace function public.current_project_manager_project_phase',
+        'create or replace function public.current_site_supervisor_project_phase',
+        'execute ',
+        'format(',
+        'raw_app_meta_data',
+        'full description',
+    ):
+        require(forbidden not in phase_functions_sql,
+                f'1102 phase functions omit prohibited pattern: {forbidden}')
+if phase_grants_path.exists():
+    phase_grants_sql = phase_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.project_phases from public, anon, authenticated, service_role',
+        'revoke all on function app.create_project_phase',
+        'revoke all on function app.reorder_project_phases',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.current_client_project_phases',
+        'to authenticated',
+        'grant execute on function public.server_create_project_phase',
+        'grant execute on function public.server_reorder_project_phases',
+        'grant execute on function public.server_owner_project_phase_list',
+        'to service_role',
+    ):
+        require(required in phase_grants_sql,
+                f'1103 phase grants migration contains required clause: {required}')
+    for forbidden in (
+        'grant select on app.project_phases',
+        'grant insert on app.project_phases',
+        'grant update on app.project_phases',
+        'grant delete on app.project_phases',
+        'current_staff_project_phase',
+        'current_project_manager_project_phase',
+        'current_site_supervisor_project_phase',
+    ):
+        require(forbidden not in phase_grants_sql,
+                f'1103 phase grants omit prohibited grant: {forbidden}')
 require('create table app.project_milestones' not in all_sql, '10.3 does not add milestones')
 require('create table app.project_tasks' not in all_sql, '10.3 does not add tasks')
 require('create table app.task_assignments' not in all_sql, '10.3 does not add task assignments')

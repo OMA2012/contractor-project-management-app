@@ -1,0 +1,31 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(24);
+
+SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)'::regprocedure), 'private create phase is security definer');
+SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.current_client_project_phases(uuid)'::regprocedure), 'public Client phase list is security definer');
+SELECT is((SELECT proconfig FROM pg_proc WHERE oid = 'app.create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)'::regprocedure), ARRAY['search_path=""'], 'private create has empty search path');
+SELECT is((SELECT proconfig FROM pg_proc WHERE oid = 'public.current_client_project_phase(uuid)'::regprocedure), ARRAY['search_path=""'], 'public Client phase detail has empty search path');
+SELECT volatility_is('app', 'create_project_phase', ARRAY['uuid','uuid','text','text','date','date','boolean','integer','text','text','text','inet']::name[], 'volatile', 'create phase is volatile');
+SELECT volatility_is('app', 'reorder_project_phases', ARRAY['uuid','uuid','uuid[]','integer[]','text','text','text','inet']::name[], 'volatile', 'reorder phase is volatile');
+SELECT volatility_is('public', 'current_client_project_phases', ARRAY['uuid']::name[], 'stable', 'Client phase list is stable');
+SELECT ok(NOT has_table_privilege('anon', 'app.project_phases', 'SELECT'), 'anon cannot select phases');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_phases', 'SELECT'), 'authenticated cannot select phases directly');
+SELECT ok(NOT has_table_privilege('service_role', 'app.project_phases', 'SELECT'), 'service_role has no direct phase table SELECT');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_phases', 'INSERT'), 'authenticated cannot insert phases');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_phases', 'UPDATE'), 'authenticated cannot update phases');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_phases', 'DELETE'), 'authenticated cannot delete phases');
+SELECT ok(NOT has_function_privilege('authenticated', 'app.create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute private create');
+SELECT ok(NOT has_function_privilege('service_role', 'app.create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)', 'EXECUTE'), 'service_role cannot execute private create directly');
+SELECT ok(has_function_privilege('authenticated', 'public.current_client_project_phases(uuid)', 'EXECUTE'), 'authenticated can execute Client phase list');
+SELECT ok(has_function_privilege('authenticated', 'public.current_client_project_phase(uuid)', 'EXECUTE'), 'authenticated can execute Client phase detail');
+SELECT ok(NOT has_function_privilege('anon', 'public.current_client_project_phases(uuid)', 'EXECUTE'), 'anon cannot execute Client phase list');
+SELECT ok(NOT has_function_privilege('service_role', 'public.current_client_project_phases(uuid)', 'EXECUTE'), 'service_role cannot execute Client phase list');
+SELECT ok(has_function_privilege('service_role', 'public.server_create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)', 'EXECUTE'), 'service_role can execute create phase gateway');
+SELECT ok(has_function_privilege('service_role', 'public.server_reorder_project_phases(uuid, uuid, uuid[], integer[], text, text, text, inet)', 'EXECUTE'), 'service_role can execute reorder gateway');
+SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute Owner phase gateway');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_project_phases', 'current_project_manager_project_phases', 'current_site_supervisor_project_phases') $$, 'no public staff phase RPC exists');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('project_milestones','project_tasks','task_assignments','task_updates','financial_transactions','ledger_entries','documents')), 'milestone, task, finance and document tables remain absent');
+
+SELECT * FROM finish();
+ROLLBACK;
