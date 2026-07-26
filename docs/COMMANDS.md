@@ -616,6 +616,99 @@ Milestone activity metadata may include safe Project/milestone IDs and changed-s
 
 Before tasks are added, later packages must enforce same-Project task ownership, reject or safely handle active task dependencies during milestone archival, block milestone phase reassignment after task history, and avoid automatic task, phase, Project, or payment completion side effects.
 
+## Stage 11 Package 11.3: Project Task Record Foundation
+
+Package 11.3 adds Project task records only. It does not add task assignments, task updates, task status transitions, task completion workflows, progress calculations, documents, finances, Flutter screens, Edge Functions, notifications, or reserved-role access.
+
+`app.tasks` contains exactly:
+
+- `id`
+- `project_id`
+- `phase_id`
+- `milestone_id`
+- `task_number`
+- `title`
+- `description`
+- `client_summary`
+- `status`
+- `completion_percent`
+- `weight_percent`
+- `counts_toward_completion`
+- `start_date`
+- `due_date`
+- `completed_at`
+- `client_visible`
+- `is_active`
+- `created_at`
+- `created_by`
+- `updated_at`
+- `updated_by`
+- `version_number`
+
+Task statuses are defined for the later workflow package as `TODO`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, and `CANCELLED`. Package 11.3 creates every task as `TODO` with `completion_percent = 0`, `completed_at = NULL`, `is_active = true`, and `version_number = 1`. No Package 11.3 function accepts or modifies task status, completion percentage, or completion timestamp. Structural updates are limited to active `TODO` tasks.
+
+Task numbers are Project-local and generated only by trusted database logic:
+
+- `TSK-0001`
+- `TSK-0002`
+- `TSK-0003`
+
+Numbering restarts independently for each Project, is backed by the internal `app.project_task_number_counters` table, is concurrency-safe through the accepted counter/upsert pattern, and never uses `MAX(...) + 1`. Numbers are unique per Project, remain immutable, and continue beyond `TSK-9999` without truncation.
+
+Task structural fields may include an optional same-Project active phase, optional same-Project active milestone, description, Client summary, Client visibility, date bounds, and completion-weight metadata. `weight_percent` is nullable; when present it must be greater than 0 and no greater than 100. If `counts_toward_completion = false`, `weight_percent` must be `NULL`. Package 11.3 does not define weighting normalization, equal weighting, aggregation, or Project-completion calculations.
+
+Task dates must fit inside Project dates when Project bounds exist and inside phase dates when a phase is linked. A task linked to both a phase and a milestone must use the milestone's phase when the milestone has one. No rule compares task due dates with milestone due dates in this package.
+
+Owner task administration is exposed only through service-role gateways:
+
+- `public.server_create_project_task(...)`
+- `public.server_update_project_task(...)`
+- `public.server_archive_project_task(...)`
+- `public.server_owner_project_task_list(...)`
+- `public.server_owner_project_task_detail(...)`
+
+Client task reads are authenticated-only and safe-field-only:
+
+- `public.current_client_project_tasks(project_id)`
+- `public.current_client_project_task(task_id)`
+
+Client-safe task fields are exactly:
+
+- `id`
+- `project_id`
+- `phase_id`
+- `milestone_id`
+- `task_number`
+- `title`
+- `client_summary`
+- `status`
+- `completion_percent`
+- `start_date`
+- `due_date`
+- `completed_at`
+
+Clients see only active, Client-visible tasks for Projects owned by their linked active Client record. Tasks linked to hidden or inactive phases or milestones are hidden from Client reads. Cross-Client and cross-Project identifier manipulation returns no unrelated existence information.
+
+Package 11.3 adds dependency guards:
+
+- `app.change_project_client(...)` rejects Client reassignment once any task history exists for the Project.
+- `app.archive_project_phase(...)` rejects phase archival while active tasks reference the phase.
+- `app.archive_project_milestone(...)` rejects milestone archival while active tasks reference the milestone.
+- `app.archive_project_record(...)` rejects Project archival while active tasks exist.
+- `app.update_project_record(...)` rejects date changes that would exclude existing task history.
+- `app.update_project_phase(...)` rejects date changes that would exclude task history linked to that phase.
+- `app.update_project_milestone(...)` rejects phase reassignment when linked task history would become inconsistent.
+
+Reserved roles remain default-denied. Project Manager, Site Supervisor, and Accountant receive no public task functions, no task RLS policies, no Flutter access, and no `public.current_account()` activation in this package. Assigned-staff task access and task assignment records require a later explicit activation package.
+
+Central activity-log actions added by this package:
+
+- `project_task_created`
+- `project_task_updated`
+- `project_task_archived`
+
+Task activity metadata may include safe Project/task IDs and changed-state indicators for phase association, milestone association, dates, Client visibility, and completion-counting. It must omit or mask full descriptions, Client summary text, Auth subjects, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
+
 ## Inspect schema manually
 
 ```bash

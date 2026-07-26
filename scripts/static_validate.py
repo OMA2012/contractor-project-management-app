@@ -160,6 +160,20 @@ for name in sorted(required_11_2_migrations):
     require(name in migration_names, f'required Package 11.2 migration exists: {name}')
 for name in sorted(required_11_2_tests):
     require(name in test_names, f'required Package 11.2 pgTAP suite exists: {name}')
+required_11_3_migrations = {
+    '20260724101000_1107_project_tasks.sql',
+    '20260724101100_1108_project_task_functions.sql',
+    '20260724101200_1109_project_task_grants.sql',
+}
+required_11_3_tests = {
+    '27_package_11_3_project_tasks_schema.test.sql',
+    '28_package_11_3_project_tasks_security.test.sql',
+    '29_package_11_3_project_tasks_operations.test.sql',
+}
+for name in sorted(required_11_3_migrations):
+    require(name in migration_names, f'required Package 11.3 migration exists: {name}')
+for name in sorted(required_11_3_tests):
+    require(name in test_names, f'required Package 11.3 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -171,7 +185,7 @@ for path in migrations:
 
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
-    r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|'
+    r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|columns_are|col_is_pk|fk_ok|'
     r'hasnt_column|col_type_is|has_function|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
@@ -1300,12 +1314,164 @@ if milestone_grants_path.exists():
     ):
         require(forbidden not in milestone_grants_sql,
                 f'1106 milestone grants omit prohibited grant: {forbidden}')
-require('create table app.project_tasks' not in all_sql, '11.2 does not add tasks')
-require('create table app.task_assignments' not in all_sql, '11.2 does not add task assignments')
-require('create table app.task_updates' not in all_sql, '11.2 does not add task updates')
-require('create table app.progress_updates' not in all_sql and 'create table app.completion_overrides' not in all_sql, '11.2 does not add progress or completion override objects')
-require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.2 does not add documents')
-require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.2 does not add finance or ledger objects')
+task_schema_path = ROOT / 'supabase/migrations/20260724101000_1107_project_tasks.sql'
+task_functions_path = ROOT / 'supabase/migrations/20260724101100_1108_project_task_functions.sql'
+task_grants_path = ROOT / 'supabase/migrations/20260724101200_1109_project_task_grants.sql'
+if task_schema_path.exists():
+    task_schema_sql = task_schema_path.read_text(encoding='utf-8').lower()
+    require('create type app.project_task_status as enum' in task_schema_sql, '1107 creates task status enum')
+    for status in ("'todo'", "'in_progress'", "'blocked'", "'completed'", "'cancelled'"):
+        require(status in task_schema_sql, f'1107 task status value exists: {status}')
+    require('create table app.project_task_number_counters' in task_schema_sql, '1107 creates internal Project task-number counter')
+    require('create table app.tasks' in task_schema_sql, '1107 creates tasks table')
+    require('force row level security' in task_schema_sql, '1107 forces task RLS')
+    require('before delete on app.tasks' in task_schema_sql, '1107 prevents task hard deletion')
+    require('before update on app.tasks' in task_schema_sql, '1107 adds trusted task update guard')
+    require('tasks_validate_relationships' in task_schema_sql, '1107 validates Project/phase/milestone relationships')
+    require('generate_project_task_number' in task_schema_sql and 'on conflict (project_id)' in task_schema_sql and 'max(' not in task_schema_sql, '1107 uses concurrency-safe Project-local task numbering without MAX')
+    for column in (
+        'id',
+        'project_id',
+        'phase_id',
+        'milestone_id',
+        'task_number',
+        'title',
+        'description',
+        'client_summary',
+        'status',
+        'completion_percent',
+        'weight_percent',
+        'counts_toward_completion',
+        'start_date',
+        'due_date',
+        'completed_at',
+        'client_visible',
+        'is_active',
+        'created_at',
+        'created_by',
+        'updated_at',
+        'updated_by',
+        'version_number',
+    ):
+        require(re.search(rf'\b{re.escape(column)}\b', task_schema_sql),
+                f'1107 task schema contains exact field: {column}')
+    for required in (
+        'tsk-',
+        'project_id, task_number',
+        'counts_toward_completion',
+        'weight_percent is null',
+        'completion_percent = 0',
+        "status = 'todo'",
+        'completed_at is null',
+        'project task phase must belong to the same project',
+        'project task milestone must belong to the same project',
+        'project task phase must match the milestone phase',
+        'project task dates must fit inside project dates',
+        'project task dates must fit inside project phase dates',
+    ):
+        require(required in task_schema_sql,
+                f'1107 task schema contains required clause: {required}')
+    for forbidden in (
+        'assigned_user_id',
+        'operational_notes',
+        'cancellation_reason',
+        'completed_by',
+        'cancelled_by',
+        'archived_at',
+        'archived_by',
+        'estimated_cost',
+        'actual_cost',
+        'task_assignments',
+        'task_updates',
+    ):
+        require(forbidden not in task_schema_sql,
+                f'1107 task schema omits forbidden field/object: {forbidden}')
+if task_functions_path.exists():
+    task_functions_sql = task_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.create_project_task',
+        'create or replace function app.update_project_task',
+        'create or replace function app.archive_project_task',
+        'create or replace function app.owner_project_task_list',
+        'create or replace function app.owner_project_task_detail',
+        'create or replace function app.current_client_project_tasks_for_authenticated_user',
+        'create or replace function public.current_client_project_tasks',
+        'create or replace function public.current_client_project_task',
+        'create or replace function public.server_create_project_task',
+        'create or replace function public.server_update_project_task',
+        'create or replace function public.server_archive_project_task',
+        'require_active_owner_admin',
+        'project client cannot be changed after task history exists',
+        'project phase cannot be archived while active tasks reference it',
+        'project milestone cannot be archived while active tasks reference it',
+        'project cannot be archived while active tasks exist',
+        'project dates cannot exclude existing task history',
+        'project phase dates cannot exclude existing task history',
+        'project milestone phase cannot change while task history would become inconsistent',
+    ):
+        require(required in task_functions_sql,
+                f'1108 task functions contain required clause: {required}')
+    client_task_match = re.search(
+        r'create\s+or\s+replace\s+function\s+public\.current_client_project_tasks[\s\S]+?returns\s+table\s*\(([\s\S]+?)\)\s+language',
+        task_functions_sql,
+    )
+    require(client_task_match is not None, '1108 Client task read signature is detectable')
+    if client_task_match:
+        returned = client_task_match.group(1)
+        for safe_field in ('id', 'project_id', 'phase_id', 'milestone_id', 'task_number', 'title', 'client_summary', 'status', 'completion_percent', 'start_date', 'due_date', 'completed_at'):
+            require(safe_field in returned, f'1108 Client task read returns safe field: {safe_field}')
+        for forbidden_field in ('description', 'weight_percent', 'counts_toward_completion', 'client_visible', 'is_active', 'created_by', 'updated_by', 'version_number'):
+            require(forbidden_field not in returned, f'1108 Client task read omits private field: {forbidden_field}')
+    for forbidden in (
+        'create or replace function public.server_complete_project_task',
+        'create or replace function public.server_change_project_task_status',
+        'create or replace function public.server_update_project_task_progress',
+        'create or replace function public.current_staff_project_task',
+        'create or replace function public.current_project_manager_project_task',
+        'create or replace function public.current_site_supervisor_project_task',
+        'execute ',
+        'format(',
+        'raw_app_meta_data',
+        'task_assignments',
+        'task_updates',
+    ):
+        require(forbidden not in task_functions_sql,
+                f'1108 task functions omit prohibited pattern: {forbidden}')
+if task_grants_path.exists():
+    task_grants_sql = task_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.tasks from public, anon, authenticated, service_role',
+        'revoke all on app.project_task_number_counters from public, anon, authenticated, service_role',
+        'revoke all on function app.create_project_task',
+        'revoke all on function app.update_project_task',
+        'revoke all on function app.archive_project_task',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.current_client_project_tasks',
+        'to authenticated',
+        'grant execute on function public.server_create_project_task',
+        'grant execute on function public.server_update_project_task',
+        'grant execute on function public.server_archive_project_task',
+        'grant execute on function public.server_owner_project_task_list',
+        'to service_role',
+    ):
+        require(required in task_grants_sql,
+                f'1109 task grants migration contains required clause: {required}')
+    for forbidden in (
+        'grant select on app.tasks',
+        'grant insert on app.tasks',
+        'grant update on app.tasks',
+        'grant delete on app.tasks',
+        'current_staff_project_task',
+        'current_project_manager_project_task',
+        'current_site_supervisor_project_task',
+    ):
+        require(forbidden not in task_grants_sql,
+                f'1109 task grants omit prohibited grant: {forbidden}')
+require('create table app.task_assignments' not in all_sql, '11.3 does not add task assignments')
+require('create table app.task_updates' not in all_sql, '11.3 does not add task updates')
+require('create table app.progress_updates' not in all_sql and 'create table app.completion_overrides' not in all_sql, '11.3 does not add progress or completion override objects')
+require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.3 does not add documents')
+require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.3 does not add finance or ledger objects')
 
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')
