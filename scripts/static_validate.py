@@ -146,6 +146,20 @@ for name in sorted(required_11_1_migrations):
     require(name in migration_names, f'required Package 11.1 migration exists: {name}')
 for name in sorted(required_11_1_tests):
     require(name in test_names, f'required Package 11.1 pgTAP suite exists: {name}')
+required_11_2_migrations = {
+    '20260724100700_1104_project_milestones.sql',
+    '20260724100800_1105_project_milestone_functions.sql',
+    '20260724100900_1106_project_milestone_grants.sql',
+}
+required_11_2_tests = {
+    '24_package_11_2_project_milestones_schema.test.sql',
+    '25_package_11_2_project_milestones_security.test.sql',
+    '26_package_11_2_project_milestones_operations.test.sql',
+}
+for name in sorted(required_11_2_migrations):
+    require(name in migration_names, f'required Package 11.2 migration exists: {name}')
+for name in sorted(required_11_2_tests):
+    require(name in test_names, f'required Package 11.2 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -1117,11 +1131,181 @@ if phase_grants_path.exists():
     ):
         require(forbidden not in phase_grants_sql,
                 f'1103 phase grants omit prohibited grant: {forbidden}')
-require('create table app.project_milestones' not in all_sql, '10.3 does not add milestones')
-require('create table app.project_tasks' not in all_sql, '10.3 does not add tasks')
-require('create table app.task_assignments' not in all_sql, '10.3 does not add task assignments')
-require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '10.3 does not add documents')
-require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '10.3 does not add finance or ledger objects')
+
+milestone_schema_path = ROOT / 'supabase/migrations/20260724100700_1104_project_milestones.sql'
+milestone_functions_path = ROOT / 'supabase/migrations/20260724100800_1105_project_milestone_functions.sql'
+milestone_grants_path = ROOT / 'supabase/migrations/20260724100900_1106_project_milestone_grants.sql'
+if milestone_schema_path.exists():
+    milestone_schema_sql = milestone_schema_path.read_text(encoding='utf-8').lower()
+    require('create table app.project_milestones' in milestone_schema_sql, '1104 creates milestone table')
+    require('enable row level security' in milestone_schema_sql, '1104 enables milestone RLS')
+    require('force row level security' in milestone_schema_sql, '1104 forces milestone RLS')
+    require('before delete on app.project_milestones' in milestone_schema_sql, '1104 prevents milestone hard deletion')
+    require('project_milestones_validate_relationships' in milestone_schema_sql, '1104 validates same-Project phase and due dates')
+    require('project_milestones_trusted_update_guard' in milestone_schema_sql, '1104 adds trusted milestone update guard')
+    for column in (
+        'id',
+        'project_id',
+        'phase_id',
+        'name',
+        'description',
+        'due_date',
+        'completed_at',
+        'client_visible',
+        'is_active',
+        'created_at',
+        'created_by',
+        'updated_at',
+        'updated_by',
+        'version_number',
+    ):
+        require(re.search(rf'\b{column}\b', milestone_schema_sql) is not None,
+                f'1104 milestone schema contains exact field: {column}')
+    for required in (
+        'name varchar(160) not null',
+        'description text',
+        'due_date date',
+        'completed_at timestamptz',
+        'client_visible boolean not null default true',
+        'is_active boolean not null default true',
+        'version_number integer not null default 1',
+        'references app.projects(id) on delete restrict',
+        'references app.project_phases(id) on delete restrict',
+        'references app.users(id) on delete restrict',
+        'length(btrim(description)) <= 4000',
+        'version_number >= 1',
+        'phase must belong to the same project',
+        'requires an active phase',
+        'due date must fit inside project dates',
+        'due date must fit inside phase dates',
+    ):
+        require(required in milestone_schema_sql,
+                f'1104 milestone schema contains required clause: {required}')
+    for forbidden in (
+        'create type app.project_milestone_status',
+        ' status ',
+        'sequence_no',
+        'milestone_number',
+        'completion_percent',
+        'weight_percent',
+        'actual_completion_date',
+        'completed_by',
+        'archived_at',
+        'archived_by',
+        'cancellation_reason',
+        'payment_request_id',
+        'amount',
+        'currency_code',
+        'predecessor_id',
+        'template_id',
+        'colour',
+        'task_count',
+        'delete from app.project_milestones',
+    ):
+        require(forbidden not in milestone_schema_sql,
+                f'1104 milestone schema omits forbidden field/pattern: {forbidden}')
+if milestone_functions_path.exists():
+    milestone_functions_sql = milestone_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.create_project_milestone',
+        'create or replace function app.update_project_milestone',
+        'create or replace function app.complete_project_milestone',
+        'create or replace function app.archive_project_milestone',
+        'create or replace function app.owner_project_milestone_list',
+        'create or replace function app.owner_project_milestone_detail',
+        'create or replace function app.current_client_project_milestones_for_authenticated_user',
+        'create or replace function app.current_client_project_milestone_for_authenticated_user',
+        'create or replace function public.current_client_project_milestones',
+        'create or replace function public.current_client_project_milestone',
+        'create or replace function public.server_create_project_milestone',
+        'create or replace function public.server_update_project_milestone',
+        'create or replace function public.server_complete_project_milestone',
+        'create or replace function public.server_archive_project_milestone',
+        'create or replace function public.server_owner_project_milestone_list',
+        'create or replace function public.server_owner_project_milestone_detail',
+        'security definer',
+        "set search_path = ''",
+        'app.require_active_owner_admin',
+        "p_project.status not in ('draft', 'quotation', 'approved', 'active', 'on_hold')",
+        "project_row.status not in ('active', 'on_hold')",
+        "project_row.status = 'archived'",
+        'project milestone version conflict',
+        'project milestone cannot be completed',
+        'project milestone cannot be archived',
+        'app.allow_project_milestone_completion',
+        'app.allow_project_milestone_archive',
+        'project client cannot be changed after milestone history exists',
+        'project phase cannot be archived while active milestones reference it',
+        'project cannot be archived while active phases exist',
+        'project cannot be archived while active milestones exist',
+        'project dates cannot exclude existing milestone history',
+        'project phase dates cannot exclude existing milestone history',
+        'project_milestone_created',
+        'project_milestone_updated',
+        'project_milestone_completed',
+        'project_milestone_archived',
+        "'[masked]'",
+    ):
+        require(required in milestone_functions_sql,
+                f'1105 milestone functions migration contains required clause: {required}')
+    safe_milestone_return = re.search(
+        r'create or replace function public\.current_client_project_milestones\(.*?returns table \((.*?)\)\s+language',
+        milestone_functions_sql,
+        re.S,
+    )
+    require(safe_milestone_return is not None, '1105 public.current_client_project_milestones return shape is inspectable')
+    if safe_milestone_return:
+        returned = safe_milestone_return.group(1)
+        for safe_field in ('id uuid', 'project_id uuid', 'phase_id uuid', 'name text', 'description text', 'due_date date', 'completed_at timestamptz'):
+            require(safe_field in returned, f'1105 Client milestone read returns safe field: {safe_field}')
+        for forbidden_field in ('is_active', 'client_visible', 'created_by', 'updated_by', 'version_number'):
+            require(forbidden_field not in returned, f'1105 Client milestone read omits private field: {forbidden_field}')
+    for forbidden in (
+        'create or replace function app.reopen_project_milestone',
+        'create or replace function public.server_reopen_project_milestone',
+        'create or replace function public.current_staff_project_milestone',
+        'create or replace function public.current_project_manager_project_milestone',
+        'create or replace function public.current_site_supervisor_project_milestone',
+        'execute ',
+        'format(',
+        'raw_app_meta_data',
+        'full description',
+    ):
+        require(forbidden not in milestone_functions_sql,
+                f'1105 milestone functions omit prohibited pattern: {forbidden}')
+if milestone_grants_path.exists():
+    milestone_grants_sql = milestone_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.project_milestones from public, anon, authenticated, service_role',
+        'revoke all on function app.create_project_milestone',
+        'revoke all on function app.complete_project_milestone',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.current_client_project_milestones',
+        'to authenticated',
+        'grant execute on function public.server_create_project_milestone',
+        'grant execute on function public.server_complete_project_milestone',
+        'grant execute on function public.server_owner_project_milestone_list',
+        'to service_role',
+    ):
+        require(required in milestone_grants_sql,
+                f'1106 milestone grants migration contains required clause: {required}')
+    for forbidden in (
+        'grant select on app.project_milestones',
+        'grant insert on app.project_milestones',
+        'grant update on app.project_milestones',
+        'grant delete on app.project_milestones',
+        'current_staff_project_milestone',
+        'current_project_manager_project_milestone',
+        'current_site_supervisor_project_milestone',
+    ):
+        require(forbidden not in milestone_grants_sql,
+                f'1106 milestone grants omit prohibited grant: {forbidden}')
+require('create table app.project_tasks' not in all_sql, '11.2 does not add tasks')
+require('create table app.task_assignments' not in all_sql, '11.2 does not add task assignments')
+require('create table app.task_updates' not in all_sql, '11.2 does not add task updates')
+require('create table app.progress_updates' not in all_sql and 'create table app.completion_overrides' not in all_sql, '11.2 does not add progress or completion override objects')
+require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.2 does not add documents')
+require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.2 does not add finance or ledger objects')
 
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')

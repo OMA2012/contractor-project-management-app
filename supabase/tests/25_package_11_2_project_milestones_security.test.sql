@@ -1,0 +1,34 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(27);
+
+SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)'::regprocedure), 'private create milestone is security definer');
+SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.current_client_project_milestones(uuid)'::regprocedure), 'public Client milestone list is security definer');
+SELECT is((SELECT proconfig FROM pg_proc WHERE oid = 'app.create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)'::regprocedure), ARRAY['search_path=""'], 'private create has empty search path');
+SELECT is((SELECT proconfig FROM pg_proc WHERE oid = 'public.current_client_project_milestone(uuid)'::regprocedure), ARRAY['search_path=""'], 'public Client milestone detail has empty search path');
+SELECT volatility_is('app', 'create_project_milestone', ARRAY['uuid','uuid','text','uuid','text','date','boolean','text','text','text','inet']::name[], 'volatile', 'create milestone is volatile');
+SELECT volatility_is('app', 'complete_project_milestone', ARRAY['uuid','uuid','integer','text','text','text','inet']::name[], 'volatile', 'complete milestone is volatile');
+SELECT volatility_is('public', 'current_client_project_milestones', ARRAY['uuid']::name[], 'stable', 'Client milestone list is stable');
+SELECT ok(NOT has_table_privilege('anon', 'app.project_milestones', 'SELECT'), 'anon cannot select milestones');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_milestones', 'SELECT'), 'authenticated cannot select milestones directly');
+SELECT ok(NOT has_table_privilege('service_role', 'app.project_milestones', 'SELECT'), 'service_role has no direct milestone table SELECT');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_milestones', 'INSERT'), 'authenticated cannot insert milestones');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_milestones', 'UPDATE'), 'authenticated cannot update milestones');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.project_milestones', 'DELETE'), 'authenticated cannot delete milestones');
+SELECT ok(NOT has_function_privilege('authenticated', 'app.create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute private create');
+SELECT ok(NOT has_function_privilege('service_role', 'app.create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)', 'EXECUTE'), 'service_role cannot execute private create directly');
+SELECT ok(has_function_privilege('authenticated', 'public.current_client_project_milestones(uuid)', 'EXECUTE'), 'authenticated can execute Client milestone list');
+SELECT ok(has_function_privilege('authenticated', 'public.current_client_project_milestone(uuid)', 'EXECUTE'), 'authenticated can execute Client milestone detail');
+SELECT ok(NOT has_function_privilege('anon', 'public.current_client_project_milestones(uuid)', 'EXECUTE'), 'anon cannot execute Client milestone list');
+SELECT ok(NOT has_function_privilege('service_role', 'public.current_client_project_milestones(uuid)', 'EXECUTE'), 'service_role cannot execute Client milestone list');
+SELECT ok(has_function_privilege('service_role', 'public.server_create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)', 'EXECUTE'), 'service_role can execute create milestone gateway');
+SELECT ok(has_function_privilege('service_role', 'public.server_archive_project_milestone(uuid, uuid, integer, text, text, text, inet)', 'EXECUTE'), 'service_role can execute archive milestone gateway');
+SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute Owner milestone gateway');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_project_milestones', 'current_project_manager_project_milestones', 'current_site_supervisor_project_milestones') $$, 'no public staff milestone RPC exists');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%reopen%milestone%' $$, 'no milestone reopening function exists');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('project_tasks','task_assignments','task_updates','progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'task, progress, finance and document tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'project_milestones' AND policyname ILIKE '%staff%'), 'no staff milestone RLS policy exists');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname LIKE '%assignment%milestone%'), 'assignment helpers are not exposed through milestone public RPCs');
+
+SELECT * FROM finish();
+ROLLBACK;

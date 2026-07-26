@@ -534,6 +534,88 @@ Phase activity metadata may include safe Project/phase IDs, changed-field indica
 
 Before milestones or tasks are added, later packages must enforce dependency guards so phase archival handles dependent active rows safely, phase ordering never changes milestone/task ownership, and Project/phase consistency remains inside one Project.
 
+## Stage 11 Package 11.2: Project Milestone Foundation
+
+Package 11.2 adds Project milestone records only. It does not add tasks, task assignments, task status, progress calculations, documents, finances, Flutter screens, Edge Functions, or reserved-role access.
+
+`app.project_milestones` contains exactly:
+
+- `id`
+- `project_id`
+- `phase_id`
+- `name`
+- `description`
+- `due_date`
+- `completed_at`
+- `client_visible`
+- `is_active`
+- `created_at`
+- `created_by`
+- `updated_at`
+- `updated_by`
+- `version_number`
+
+Milestone names are trimmed and nonblank. Duplicate milestone names are permitted; the milestone UUID is the record identity. Blank descriptions normalize to `NULL` and descriptions follow the existing 4000-character Project text convention.
+
+Milestones do not have a status enum or status column. State is derived from `is_active` and `completed_at`:
+
+- active incomplete: `is_active = true` and `completed_at IS NULL`;
+- active completed: `is_active = true` and `completed_at IS NOT NULL`;
+- inactive historical: `is_active = false`, with any existing completion timestamp preserved.
+
+New milestones start active and incomplete. Completion uses trusted database time through `public.server_complete_project_milestone(...)`; completed milestones are read-only and may only be archived. Package 11.2 does not include reopening or completion reversal. Archival sets `is_active = false`, preserves history, and never hard-deletes the row.
+
+Milestone creation and normal update are allowed only while the Project is `DRAFT`, `QUOTATION`, `APPROVED`, `ACTIVE`, or `ON_HOLD`. Completion is allowed only while the Project is `ACTIVE` or `ON_HOLD`. Milestone archival is allowed for all Project statuses except `ARCHIVED`.
+
+`phase_id` is optional. When present, it must reference an active phase belonging to the same Project. Milestone due dates must remain inside Project start/end dates when Project bounds exist, and inside phase start/end dates when an associated phase has bounds. Cross-table validation is implemented with trusted trigger/function logic rather than invalid SQL CHECK constraints.
+
+Owner administration is exposed only through service-role gateways:
+
+- `public.server_create_project_milestone(...)`
+- `public.server_update_project_milestone(...)`
+- `public.server_complete_project_milestone(...)`
+- `public.server_archive_project_milestone(...)`
+- `public.server_owner_project_milestone_list(...)`
+- `public.server_owner_project_milestone_detail(...)`
+
+Client milestone reads are authenticated-only and safe-field-only:
+
+- `public.current_client_project_milestones(project_id)`
+- `public.current_client_project_milestone(milestone_id)`
+
+Client-safe fields are exactly:
+
+- `id`
+- `project_id`
+- `phase_id`
+- `name`
+- `description`
+- `due_date`
+- `completed_at`
+
+Clients see only active, Client-visible milestones for Projects owned by their linked active Client record. A milestone linked to a hidden or inactive phase is hidden from Client reads, including the phase identifier. Cross-Client Project, phase, or milestone identifier manipulation returns no unrelated existence information.
+
+Package 11.2 adds dependency guards:
+
+- `app.change_project_client(...)` rejects Client reassignment once any milestone history exists for the Project, active or inactive, while preserving the earlier staff-assignment and phase-history guards.
+- `app.archive_project_phase(...)` rejects phase archival while any active milestone references the phase.
+- `app.archive_project_record(...)` rejects Project archival while any active phase or active milestone exists.
+- `app.update_project_record(...)` rejects date changes that would exclude existing phase or milestone history.
+- `app.update_project_phase(...)` rejects date changes that would exclude milestone history linked to that phase.
+
+Reserved roles remain default-denied. Project Manager, Site Supervisor, and Accountant receive no public milestone functions, no milestone RLS policies, no Flutter access, and no `public.current_account()` activation in this package. Assigned-staff milestone access requires a later explicit activation package.
+
+Central activity-log actions added by this package:
+
+- `project_milestone_created`
+- `project_milestone_updated`
+- `project_milestone_completed`
+- `project_milestone_archived`
+
+Milestone activity metadata may include safe Project/milestone IDs and changed-state indicators for phase association, due dates, completion, and Client visibility. It must omit or mask full descriptions, Auth subjects, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
+
+Before tasks are added, later packages must enforce same-Project task ownership, reject or safely handle active task dependencies during milestone archival, block milestone phase reassignment after task history, and avoid automatic task, phase, Project, or payment completion side effects.
+
 ## Inspect schema manually
 
 ```bash
