@@ -104,6 +104,20 @@ for name in sorted(required_10_1_migrations):
     require(name in migration_names, f'required Package 10.1 migration exists: {name}')
 for name in sorted(required_10_1_tests):
     require(name in test_names, f'required Package 10.1 pgTAP suite exists: {name}')
+required_10_2_migrations = {
+    '20260724095800_1004_project_business_records.sql',
+    '20260724095900_1005_project_business_record_functions.sql',
+    '20260724100000_1006_project_business_record_grants.sql',
+}
+required_10_2_tests = {
+    '15_package_10_2_project_records_schema.test.sql',
+    '16_package_10_2_project_records_security.test.sql',
+    '17_package_10_2_project_records_operations.test.sql',
+}
+for name in sorted(required_10_2_migrations):
+    require(name in migration_names, f'required Package 10.2 migration exists: {name}')
+for name in sorted(required_10_2_tests):
+    require(name in test_names, f'required Package 10.2 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -146,7 +160,6 @@ for required in (
     require(required in all_sql, f'required object present: {required}')
 
 for prohibited in (
-    'create table app.projects',
     'create table app.project_staff_assignments',
     'create table app.financial_accounts',
     'create table app.financial_transactions',
@@ -609,6 +622,174 @@ if client_grants_path.exists():
     require('grant insert on app.clients' not in client_grants_sql, '1003 grants no direct clients table INSERT')
     require('grant update on app.clients' not in client_grants_sql, '1003 grants no direct clients table UPDATE')
     require('grant delete on app.clients' not in client_grants_sql, '1003 grants no direct clients table DELETE')
+
+project_schema_path = ROOT / 'supabase/migrations/20260724095800_1004_project_business_records.sql'
+project_functions_path = ROOT / 'supabase/migrations/20260724095900_1005_project_business_record_functions.sql'
+project_grants_path = ROOT / 'supabase/migrations/20260724100000_1006_project_business_record_grants.sql'
+if project_schema_path.exists():
+    project_schema_sql = project_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.project_record_status as enum',
+        "'draft'",
+        "'quotation'",
+        "'approved'",
+        "'active'",
+        "'on_hold'",
+        "'completed'",
+        "'cancelled'",
+        "'archived'",
+        'create table app.project_number_counters',
+        'project_year integer primary key',
+        'last_value integer not null',
+        'last_value between 1 and 9999',
+        'create or replace function app.generate_project_number()',
+        'from app.contractor_profiles',
+        'cp.time_zone',
+        'at time zone contractor_time_zone',
+        'on conflict (project_year)',
+        'last_value = app.project_number_counters.last_value + 1',
+        'last_value < 9999',
+        "return ('prj-' || resolved_year::text || '-' || lpad(allocated_value::text, 4, '0'))",
+        'create table app.projects',
+        'project_number public.citext not null default app.generate_project_number()',
+        'numeric(20,6)',
+        'constraint projects_project_number_uk unique (project_number)',
+        "project_number::text ~ '^prj-[0-9]{4}-[0-9]{4}$'",
+        'foreign key (client_id) references app.clients(id) on delete restrict',
+        'foreign key (contract_currency_code) references app.currencies(code) on delete restrict',
+        'foreign key (budget_currency_code) references app.currencies(code) on delete restrict',
+        'foreign key (reporting_currency_code) references app.currencies(code) on delete restrict',
+        'contract_amount >= 0',
+        'budget_amount >= 0',
+        'status in (',
+        'new.project_number is distinct from old.project_number',
+        'app.allow_project_status_change',
+        'app.allow_project_client_change',
+        'new.version_number := old.version_number + 1',
+        'before delete on app.projects',
+        'alter table app.projects enable row level security',
+        'alter table app.projects force row level security',
+        'alter table app.project_number_counters enable row level security',
+        'alter table app.project_number_counters force row level security',
+    ):
+        require(required in project_schema_sql,
+                f'1004 Project schema migration contains required clause: {required}')
+    approved_project_columns = [
+        'id', 'project_number', 'client_id', 'name', 'project_type', 'location',
+        'status', 'start_date', 'end_date', 'contract_amount',
+        'contract_currency_code', 'budget_amount', 'budget_currency_code',
+        'reporting_currency_code', 'client_visible_summary', 'internal_notes',
+        'completed_at', 'cancelled_at', 'cancellation_reason', 'archived_at',
+        'archived_by', 'created_at', 'created_by', 'updated_at', 'updated_by',
+        'version_number',
+    ]
+    for column in approved_project_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', project_schema_sql) is not None,
+                f'1004 app.projects approved column exists: {column}')
+    for forbidden in (
+        'is_active',
+        'completion_percent',
+        'current_balance',
+        'total_paid',
+        'total_expenses',
+        'outstanding_amount',
+        'assigned_project_manager_id',
+        'assigned_supervisor_id',
+        'project_staff_assignments',
+        'ledger_entries',
+        'financial_transactions',
+        'exchange_rate',
+        'max(',
+    ):
+        require(forbidden not in project_schema_sql,
+                f'1004 Project schema omits forbidden field/table/pattern: {forbidden}')
+if project_functions_path.exists():
+    project_functions_sql = project_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.create_project_record',
+        'create or replace function app.update_project_record',
+        'create or replace function app.change_project_client',
+        'create or replace function app.change_project_status',
+        'create or replace function app.complete_project_record',
+        'create or replace function app.cancel_project_record',
+        'create or replace function app.archive_project_record',
+        'create or replace function app.owner_project_record_detail',
+        'create or replace function app.owner_project_record_list',
+        'create or replace function app.current_client_project_records_for_authenticated_user',
+        'create or replace function app.current_client_project_record_for_authenticated_user',
+        'create or replace function public.current_client_project_records',
+        'create or replace function public.current_client_project_record',
+        'create or replace function public.server_create_project_record',
+        'create or replace function public.server_change_project_client',
+        'security definer',
+        "set search_path = ''",
+        'app.require_active_owner_admin',
+        'app.require_active_client_record',
+        "existing_row.status not in ('draft', 'quotation', 'approved')",
+        "'draft'::app.project_record_status, 'quotation'::app.project_record_status",
+        "'completed'::app.project_record_status, 'archived'::app.project_record_status",
+        "'cancelled'::app.project_record_status, 'archived'::app.project_record_status",
+        'project terminal transitions require dedicated functions',
+        'auth.uid()',
+        'p.client_id = c.id',
+        'project_record_created',
+        'project_record_updated',
+        'project_client_changed',
+        'project_status_changed',
+        'project_completed',
+        'project_cancelled',
+        'project_archived',
+        "'[masked]'",
+        'future_dependent_record_guard_required',
+    ):
+        require(required in project_functions_sql,
+                f'1005 Project function migration contains required clause: {required}')
+    public_project_list_match = re.search(
+        r'create or replace function public\.current_client_project_records\(.*?returns table \((.*?)\)\s+language',
+        project_functions_sql,
+        re.S,
+    )
+    if public_project_list_match:
+        public_fields = public_project_list_match.group(1)
+        for safe_field in ('id uuid', 'project_number text', 'name text', 'project_type text', 'location text', 'status text', 'start_date date', 'end_date date', 'reporting_currency_code char(3)', 'client_visible_summary text'):
+            require(safe_field in public_fields,
+                    f'public.current_client_project_records returns safe field: {safe_field}')
+        for forbidden_field in ('contract_amount', 'contract_currency_code', 'budget_amount', 'budget_currency_code', 'internal_notes', 'cancellation_reason', 'created_by', 'updated_by', 'archived_by'):
+            require(forbidden_field not in public_fields,
+                    f'public.current_client_project_records omits private field: {forbidden_field}')
+    for forbidden in (
+        'delete from app.projects',
+        'project_staff_assignments',
+        'assigned_project_manager',
+        'assigned_supervisor',
+        'ledger_entries',
+        'financial_transactions',
+        'format(',
+        'execute ',
+    ):
+        require(forbidden not in project_functions_sql,
+                f'1005 Project functions omit prohibited pattern: {forbidden}')
+if project_grants_path.exists():
+    project_grants_sql = project_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.projects from public, anon, authenticated, service_role',
+        'revoke all on app.project_number_counters from public, anon, authenticated, service_role',
+        'revoke all on function app.generate_project_number() from public, anon, authenticated, service_role',
+        'revoke all on function app.create_project_record',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.current_client_project_records',
+        'to authenticated',
+        'grant execute on function public.server_create_project_record',
+        'grant execute on function public.server_change_project_client',
+        'grant execute on function public.server_owner_project_record_list',
+        'to service_role',
+    ):
+        require(required in project_grants_sql,
+                f'1006 Project grants migration contains required clause: {required}')
+    require('grant select on app.projects' not in project_grants_sql, '1006 grants no direct Project table SELECT')
+    require('grant insert on app.projects' not in project_grants_sql, '1006 grants no direct Project table INSERT')
+    require('grant update on app.projects' not in project_grants_sql, '1006 grants no direct Project table UPDATE')
+    require('grant delete on app.projects' not in project_grants_sql, '1006 grants no direct Project table DELETE')
 
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')
