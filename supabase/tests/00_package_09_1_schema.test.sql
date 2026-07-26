@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(55);
+SELECT plan(54);
 
 SELECT has_schema('app', 'app schema exists');
 SELECT has_type('app', 'user_status', 'user_status enum exists');
@@ -14,7 +14,6 @@ SELECT has_table('app', 'user_profiles', 'user profile table exists');
 SELECT has_table('app', 'roles', 'predefined roles table exists');
 SELECT has_table('app', 'user_roles', 'user-role history table exists');
 
-SELECT hasnt_table('app', 'projects', 'projects are not implemented in Package 09.1');
 SELECT hasnt_table('app', 'financial_accounts', 'financial accounts are not implemented');
 SELECT hasnt_table('app', 'financial_transactions', 'financial transactions are not implemented');
 SELECT hasnt_table('app', 'ledger_entries', 'ledger entries are not implemented');
