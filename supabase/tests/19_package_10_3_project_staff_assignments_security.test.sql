@@ -36,7 +36,7 @@ SELECT is_empty(
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) LIKE '%ARRAY[''owner_admin'']%' AND (SELECT pg_get_functiondef('public.current_account()'::regprocedure)) LIKE '%ARRAY[''client'']%', 'current_account still exposes only owner_admin and client usable roles');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%ARRAY[''project_manager''%' AND (SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%ARRAY[''site_supervisor''%', 'current_account does not activate reserved staff roles');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'projects' AND policyname ILIKE '%staff%'), 'no staff RLS policy added to Projects');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('project_tasks','task_assignments','financial_transactions','ledger_entries','documents')), 'later task, finance and document tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_assignments','financial_transactions','ledger_entries','documents')), 'later task-assignment, finance and document tables remain absent');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_staff_assignment(uuid, uuid, uuid, varchar, text, text, text, text, inet)'::regprocedure), 'private create is SECURITY DEFINER');
 SELECT is((SELECT proconfig FROM pg_proc WHERE oid = 'app.create_project_staff_assignment(uuid, uuid, uuid, varchar, text, text, text, text, inet)'::regprocedure), ARRAY['search_path=""'], 'private create has empty search path');
 
