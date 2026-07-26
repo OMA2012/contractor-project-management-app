@@ -456,7 +456,83 @@ Central activity-log actions added by this package:
 
 Assignment activity metadata may include safe Project IDs, assignment role codes, and status transitions. It must mask or omit staff email, phone, Auth subjects, raw notes, Client identity, raw request bodies, and request/session secrets.
 
-Stage 11 and later features remain excluded: phases, milestones, tasks, task assignments, progress updates, documents, photographs, notifications, financial records, ledger entries, Project balances, and assigned-staff UI workflows.
+Later features remain excluded from Package 10.3: phases, milestones, tasks, task assignments, progress updates, documents, photographs, notifications, financial records, ledger entries, Project balances, and assigned-staff UI workflows.
+
+## Stage 11 Package 11.1: Project Phase Foundation
+
+Package 11.1 adds Project phase records only. It does not add milestones, tasks, task assignments, progress calculations, documents, finances, Flutter screens, Edge Functions, or reserved-role access.
+
+`app.project_phases` contains exactly:
+
+- `id`
+- `project_id`
+- `name`
+- `description`
+- `sequence_no`
+- `start_date`
+- `end_date`
+- `client_visible`
+- `is_active`
+- `created_at`
+- `created_by`
+- `updated_at`
+- `updated_by`
+- `version_number`
+
+Phase names must be trimmed and nonblank. Duplicate phase names are permitted; `sequence_no` is the authoritative order within a Project. Descriptions are normalized to `NULL` when blank and follow the existing 4000-character Project text convention.
+
+Project phase ordering is Project-wide and active-first:
+
+- active phases occupy contiguous sequence numbers from `1`;
+- inactive historical phases remain after active phases;
+- insertion, reorder, and archival lock the Project and phase rows before shifting sequence numbers;
+- a deferrable unique constraint prevents duplicate `(project_id, sequence_no)`;
+- failed ordering operations roll back completely.
+
+Phase creation, normal update, and reorder are allowed only while the Project is `DRAFT`, `QUOTATION`, `APPROVED`, `ACTIVE`, or `ON_HOLD`. They are rejected for `COMPLETED`, `CANCELLED`, and `ARCHIVED` Projects. Phase archival is a soft archive that sets `is_active = false`; it is allowed for all Project statuses except `ARCHIVED`, including completed or cancelled closeout correction. Reactivation and hard deletion are not supported.
+
+Phase dates must satisfy `start_date <= end_date` and must remain within the Project start/end date bounds when those Project dates are present. Cross-table Project-date enforcement is handled by trusted functions rather than a table CHECK.
+
+Owner administration is exposed only through service-role gateways:
+
+- `public.server_create_project_phase(...)`
+- `public.server_update_project_phase(...)`
+- `public.server_reorder_project_phases(...)`
+- `public.server_archive_project_phase(...)`
+- `public.server_owner_project_phase_list(...)`
+- `public.server_owner_project_phase_detail(...)`
+
+Client phase reads are authenticated-only and safe-field-only:
+
+- `public.current_client_project_phases(project_id)`
+- `public.current_client_project_phase(phase_id)`
+
+Client-safe fields are exactly:
+
+- `id`
+- `project_id`
+- `name`
+- `description`
+- `sequence_no`
+- `start_date`
+- `end_date`
+
+Clients see only active, Client-visible phases for Projects owned by their linked active Client record. Hidden phases, inactive phases, unrelated Projects, audit actors, version numbers, and internal activity metadata are never exposed through Client reads.
+
+Package 11.1 adds a Project dependency guard: `app.change_project_client(...)` rejects Client reassignment once any phase history exists for the Project, active or inactive. The existing staff-assignment-history guard remains in force.
+
+Reserved roles remain default-denied. Project Manager, Site Supervisor, and Accountant receive no public phase functions, no phase RLS policies, no Flutter access, and no `public.current_account()` activation in this package. Assigned Project Manager phase management requires a later explicit activation package.
+
+Central activity-log actions added by this package:
+
+- `project_phase_created`
+- `project_phase_updated`
+- `project_phases_reordered`
+- `project_phase_archived`
+
+Phase activity metadata may include safe Project/phase IDs, changed-field indicators, sequence positions, Client-visibility-change indicators, and affected-row counts. It must omit or mask full descriptions, Auth subjects, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
+
+Before milestones or tasks are added, later packages must enforce dependency guards so phase archival handles dependent active rows safely, phase ordering never changes milestone/task ownership, and Project/phase consistency remains inside one Project.
 
 ## Inspect schema manually
 
