@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(35);
+SELECT plan(36);
 
 SELECT has_type('app', 'project_task_status', 'task status enum exists');
 SELECT results_eq(
@@ -46,7 +46,7 @@ SELECT fk_ok('app', 'tasks', 'created_by', 'app', 'users', 'id', 'created_by FK 
 SELECT fk_ok('app', 'tasks', 'updated_by', 'app', 'users', 'id', 'updated_by FK exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_project_task_number_uk'), 'Project-local task-number uniqueness exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_task_number_ck'), 'task-number format constraint exists');
-SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_initial_workflow_ck'), 'initial workflow constraint prevents status/progress mutation in 11.3');
+SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_workflow_state_ck'), 'workflow state constraint is implemented in Package 11.5');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_weight_ck'), 'task weight rule constraint exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_date_order_ck'), 'task date ordering constraint exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_version_ck'), 'task version minimum constraint exists');
@@ -61,7 +61,8 @@ SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'app.project_task_num
 SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid = 'app.project_task_number_counters'::regclass), 'task counter RLS is forced');
 SELECT ok(pg_get_functiondef('app.generate_project_task_number(uuid)'::regprocedure) ILIKE '%insert into app.project_task_number_counters%' AND pg_get_functiondef('app.generate_project_task_number(uuid)'::regprocedure) ILIKE '%on conflict%' AND pg_get_functiondef('app.generate_project_task_number(uuid)'::regprocedure) NOT ILIKE '%max(%', 'task-number generator is counter-based and avoids MAX');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'app' AND table_name = 'tasks' AND column_name IN ('priority','assigned_user_id','operational_notes','cancellation_reason','completed_by','cancelled_by','archived_at','archived_by','dependency_fields','estimated_cost','actual_cost','attachment_fields')), 'forbidden task columns are absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'later task-update, progress, finance and document tables remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'later progress, finance and document tables remain absent');
 SELECT ok(pg_get_functiondef('app.prevent_task_delete()'::regprocedure) ILIKE '%Project tasks cannot be deleted%', 'task delete trigger raises deterministic error');
 SELECT ok(pg_get_functiondef('app.prevent_project_task_number_counter_delete()'::regprocedure) ILIKE '%Project task number counters cannot be deleted%', 'task counter delete trigger raises deterministic error');
 

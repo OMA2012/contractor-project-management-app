@@ -1,0 +1,38 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(31);
+
+SELECT has_table('app', 'task_updates', 'task update history table exists');
+SELECT columns_are('app', 'task_updates', ARRAY['id','task_id','previous_status','new_status','previous_completion_percent','new_completion_percent','update_note','created_at','created_by'], 'task_updates has exactly nine columns');
+SELECT hasnt_column('app', 'task_updates', 'project_id', 'task update does not store Project ID');
+SELECT hasnt_column('app', 'task_updates', 'task_assignment_id', 'task update does not store task assignment ID');
+SELECT hasnt_column('app', 'task_updates', 'event_type', 'task update does not store event type');
+SELECT hasnt_column('app', 'task_updates', 'cancellation_reason', 'task update uses update_note for cancellation reason');
+SELECT hasnt_column('app', 'task_updates', 'reopen_reason', 'task update uses update_note for reopen reason');
+SELECT hasnt_column('app', 'task_updates', 'version_number', 'task update rows are not versioned');
+SELECT hasnt_column('app', 'task_updates', 'is_active', 'task update history is not active/inactive');
+SELECT col_is_pk('app', 'task_updates', 'id', 'task update ID is primary key');
+SELECT col_type_is('app', 'task_updates', 'previous_status', 'app.project_task_status', 'previous status reuses task status enum');
+SELECT col_type_is('app', 'task_updates', 'new_status', 'app.project_task_status', 'new status reuses task status enum');
+SELECT col_type_is('app', 'task_updates', 'previous_completion_percent', 'numeric(5,2)', 'previous completion is numeric(5,2)');
+SELECT col_type_is('app', 'task_updates', 'new_completion_percent', 'numeric(5,2)', 'new completion is numeric(5,2)');
+SELECT fk_ok('app', 'task_updates', 'task_id', 'app', 'tasks', 'id', 'task update references task');
+SELECT fk_ok('app', 'task_updates', 'created_by', 'app', 'users', 'id', 'task update actor references user');
+SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.task_updates'::regclass AND conname = 'task_updates_previous_completion_percent_ck'), 'previous completion range constraint exists');
+SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.task_updates'::regclass AND conname = 'task_updates_new_completion_percent_ck'), 'new completion range constraint exists');
+SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.task_updates'::regclass AND conname = 'task_updates_update_note_ck'), 'update-note bound constraint exists');
+SELECT has_index('app', 'task_updates', 'task_updates_task_history_idx', ARRAY['task_id','created_at','id'], 'task history ordering index exists');
+SELECT has_index('app', 'task_updates', 'task_updates_actor_audit_idx', ARRAY['created_by','created_at','id'], 'task update actor audit index exists');
+SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'app.task_updates'::regclass), 'task update RLS is enabled');
+SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid = 'app.task_updates'::regclass), 'task update RLS is forced');
+SELECT ok(EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'app.task_updates'::regclass AND tgname = 'task_updates_no_update'), 'task update update-prevention trigger exists');
+SELECT ok(EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'app.task_updates'::regclass AND tgname = 'task_updates_no_delete'), 'task update delete-prevention trigger exists');
+SELECT ok(EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'app.task_updates'::regclass AND tgname = 'task_updates_no_truncate'), 'task update truncate-prevention trigger exists');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_initial_workflow_ck'), 'initial-only task workflow constraint is replaced');
+SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_workflow_state_ck'), 'canonical task workflow state constraint exists');
+SELECT ok(pg_get_functiondef('app.tasks_trusted_update_guard()'::regprocedure) ILIKE '%app.allow_project_task_workflow%' AND pg_get_functiondef('app.tasks_trusted_update_guard()'::regprocedure) ILIKE '%Project task workflow fields require trusted functions%', 'task trusted update guard permits workflow only in trusted context');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = 'app'::regnamespace AND typname IN ('task_update_status','task_workflow_status')), 'no additional task status enum is created');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'progress, completion override, notifications, finance and documents remain absent');
+
+SELECT * FROM finish();
+ROLLBACK;

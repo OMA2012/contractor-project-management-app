@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(28);
+SELECT plan(29);
 
 SELECT has_table('app', 'task_assignments', 'task assignments table exists');
 SELECT columns_are('app', 'task_assignments', ARRAY[
@@ -35,7 +35,8 @@ SELECT ok(pg_get_functiondef('app.task_assignments_trusted_update_guard()'::regp
 SELECT ok(pg_get_functiondef('app.task_assignments_trusted_update_guard()'::regprocedure) ILIKE '%cannot be reactivated%', 'assignment reactivation is prohibited');
 SELECT ok(pg_get_functiondef('app.prevent_task_assignment_delete()'::regprocedure) ILIKE '%Project task assignments cannot be deleted%', 'delete trigger raises deterministic error');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'app' AND table_name = 'task_assignments' AND column_name IN ('user_id','project_id','role_code','assigned_role','task_status','completion_percent','notes','removal_reason','removed_by','updated_at','updated_by','version_number','client_visible')), 'forbidden task-assignment columns are absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'later task-update, progress, notification, finance and document tables remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'later progress, notification, finance and document tables remain absent');
 SELECT ok(pg_get_functiondef('app.assign_project_task(uuid,uuid,uuid,text,text,text,inet)'::regprocedure) NOT ILIKE '%insert into app.user_roles%', 'assignment does not create user roles');
 SELECT ok(pg_get_functiondef('app.assign_project_task(uuid,uuid,uuid,text,text,text,inet)'::regprocedure) NOT ILIKE '%public.current_account%', 'assignment does not activate current_account');
 

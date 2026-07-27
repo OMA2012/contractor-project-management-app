@@ -109,14 +109,15 @@ SELECT throws_ok($$ SELECT * FROM public.server_archive_project_milestone('00000
 SELECT throws_ok($$ SELECT * FROM public.server_update_project_record('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.projects WHERE name = 'Task Project One'), 1, 'Task Project One', 'USD', NULL, NULL, DATE '2026-01-01', DATE '2026-02-01') $$, '23514', 'Project dates cannot exclude existing phase history.', 'Project date guard preserves existing phase guard before task dates');
 SELECT throws_ok($$ SELECT * FROM public.server_update_project_phase('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.project_phases WHERE name = 'Task Phase Visible'), 1, 'Task Phase Visible', NULL, DATE '2026-02-01', DATE '2026-02-01', true) $$, '23514', 'Project phase dates cannot exclude existing milestone history.', 'phase date guard preserves milestone guard before task dates');
 SELECT throws_ok($$ SELECT * FROM public.server_update_project_milestone('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.project_milestones WHERE name = 'Task Milestone Visible'), 1, 'Task Milestone Visible', NULL, NULL, DATE '2026-03-01', true) $$, '23514', 'Project milestone phase cannot change while task history would become inconsistent.', 'milestone phase reassignment blocked by task history');
+SELECT * FROM public.server_cancel_project_task('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.tasks WHERE title = 'First Task Updated'), 2, 'Terminal archive fixture');
 SELECT results_eq(
-  $$ SELECT is_active, version_number FROM public.server_archive_project_task('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.tasks WHERE title = 'First Task Updated'), 2) $$,
-  $$ VALUES (false, 3) $$,
+  $$ SELECT is_active, version_number FROM public.server_archive_project_task('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.tasks WHERE title = 'First Task Updated'), 3) $$,
+  $$ VALUES (false, 4) $$,
   'Owner archives task and increments version once'
 );
-SELECT throws_ok($$ SELECT * FROM public.server_update_project_task('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.tasks WHERE title = 'First Task Updated'), 3, 'Inactive Edit') $$, '23514', 'Project task cannot be updated.', 'inactive task update rejected');
+SELECT throws_ok($$ SELECT * FROM public.server_update_project_task('00000000-0000-0000-0000-000000002901', (SELECT id FROM app.tasks WHERE title = 'First Task Updated'), 4, 'Inactive Edit') $$, '23514', 'Project task cannot be updated.', 'inactive task update rejected');
 SELECT throws_ok($$ DELETE FROM app.tasks WHERE title = 'First Task Updated' $$, '23514', 'Project tasks cannot be deleted.', 'task hard delete rejected');
-SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname IN ('server_complete_project_task','server_change_project_task_status','server_update_project_task_progress')), 'no task workflow gateway exists in 11.3');
+SELECT ok(EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname IN ('server_complete_project_task','server_change_project_task_status','server_update_project_task_progress')), 'task workflow gateways are implemented in Package 11.5');
 SELECT is((SELECT count(*)::integer FROM app.activity_logs WHERE action = 'project_task_created'), 7, 'task create activity logs written');
 SELECT is((SELECT count(*)::integer FROM app.activity_logs WHERE action = 'project_task_updated'), 1, 'task update activity log written');
 SELECT is((SELECT count(*)::integer FROM app.activity_logs WHERE action = 'project_task_archived'), 1, 'task archive activity log written');

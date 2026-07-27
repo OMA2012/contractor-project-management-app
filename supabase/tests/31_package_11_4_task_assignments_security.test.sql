@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(28);
+SELECT plan(29);
 
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.assign_project_task(uuid, uuid, uuid, text, text, text, inet)'::regprocedure), 'private assign task is security definer');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.server_assign_project_task(uuid, uuid, uuid, text, text, text, inet)'::regprocedure), 'public assign gateway is security definer');
@@ -23,13 +23,14 @@ SELECT ok(has_function_privilege('service_role', 'public.server_owner_project_ta
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_assign_project_task(uuid, uuid, uuid, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute assign gateway');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_owner_project_task_assignment_list(uuid, uuid, boolean)', 'EXECUTE'), 'authenticated cannot execute Owner assignment list gateway');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_task_assignments','current_assigned_tasks','current_project_manager_task_assignments','current_site_supervisor_task_assignments','current_client_task_assignments','server_reassign_project_task') $$, 'no staff, Client or reassign task-assignment RPC exists');
-SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%task_update%' $$, 'no task-update RPC exists');
-SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%complete%task%' $$, 'no public task completion RPC exists');
+SELECT has_function('public', 'server_owner_project_task_update_list', ARRAY['uuid','uuid']::name[], 'task-update Owner history gateway is implemented in Package 11.5');
+SELECT has_function('public', 'server_complete_project_task', ARRAY['uuid','uuid','integer','text','text','text','text','inet']::name[], 'task completion gateway is implemented in Package 11.5');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'task_assignments'), 'no task assignment RLS policies exist');
 SELECT ok(pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%project_manager%access_allowed%true%' AND pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%site_supervisor%access_allowed%true%', 'current_account does not activate reserved roles');
 SELECT ok(pg_get_functiondef('public.current_client_project_tasks(uuid)'::regprocedure) NOT ILIKE '%task_assignments%', 'Client task list does not expose assignments');
 SELECT ok(pg_get_functiondef('public.current_client_project_task(uuid)'::regprocedure) NOT ILIKE '%task_assignments%', 'Client task detail does not expose assignments');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'task updates, progress, notification and later objects remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'progress, notification and later objects remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

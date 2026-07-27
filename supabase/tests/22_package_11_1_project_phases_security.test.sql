@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(24);
+SELECT plan(25);
 
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)'::regprocedure), 'private create phase is security definer');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.current_client_project_phases(uuid)'::regprocedure), 'public Client phase list is security definer');
@@ -25,7 +25,8 @@ SELECT ok(has_function_privilege('service_role', 'public.server_create_project_p
 SELECT ok(has_function_privilege('service_role', 'public.server_reorder_project_phases(uuid, uuid, uuid[], integer[], text, text, text, inet)', 'EXECUTE'), 'service_role can execute reorder gateway');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_project_phase(uuid, uuid, text, text, date, date, boolean, integer, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute Owner phase gateway');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_project_phases', 'current_project_manager_project_phases', 'current_site_supervisor_project_phases') $$, 'no public staff phase RPC exists');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','financial_transactions','ledger_entries','documents')), 'task-update, finance and document tables remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','documents')), 'finance and document tables remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

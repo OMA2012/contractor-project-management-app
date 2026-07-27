@@ -751,7 +751,69 @@ Central activity-log actions added by this package:
 
 Task-assignment activity metadata may include safe Project/task/assignment IDs, assignment role code, affected active-assignment counts, and removal cause. It must omit or mask Auth subjects, staff email, staff phone, full staff profile data, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
 
-Package 11.5 remains responsible for task updates, status workflows, completion/progress events, and any explicit product decision to activate assigned-staff application access.
+## Stage 11 Package 11.5: Task Update and Status Workflow Foundation
+
+Package 11.5 adds Owner-only task workflow state changes and append-only task-update history. It does not add assigned-staff application access, reserved-role activation, Project or phase completion calculations, completion overrides, progress-update records, upcoming or overdue views, notifications, documents, finances, Flutter screens, or Edge Functions.
+
+`app.task_updates` contains exactly:
+
+- `id`
+- `task_id`
+- `previous_status`
+- `new_status`
+- `previous_completion_percent`
+- `new_completion_percent`
+- `update_note`
+- `created_at`
+- `created_by`
+
+Task-update rows are append-only. Trusted workflow functions insert them atomically with the corresponding `app.tasks` state change. Rows cannot be updated, deleted, truncated, reassigned to another task, or removed during task archival.
+
+Canonical task state is:
+
+- `COMPLETED`: `completion_percent = 100` and `completed_at` is set.
+- Any non-completed status: `completion_percent < 100` and `completed_at` is null.
+- `CANCELLED`: terminal in this package, active until separately archived, with the cancellation reason retained in `update_note`.
+
+Ordinary transitions are exactly:
+
+- `TODO -> IN_PROGRESS`
+- `TODO -> BLOCKED`
+- `IN_PROGRESS -> BLOCKED`
+- `BLOCKED -> IN_PROGRESS`
+
+Dedicated workflow functions handle completion, reopening, and cancellation:
+
+- `IN_PROGRESS -> COMPLETED`
+- `BLOCKED -> COMPLETED`
+- `COMPLETED -> IN_PROGRESS` with a required reason and completion below 100.
+- `TODO`, `IN_PROGRESS`, or `BLOCKED -> CANCELLED` with a required reason.
+
+Owner workflow access is exposed only through service-role gateways:
+
+- `public.server_update_project_task_progress(...)`
+- `public.server_change_project_task_status(...)`
+- `public.server_complete_project_task(...)`
+- `public.server_reopen_project_task(...)`
+- `public.server_cancel_project_task(...)`
+- `public.server_owner_project_task_update_list(...)`
+- `public.server_owner_project_task_update_detail(...)`
+
+Clients see only current safe task state through existing Client task reads. They do not receive task-update history or `update_note` values. Project Manager, Site Supervisor, and Accountant remain default-denied: task assignments still do not grant application access, no public staff task-update RPCs exist, no staff RLS policies are added, and `public.current_account()` remains unchanged.
+
+Task archival is now terminal-only: only `COMPLETED` or `CANCELLED` tasks may be archived. Active task assignments must still be removed first, and task-update history remains linked.
+
+Central activity-log actions added by this package:
+
+- `project_task_progress_updated`
+- `project_task_status_changed`
+- `project_task_completed`
+- `project_task_reopened`
+- `project_task_cancelled`
+
+Workflow activity metadata may include safe Project/task/update IDs, previous and new status, previous and new completion values, and whether a reason was provided. It must omit full update notes, Auth subjects, email, phone, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
+
+Package 11.6 remains responsible for later task-workflow extensions. Completion calculations, completion overrides, notification delivery, assigned-staff workflow access, Flutter workflow screens, documents, photographs, and financial features remain excluded.
 
 ## Inspect schema manually
 
