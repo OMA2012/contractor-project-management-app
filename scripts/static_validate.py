@@ -2054,6 +2054,177 @@ passes.append('CI YAML parsed')
 frontend_candidates = list(ROOT.glob('lib/**/*.dart')) + list(ROOT.glob('web/**/*'))
 require(not frontend_candidates, 'no frontend implementation added in Package 09.1')
 
+completion_schema_path = ROOT / 'supabase/migrations/20260724101900_1116_completion_calculation_foundation.sql'
+completion_functions_path = ROOT / 'supabase/migrations/20260724102000_1117_completion_calculation_functions.sql'
+completion_grants_path = ROOT / 'supabase/migrations/20260724102100_1118_completion_calculation_grants.sql'
+completion_test_paths = [
+    ROOT / 'supabase/tests/36_package_11_6_completion_schema.test.sql',
+    ROOT / 'supabase/tests/37_package_11_6_completion_security.test.sql',
+    ROOT / 'supabase/tests/38_package_11_6_completion_calculations.test.sql',
+]
+for path in (completion_schema_path, completion_functions_path, completion_grants_path, *completion_test_paths):
+    require(path.exists(), f'Package 11.6 artifact exists: {path.relative_to(ROOT)}')
+
+if completion_schema_path.exists():
+    completion_schema_sql = completion_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'where t.counts_toward_completion = true',
+        'and t.weight_percent is null',
+        'counted project tasks require explicit completion weights before package 11.6',
+        'drop constraint tasks_weight_ck',
+        'constraint tasks_completion_weight_integrity_ck',
+        'counts_toward_completion = true',
+        'weight_percent is not null',
+        'weight_percent > 0',
+        'weight_percent <= 100',
+        'counts_toward_completion = false',
+        'weight_percent is null',
+        'not valid',
+        'validate constraint tasks_completion_weight_integrity_ck',
+        'create or replace function app.normalize_project_task_weight',
+        'project task weight is required when completion counting is enabled',
+    ):
+        require(required in completion_schema_sql,
+                f'1116 completion foundation contains required marker: {required}')
+    for forbidden in (
+        'update app.tasks set weight_percent',
+        'avg(',
+        'equal weight',
+        'completion_percent column',
+        'create table app.project_completion_overrides',
+        'create table app.progress_updates',
+    ):
+        require(forbidden not in completion_schema_sql,
+                f'1116 completion foundation omits forbidden marker: {forbidden}')
+
+if completion_functions_path.exists():
+    completion_functions_sql = completion_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.calculate_project_phase_completion',
+        'create or replace function app.calculate_project_completion',
+        'create or replace function app.owner_project_phase_completion',
+        'create or replace function app.owner_project_completion',
+        'create or replace function app.current_client_project_phase_completion_for_authenticated_user',
+        'create or replace function app.current_client_project_completion_for_authenticated_user',
+        'create or replace function public.current_client_project_phase_completion',
+        'create or replace function public.current_client_project_completion',
+        'create or replace function public.server_owner_project_phase_completion',
+        'create or replace function public.server_owner_project_completion',
+        'round(',
+        'sum(t.weight_percent * t.completion_percent)',
+        'nullif(sum(t.weight_percent), 0)',
+        '0.00',
+        '::numeric(5,2)',
+        "t.status <> 'cancelled'",
+        't.is_active = true',
+        't.counts_toward_completion = true',
+        't.weight_percent is not null',
+        't.phase_id = p_phase_id',
+        't.project_id = p_project_id',
+        'app.require_active_owner_admin',
+        'u.auth_subject = auth.uid()',
+        "u.user_type = 'client'",
+        "ur.role_code = 'client'",
+        'r.is_staff_role',
+    ):
+        require(required in completion_functions_sql,
+                f'1117 completion functions contain required marker: {required}')
+    for forbidden in (
+        'insert into app.activity_logs',
+        'app.write_activity_log',
+        'update app.tasks',
+        'update app.projects',
+        'update app.project_phases',
+        'create materialized view',
+        'project_completion_cache',
+        'phase_completion_cache',
+        'current_project_manager_completion',
+        'current_site_supervisor_completion',
+        'current_accountant_completion',
+        'current_assigned_project_completion',
+    ):
+        require(forbidden not in completion_functions_sql,
+                f'1117 completion functions omit forbidden marker: {forbidden}')
+    client_project_return = re.search(
+        r'create or replace function public\.current_client_project_completion\(.*?returns table \((.*?)\)\s+language',
+        completion_functions_sql,
+        re.S,
+    )
+    require(client_project_return is not None, '1117 Client Project completion return shape is inspectable')
+    if client_project_return:
+        returned = client_project_return.group(1)
+        for safe_field in ('project_id uuid', 'calculated_completion_percent numeric(5,2)'):
+            require(safe_field in returned,
+                    f'1117 Client Project completion returns safe field: {safe_field}')
+        for forbidden_field in ('counted_task_count', 'total_weight', 'task_id', 'weight_percent'):
+            require(forbidden_field not in returned,
+                    f'1117 Client Project completion omits private field: {forbidden_field}')
+    client_phase_return = re.search(
+        r'create or replace function public\.current_client_project_phase_completion\(.*?returns table \((.*?)\)\s+language',
+        completion_functions_sql,
+        re.S,
+    )
+    require(client_phase_return is not None, '1117 Client phase completion return shape is inspectable')
+    if client_phase_return:
+        returned = client_phase_return.group(1)
+        for safe_field in ('project_id uuid', 'phase_id uuid', 'calculated_completion_percent numeric(5,2)'):
+            require(safe_field in returned,
+                    f'1117 Client phase completion returns safe field: {safe_field}')
+        for forbidden_field in ('counted_task_count', 'total_weight', 'task_id', 'weight_percent'):
+            require(forbidden_field not in returned,
+                    f'1117 Client phase completion omits private field: {forbidden_field}')
+
+if completion_grants_path.exists():
+    completion_grants_sql = completion_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.tasks from public, anon, authenticated, service_role',
+        'revoke all on function app.calculate_project_phase_completion',
+        'revoke all on function app.calculate_project_completion',
+        'revoke all on function app.owner_project_phase_completion',
+        'revoke all on function app.owner_project_completion',
+        'revoke all on function app.current_client_project_phase_completion_for_authenticated_user',
+        'revoke all on function app.current_client_project_completion_for_authenticated_user',
+        'grant execute on function public.current_client_project_phase_completion(uuid) to authenticated',
+        'grant execute on function public.current_client_project_completion(uuid) to authenticated',
+        'grant execute on function public.server_owner_project_phase_completion(uuid, uuid) to service_role',
+        'grant execute on function public.server_owner_project_completion(uuid, uuid) to service_role',
+    ):
+        require(required in completion_grants_sql,
+                f'1118 completion grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.tasks',
+        'grant execute on function public.server_owner_project_completion(uuid, uuid) to authenticated',
+        'grant execute on function public.current_project_manager_completion',
+    ):
+        require(forbidden not in completion_grants_sql,
+                f'1118 completion grants omit forbidden marker: {forbidden}')
+
+completion_scope_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in ROOT.glob('supabase/migrations/2026072410*_*.sql')
+)
+for forbidden in (
+    'create table app.project_completion_overrides',
+    'create table app.progress_updates',
+    'create table app.project_completion_cache',
+    'create table app.phase_completion_cache',
+    'completion_percent numeric',
+    'current_project_manager_completion',
+    'current_site_supervisor_completion',
+    'current_accountant_completion',
+):
+    if forbidden == 'completion_percent numeric':
+        continue
+    require(forbidden not in completion_scope_sql,
+            f'Package 11.6 scope excludes forbidden object/function: {forbidden}')
+
+flutter_completion_mentions = [
+    p for p in (ROOT / 'app/lib').glob('**/*.dart')
+    if p.is_file() and re.search(r'completion|progress|overdue|upcoming', p.read_text(encoding='utf-8', errors='ignore'), re.I)
+]
+require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
+require(not any((ROOT / 'supabase/functions').glob('*completion*')), 'no completion Edge Function added')
+
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
         text = path.read_text(encoding='utf-8', errors='ignore')

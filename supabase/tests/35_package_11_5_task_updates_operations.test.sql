@@ -34,10 +34,10 @@ SELECT * FROM public.server_link_client_portal_user('00000000-0000-0000-0000-000
 SELECT * FROM public.server_create_project_record('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.clients WHERE display_name = 'Workflow Client'), 'Workflow Project', 'USD', NULL, NULL, DATE '2026-01-01', DATE '2026-12-31');
 SELECT * FROM public.server_change_project_status('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 1, 'APPROVED');
 SELECT * FROM public.server_change_project_status('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 2, 'ACTIVE');
-SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Workflow Task');
-SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Blocked Completion Task');
-SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Cancel Todo Task');
-SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Assignment Guard Task');
+SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Workflow Task', NULL, NULL, NULL, NULL, 20, true);
+SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Blocked Completion Task', NULL, NULL, NULL, NULL, 20, true);
+SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Cancel Todo Task', NULL, NULL, NULL, NULL, 20, true);
+SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), 'Assignment Guard Task', NULL, NULL, NULL, NULL, 20, true);
 SELECT * FROM public.server_create_project_staff_assignment('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.projects WHERE name = 'Workflow Project'), '10000000-0000-0000-0000-000000003502', 'project_manager');
 SELECT * FROM public.server_assign_project_task('00000000-0000-0000-0000-000000003501', (SELECT id FROM app.tasks WHERE title = 'Assignment Guard Task'), (SELECT id FROM app.project_staff_assignments WHERE user_id = '10000000-0000-0000-0000-000000003502'));
 
