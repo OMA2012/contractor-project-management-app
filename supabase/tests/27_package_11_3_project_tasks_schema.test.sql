@@ -47,7 +47,7 @@ SELECT fk_ok('app', 'tasks', 'updated_by', 'app', 'users', 'id', 'updated_by FK 
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_project_task_number_uk'), 'Project-local task-number uniqueness exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_task_number_ck'), 'task-number format constraint exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_workflow_state_ck'), 'workflow state constraint is implemented in Package 11.5');
-SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_weight_ck'), 'task weight rule constraint exists');
+SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_completion_weight_integrity_ck'), 'task weight rule constraint exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_date_order_ck'), 'task date ordering constraint exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_version_ck'), 'task version minimum constraint exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'app.tasks'::regclass AND tgname = 'tasks_no_delete' AND NOT tgisinternal), 'hard-delete prevention trigger exists');

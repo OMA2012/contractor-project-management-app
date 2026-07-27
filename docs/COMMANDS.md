@@ -815,6 +815,47 @@ Workflow activity metadata may include safe Project/task/update IDs, previous an
 
 Package 11.6 remains responsible for later task-workflow extensions. Completion calculations, completion overrides, notification delivery, assigned-staff workflow access, Flutter workflow screens, documents, photographs, and financial features remain excluded.
 
+## Stage 11 Package 11.6: Phase and Project Completion Calculation Foundation
+
+Package 11.6 adds derived completion calculations only. It does not add completion overrides, progress-update records, assigned-staff access, reserved-role activation, upcoming or overdue views, notifications, Flutter screens, Edge Functions, documents, photographs, or financial features.
+
+Counted tasks now require an explicit `weight_percent`. A task with `counts_toward_completion = true` must have a non-null weight greater than `0` and no greater than `100`. A task with `counts_toward_completion = false` must have `weight_percent = NULL`. The migration does not generate, backfill, divide, normalize, or assign equal weights automatically; callers must provide a valid counted-task weight or explicitly create a non-counting task.
+
+Completion is calculated at read time with PostgreSQL `numeric` arithmetic:
+
+```sql
+COALESCE(
+  round(
+    sum(weight_percent * completion_percent)
+    / NULLIF(sum(weight_percent), 0),
+    2
+  ),
+  0.00
+)::numeric(5,2)
+```
+
+Qualifying tasks are active, counted, non-cancelled tasks with a non-null weight. `TODO`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, reopened active tasks, and newly created counted tasks are included. Inactive tasks, archived tasks, `CANCELLED` tasks, and non-counting tasks are excluded. No qualifying tasks returns `0.00`.
+
+Phase completion uses qualifying tasks whose `phase_id` is the requested phase. Tasks without a phase do not affect phase completion. Project completion uses all qualifying tasks in the Project, including tasks without phases. Inactive phase Owner reads return the current derived value, not a point-in-time historical snapshot.
+
+Owner snapshots are exposed only through service-role gateways:
+
+- `public.server_owner_project_phase_completion(...)`
+- `public.server_owner_project_completion(...)`
+
+Owner output includes the calculated percentage, counted task count, and total weight.
+
+Client aggregate reads are exposed only to authenticated Clients:
+
+- `public.current_client_project_phase_completion(...)`
+- `public.current_client_project_completion(...)`
+
+Client output is aggregate-only. It returns only Project/phase identifiers and the calculated percentage. Hidden tasks still affect the authoritative Project aggregate, but Client responses never include task counts, total weight, task IDs, task titles, descriptions, assignment data, or hidden-task details.
+
+Successful calculation reads create no activity-log entry, increment no version number, update no record, and trigger no lifecycle automation. They do not complete milestones, phases, Projects, or tasks; do not archive tasks; do not change assignments; and do not create notifications, progress updates, or overrides.
+
+Project Manager, Site Supervisor, and Accountant remain default-denied. Package 11.6 adds no staff completion RPCs and does not change `public.current_account()`. Package 11.7 completion overrides remain excluded.
+
 ## Inspect schema manually
 
 ```bash
