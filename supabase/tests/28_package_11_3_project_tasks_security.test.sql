@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(33);
+SELECT plan(34);
 
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_task(uuid, uuid, text, uuid, uuid, text, text, numeric, boolean, date, date, boolean, text, text, text, inet)'::regprocedure), 'private create task is security definer');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.current_client_project_tasks(uuid)'::regprocedure), 'public Client task list is security definer');
@@ -30,10 +30,11 @@ SELECT ok(has_function_privilege('service_role', 'public.server_update_project_t
 SELECT ok(has_function_privilege('service_role', 'public.server_archive_project_task(uuid, uuid, integer, text, text, text, inet)', 'EXECUTE'), 'service_role can execute archive task gateway');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_project_task(uuid, uuid, text, uuid, uuid, text, text, numeric, boolean, date, date, boolean, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute Owner task gateway');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_project_tasks', 'current_project_manager_project_tasks', 'current_site_supervisor_project_tasks') $$, 'no public staff task RPC exists');
-SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%complete%task%' $$, 'no public task completion RPC exists');
-SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%status%task%' $$, 'no public task status-transition RPC exists');
+SELECT has_function('public', 'server_complete_project_task', ARRAY['uuid','uuid','integer','text','text','text','text','inet']::name[], 'task completion gateway is implemented in Package 11.5');
+SELECT has_function('public', 'server_change_project_task_status', ARRAY['uuid','uuid','integer','app.project_task_status','text','text','text','text','inet']::name[], 'task status workflow gateway is implemented in Package 11.5');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'tasks' AND policyname ILIKE '%staff%'), 'no staff task RLS policy exists');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'task updates and later objects remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'progress and later objects remain absent');
 SELECT ok(pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%project_manager%access_allowed%true%' AND pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%site_supervisor%access_allowed%true%', 'current_account does not activate reserved roles');
 
 SELECT * FROM finish();

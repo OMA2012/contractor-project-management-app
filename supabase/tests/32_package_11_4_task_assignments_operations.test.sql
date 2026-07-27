@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(29);
+SELECT plan(30);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -72,10 +72,11 @@ SELECT is((SELECT count(*)::integer FROM app.task_assignments WHERE project_staf
 SELECT throws_ok($$ UPDATE app.task_assignments SET assigned_at = now() WHERE NOT is_active $$, '23514', 'Inactive Project task assignments are immutable.', 'inactive history immutable');
 SELECT throws_ok($$ UPDATE app.task_assignments SET is_active = true, removed_at = NULL WHERE NOT is_active $$, '23514', 'Inactive Project task assignments are immutable.', 'reactivation blocked');
 SELECT throws_ok($$ DELETE FROM app.task_assignments WHERE true $$, '23514', 'Project task assignments cannot be deleted.', 'hard delete blocked');
-SELECT throws_ok($$ SELECT * FROM public.server_archive_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Assignable Task'), 1) $$, '23514', 'Project task cannot be archived while active assignments exist.', 'task archive blocked by active task assignments');
+SELECT * FROM public.server_cancel_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Assignable Task'), 1, 'Terminal archive fixture');
+SELECT throws_ok($$ SELECT * FROM public.server_archive_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Assignable Task'), 2) $$, '23514', 'Project task cannot be archived while active assignments exist.', 'task archive blocked by active task assignments');
 SELECT * FROM public.server_remove_project_task_assignment('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.task_assignments WHERE is_active AND project_staff_assignment_id = (SELECT id FROM app.project_staff_assignments WHERE user_id = '10000000-0000-0000-0000-000000003202' AND project_id = (SELECT id FROM app.projects WHERE name = 'Task Assignment Project'))));
 SELECT * FROM public.server_remove_project_task_assignment('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.task_assignments WHERE is_active AND project_staff_assignment_id = (SELECT id FROM app.project_staff_assignments WHERE user_id = '10000000-0000-0000-0000-000000003203' AND project_id = (SELECT id FROM app.projects WHERE name = 'Task Assignment Project'))));
-SELECT results_eq($$ SELECT is_active FROM public.server_archive_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Assignable Task'), 1) $$, $$ VALUES (false) $$, 'task archive succeeds after active assignments are removed');
+SELECT results_eq($$ SELECT is_active FROM public.server_archive_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Assignable Task'), 2) $$, $$ VALUES (false) $$, 'task archive succeeds after active assignments are removed');
 SELECT throws_ok($$ SELECT * FROM public.server_assign_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Assignable Task'), (SELECT id FROM app.project_staff_assignments WHERE user_id = '10000000-0000-0000-0000-000000003202' AND project_id = (SELECT id FROM app.projects WHERE name = 'Task Assignment Project'))) $$, '23514', 'Project task is not available for assignment.', 'inactive task cannot receive assignments');
 SELECT * FROM public.server_create_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.projects WHERE name = 'Task Assignment Project'), 'Cascade Task');
 SELECT * FROM public.server_assign_project_task('00000000-0000-0000-0000-000000003201', (SELECT id FROM app.tasks WHERE title = 'Cascade Task'), (SELECT id FROM app.project_staff_assignments WHERE user_id = '10000000-0000-0000-0000-000000003203' AND project_id = (SELECT id FROM app.projects WHERE name = 'Task Assignment Project')));
@@ -102,7 +103,8 @@ SELECT ok(NOT EXISTS (
       OR metadata::text LIKE '%client.32@example.test%'
     )
 ), 'task assignment activity masks emails, Auth subjects and Client identity');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'task updates, progress, notifications, finance and documents remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'progress, notifications, finance and documents remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

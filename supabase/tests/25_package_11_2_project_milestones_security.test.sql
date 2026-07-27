@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(27);
+SELECT plan(28);
 
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)'::regprocedure), 'private create milestone is security definer');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.current_client_project_milestones(uuid)'::regprocedure), 'public Client milestone list is security definer');
@@ -26,7 +26,8 @@ SELECT ok(has_function_privilege('service_role', 'public.server_archive_project_
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_project_milestone(uuid, uuid, text, uuid, text, date, boolean, text, text, text, inet)', 'EXECUTE'), 'authenticated cannot execute Owner milestone gateway');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_project_milestones', 'current_project_manager_project_milestones', 'current_site_supervisor_project_milestones') $$, 'no public staff milestone RPC exists');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%reopen%milestone%' $$, 'no milestone reopening function exists');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'task-update, progress, finance and document tables remain absent');
+SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'progress, finance and document tables remain absent');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'project_milestones' AND policyname ILIKE '%staff%'), 'no staff milestone RLS policy exists');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname LIKE '%assignment%milestone%'), 'assignment helpers are not exposed through milestone public RPCs');
 
