@@ -174,6 +174,20 @@ for name in sorted(required_11_3_migrations):
     require(name in migration_names, f'required Package 11.3 migration exists: {name}')
 for name in sorted(required_11_3_tests):
     require(name in test_names, f'required Package 11.3 pgTAP suite exists: {name}')
+required_11_4_migrations = {
+    '20260724101300_1110_task_assignments.sql',
+    '20260724101400_1111_task_assignment_functions.sql',
+    '20260724101500_1112_task_assignment_grants.sql',
+}
+required_11_4_tests = {
+    '30_package_11_4_task_assignments_schema.test.sql',
+    '31_package_11_4_task_assignments_security.test.sql',
+    '32_package_11_4_task_assignments_operations.test.sql',
+}
+for name in sorted(required_11_4_migrations):
+    require(name in migration_names, f'required Package 11.4 migration exists: {name}')
+for name in sorted(required_11_4_tests):
+    require(name in test_names, f'required Package 11.4 pgTAP suite exists: {name}')
 require([p.name for p in migrations] == sorted(p.name for p in migrations), 'migration names are ordered')
 
 for path in migrations:
@@ -1467,7 +1481,124 @@ if task_grants_path.exists():
     ):
         require(forbidden not in task_grants_sql,
                 f'1109 task grants omit prohibited grant: {forbidden}')
-require('create table app.task_assignments' not in all_sql, '11.3 does not add task assignments')
+
+task_assignment_schema_path = ROOT / 'supabase/migrations/20260724101300_1110_task_assignments.sql'
+task_assignment_functions_path = ROOT / 'supabase/migrations/20260724101400_1111_task_assignment_functions.sql'
+task_assignment_grants_path = ROOT / 'supabase/migrations/20260724101500_1112_task_assignment_grants.sql'
+if task_assignment_schema_path.exists():
+    task_assignment_schema_sql = task_assignment_schema_path.read_text(encoding='utf-8').lower()
+    require('create table app.task_assignments' in task_assignment_schema_sql, '1110 creates task assignments table')
+    require('force row level security' in task_assignment_schema_sql, '1110 forces task assignment RLS')
+    require('before delete on app.task_assignments' in task_assignment_schema_sql, '1110 prevents task assignment hard deletion')
+    require('before update on app.task_assignments' in task_assignment_schema_sql, '1110 adds trusted task assignment update guard')
+    require('create unique index task_assignments_one_active_pair_idx' in task_assignment_schema_sql and 'where is_active' in task_assignment_schema_sql, '1110 uses partial active-pair uniqueness')
+    require('unique (task_id' not in task_assignment_schema_sql, '1110 does not use permanent pair uniqueness')
+    require('unique (task_id)' not in task_assignment_schema_sql, '1110 allows multiple active assignees per task')
+    for column in ('id', 'task_id', 'project_staff_assignment_id', 'assigned_at', 'assigned_by', 'removed_at', 'is_active'):
+        require(re.search(rf'\b{re.escape(column)}\b', task_assignment_schema_sql),
+                f'1110 task assignment schema contains exact field: {column}')
+    for required in (
+        'references app.tasks(id) on delete restrict',
+        'references app.project_staff_assignments(id) on delete restrict',
+        'references app.users(id) on delete restrict',
+        'is_active and removed_at is null',
+        'not is_active',
+        'inactive project task assignments are immutable',
+        'cannot be reactivated',
+        'project task assignments cannot be deleted',
+    ):
+        require(required in task_assignment_schema_sql,
+                f'1110 task assignment schema contains required clause: {required}')
+    for forbidden in (
+        'user_id',
+        'project_id',
+        'role_code',
+        'assigned_role',
+        'task_status',
+        'completion_percent',
+        'notes',
+        'removal_reason',
+        'removed_by',
+        'updated_at',
+        'updated_by',
+        'version_number',
+        'client_visible',
+    ):
+        require(not re.search(rf'^\s*{re.escape(forbidden)}\s+', task_assignment_schema_sql, re.MULTILINE),
+                f'1110 task assignment schema omits forbidden field: {forbidden}')
+    require('notification' not in task_assignment_schema_sql,
+            '1110 task assignment schema omits notification pattern')
+if task_assignment_functions_path.exists():
+    task_assignment_functions_sql = task_assignment_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.assign_project_task',
+        'create or replace function app.remove_project_task_assignment',
+        'create or replace function app.owner_project_task_assignment_list',
+        'create or replace function app.owner_project_task_assignment_detail',
+        'create or replace function public.server_assign_project_task',
+        'create or replace function public.server_remove_project_task_assignment',
+        'create or replace function public.server_owner_project_task_assignment_list',
+        'create or replace function public.server_owner_project_task_assignment_detail',
+        'require_active_owner_admin',
+        "task_row.status <> 'todo'",
+        "project_row.status not in ('draft', 'quotation', 'approved', 'active', 'on_hold')",
+        "staff_assignment_row.assignment_role_code not in ('project_manager', 'site_supervisor')",
+        'assert_project_staff_assignment_target',
+        'project task assignment already exists',
+        'project task cannot be archived while active assignments exist',
+        'project_access_removed',
+        'affected_active_assignment_count',
+        'project cannot be archived while active task assignments exist',
+        'project_task_assigned',
+        'project_task_assignment_removed',
+    ):
+        require(required in task_assignment_functions_sql,
+                f'1111 task assignment functions contain required clause: {required}')
+    for forbidden in (
+        'create or replace function public.current_staff_task_assignments',
+        'create or replace function public.current_assigned_tasks',
+        'create or replace function public.server_reassign_project_task',
+        'project_task_reassigned',
+        'project_task_status_changed',
+        'project_task_completed',
+        'insert into app.user_roles',
+        'public.current_account',
+        'task_updates',
+        'progress_updates',
+        'notifications',
+        'format(',
+        'raw_app_meta_data',
+    ):
+        require(forbidden not in task_assignment_functions_sql,
+                f'1111 task assignment functions omit prohibited pattern: {forbidden}')
+if task_assignment_grants_path.exists():
+    task_assignment_grants_sql = task_assignment_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.task_assignments from public, anon, authenticated, service_role',
+        'revoke all on function app.assign_project_task',
+        'revoke all on function app.remove_project_task_assignment',
+        'from public, anon, authenticated, service_role',
+        'grant execute on function public.server_assign_project_task',
+        'grant execute on function public.server_remove_project_task_assignment',
+        'grant execute on function public.server_owner_project_task_assignment_list',
+        'grant execute on function public.server_owner_project_task_assignment_detail',
+        'to service_role',
+    ):
+        require(required in task_assignment_grants_sql,
+                f'1112 task assignment grants contain required clause: {required}')
+    for forbidden in (
+        'grant select on app.task_assignments',
+        'grant insert on app.task_assignments',
+        'grant update on app.task_assignments',
+        'grant delete on app.task_assignments',
+        'current_staff_task_assignments',
+        'current_assigned_tasks',
+    ):
+        require(forbidden not in task_assignment_grants_sql,
+                f'1112 task assignment grants omit prohibited grant: {forbidden}')
+    require(not re.search(r'grant\s+execute\s+on\s+function\s+public\.[a-z_]*task_assignment[a-z_]*[\s\S]+?\s+to\s+authenticated', task_assignment_grants_sql),
+            '1112 task assignment grants omit authenticated public assignment execution')
+
 require('create table app.task_updates' not in all_sql, '11.3 does not add task updates')
 require('create table app.progress_updates' not in all_sql and 'create table app.completion_overrides' not in all_sql, '11.3 does not add progress or completion override objects')
 require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.3 does not add documents')
