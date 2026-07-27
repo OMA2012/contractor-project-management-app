@@ -856,6 +856,65 @@ Successful calculation reads create no activity-log entry, increment no version 
 
 Project Manager, Site Supervisor, and Accountant remain default-denied. Package 11.6 adds no staff completion RPCs and does not change `public.current_account()`. Package 11.7 completion overrides remain excluded.
 
+## Stage 11 Package 11.7: Project Completion Override Foundation
+
+Package 11.7 adds Project-level official completion overrides only. It does not add progress updates, notifications, upcoming or overdue logic, assigned-staff access, reserved-role activation, Flutter screens, Edge Functions, documents, photographs, or financial features.
+
+`app.project_completion_overrides` contains exactly:
+
+- `id`
+- `project_id`
+- `override_percent`
+- `reason`
+- `effective_at`
+- `approved_at`
+- `approved_by`
+- `revoked_at`
+- `revoked_by`
+- `created_at`
+- `created_by`
+
+There is no stored status column and no stored calculated-completion snapshot. State is derived from approval and revocation fields:
+
+- Pending: approval and revocation fields are all null.
+- Active: approval fields are present and revocation fields are null.
+- Superseded or revoked: approval and revocation fields are all present.
+
+Multiple pending requests may exist for one Project. Exactly one approved active override may exist per Project, enforced with a partial unique index. Approval of a new request atomically supersedes the previous active override and retains every historical row.
+
+Only an active Owner/Admin may request an override. Only a different active Owner/Admin may approve it; requester self-approval is always denied, so production approval requires two distinct active Owner/Admin accounts. An active Owner/Admin may revoke the current active override with a required reason. Future scheduling is excluded: request effective timestamps must be non-null and no later than the transaction time, so an approved unrevoked override becomes official immediately on approval.
+
+Official Project completion is:
+
+- the active approved override percentage when one exists;
+- otherwise the Package 11.6 calculated Project completion.
+
+The request-time calculated percentage and requester effective role are retained in immutable activity-log entries, not in the override table. Successful request, approval, supersession, and revocation logs retain the validated Owner reason where applicable. Denied-operation logs and Client output do not echo submitted reasons.
+
+Owner access is exposed only through service-role gateways:
+
+- `public.server_owner_request_project_completion_override(...)`
+- `public.server_owner_approve_project_completion_override(...)`
+- `public.server_owner_revoke_project_completion_override(...)`
+- `public.server_owner_official_project_completion(...)`
+- `public.server_owner_project_completion_override_list(...)`
+- `public.server_owner_project_completion_override_detail(...)`
+
+Client Project completion keeps the existing authenticated gateway:
+
+- `public.current_client_project_completion(project_id)`
+
+Client output is aggregate-only:
+
+- `project_id`
+- `calculated_completion_percent`
+- `official_completion_percent`
+- `is_overridden`
+
+Clients never receive override IDs, reasons, effective timestamps, creators, approvers, revokers, pending-request existence, request counts, history, task counts, task weights, task identifiers, or hidden-task details. Phase completion remains calculated-only.
+
+Override rows are permanently retained. Direct update, delete and truncate are prohibited; controlled approval and revocation are the only mutation paths after request creation. Project Manager, Site Supervisor, and Accountant remain default-denied, no assignment-based override access is added, and `public.current_account()` remains unchanged. Package 11.8 progress updates remain excluded.
+
 ## Inspect schema manually
 
 ```bash

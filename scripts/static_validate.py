@@ -2201,7 +2201,8 @@ if completion_grants_path.exists():
 
 completion_scope_sql = '\n'.join(
     p.read_text(encoding='utf-8', errors='ignore').lower()
-    for p in ROOT.glob('supabase/migrations/2026072410*_*.sql')
+    for p in (completion_schema_path, completion_functions_path, completion_grants_path)
+    if p.exists()
 )
 for forbidden in (
     'create table app.project_completion_overrides',
@@ -2224,6 +2225,198 @@ flutter_completion_mentions = [
 ]
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
 require(not any((ROOT / 'supabase/functions').glob('*completion*')), 'no completion Edge Function added')
+
+override_schema_path = ROOT / 'supabase/migrations/20260724102200_1119_project_completion_overrides.sql'
+override_functions_path = ROOT / 'supabase/migrations/20260724102300_1120_project_completion_override_functions.sql'
+override_grants_path = ROOT / 'supabase/migrations/20260724102400_1121_project_completion_override_grants.sql'
+override_test_paths = [
+    ROOT / 'supabase/tests/39_package_11_7_completion_overrides_schema.test.sql',
+    ROOT / 'supabase/tests/40_package_11_7_completion_overrides_security.test.sql',
+    ROOT / 'supabase/tests/41_package_11_7_completion_overrides_operations.test.sql',
+]
+for path in (override_schema_path, override_functions_path, override_grants_path, *override_test_paths):
+    require(path.exists(), f'Package 11.7 artifact exists: {path.relative_to(ROOT)}')
+
+if override_schema_path.exists():
+    override_schema_sql = override_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.project_completion_overrides',
+        'id uuid primary key default gen_random_uuid()',
+        'project_id uuid not null references app.projects(id) on delete restrict',
+        'override_percent numeric(5,2) not null',
+        'reason text not null',
+        'effective_at timestamptz not null default transaction_timestamp()',
+        'approved_at timestamptz',
+        'approved_by uuid references app.users(id) on delete restrict',
+        'revoked_at timestamptz',
+        'revoked_by uuid references app.users(id) on delete restrict',
+        'created_at timestamptz not null default transaction_timestamp()',
+        'created_by uuid not null references app.users(id) on delete restrict',
+        'project_completion_overrides_state_ck',
+        'project_completion_overrides_approver_differs_ck',
+        'project_completion_overrides_one_active_uk',
+        'where approved_at is not null',
+        'and revoked_at is null',
+        'project_completion_overrides_project_history_idx',
+        'before update on app.project_completion_overrides',
+        'before delete on app.project_completion_overrides',
+        'before truncate on app.project_completion_overrides',
+        'alter table app.project_completion_overrides enable row level security',
+        'alter table app.project_completion_overrides force row level security',
+    ):
+        require(required in override_schema_sql,
+                f'1119 completion override schema contains required marker: {required}')
+    for forbidden in (
+        ' status ',
+        'calculated_percent',
+        'requested_percent',
+        'client_id',
+        'role_code',
+        'updated_at',
+        'updated_by',
+        'version_number',
+        'cancelled_at',
+        'rejected_at',
+        'archived_at',
+        'deleted_at',
+        'approved_at is null',
+        'now()',
+        'current_timestamp',
+    ):
+        if forbidden == 'now()':
+            require('default now()' not in override_schema_sql and ' <= now()' not in override_schema_sql,
+                    '1119 completion override schema omits time-relative now() table rules/defaults')
+        elif forbidden == 'current_timestamp':
+            require('current_timestamp' not in override_schema_sql,
+                    '1119 completion override schema omits current_timestamp table rule')
+        elif forbidden == 'approved_at is null':
+            require(not re.search(r'create\s+unique\s+index[^;]*approved_at\s+is\s+null', override_schema_sql),
+                    '1119 completion override schema omits pending unique index')
+        else:
+            require(forbidden not in override_schema_sql,
+                    f'1119 completion override schema omits forbidden marker: {forbidden.strip()}')
+
+if override_functions_path.exists():
+    override_functions_sql = override_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.current_project_official_completion',
+        'app.calculate_project_completion',
+        'coalesce(active_override.override_percent, calculated.value)',
+        'create or replace function app.owner_request_project_completion_override',
+        'p_effective_at > workflow_at',
+        'future project completion overrides are not supported',
+        'project_completion_override_requested',
+        'calculated_completion_percent',
+        'official_completion_before_request',
+        'proposed_override_percent',
+        'create or replace function app.owner_approve_project_completion_override',
+        'for update',
+        'project completion override requires different owner approval',
+        'app.allow_project_completion_override_approval',
+        'app.allow_project_completion_override_revocation',
+        'project_completion_override_approved',
+        'project_completion_override_superseded',
+        'create or replace function app.owner_revoke_project_completion_override',
+        'project_completion_override_revoked',
+        'create or replace function app.owner_official_project_completion',
+        'create or replace function app.owner_project_completion_override_list',
+        'create or replace function app.owner_project_completion_override_detail',
+        'create or replace function app.current_client_project_completion_for_authenticated_user',
+        'official_completion_percent',
+        'is_overridden',
+        'create or replace function public.current_client_project_completion',
+        'create or replace function public.server_owner_request_project_completion_override',
+        'create or replace function public.server_owner_approve_project_completion_override',
+        'create or replace function public.server_owner_revoke_project_completion_override',
+        'create or replace function public.server_owner_official_project_completion',
+        'create or replace function public.server_owner_project_completion_override_list',
+        'create or replace function public.server_owner_project_completion_override_detail',
+        'app.require_active_owner_admin',
+        'u.auth_subject = auth.uid()',
+    ):
+        require(required in override_functions_sql,
+                f'1120 completion override functions contain required marker: {required}')
+    client_return = re.search(
+        r'create or replace function public\.current_client_project_completion\(.*?returns table \((.*?)\)\s+language',
+        override_functions_sql,
+        re.S,
+    )
+    require(client_return is not None, '1120 Client official completion return shape is inspectable')
+    if client_return:
+        returned = client_return.group(1)
+        for safe_field in (
+            'project_id uuid',
+            'calculated_completion_percent numeric(5,2)',
+            'official_completion_percent numeric(5,2)',
+            'is_overridden boolean',
+        ):
+            require(safe_field in returned,
+                    f'1120 Client official completion returns safe field: {safe_field}')
+        for forbidden_field in (
+            'active_override_id',
+            'override_reason',
+            'reason',
+            'created_by',
+            'approved_by',
+            'revoked_by',
+            'counted_task_count',
+            'total_weight',
+        ):
+            require(forbidden_field not in returned,
+                    f'1120 Client official completion omits private field: {forbidden_field}')
+    for forbidden in (
+        'current_project_manager_completion',
+        'current_site_supervisor_completion',
+        'current_accountant_completion',
+        'current_assigned_project_completion',
+        'create table app.progress_updates',
+        'insert into app.notifications',
+        'update app.projects set status',
+        'update app.tasks set status',
+    ):
+        require(forbidden not in override_functions_sql,
+                f'1120 completion override functions omit forbidden marker: {forbidden}')
+
+if override_grants_path.exists():
+    override_grants_sql = override_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.project_completion_overrides from public, anon, authenticated, service_role',
+        'revoke all on function app.current_project_official_completion(uuid) from public, anon, authenticated, service_role',
+        'revoke all on function app.owner_request_project_completion_override',
+        'revoke all on function app.owner_approve_project_completion_override',
+        'revoke all on function app.owner_revoke_project_completion_override',
+        'grant execute on function public.server_owner_request_project_completion_override',
+        'grant execute on function public.server_owner_approve_project_completion_override',
+        'grant execute on function public.server_owner_revoke_project_completion_override',
+        'grant execute on function public.server_owner_official_project_completion',
+        'grant execute on function public.server_owner_project_completion_override_list',
+        'grant execute on function public.server_owner_project_completion_override_detail',
+        'grant execute on function public.current_client_project_completion(uuid) to authenticated',
+    ):
+        require(required in override_grants_sql,
+                f'1121 completion override grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.project_completion_overrides',
+        'grant execute on function public.server_owner_request_project_completion_override(uuid, uuid, numeric, text, timestamptz, text, text, text, inet) to authenticated',
+        'grant execute on function public.current_project_manager_completion',
+    ):
+        require(forbidden not in override_grants_sql,
+                f'1121 completion override grants omit forbidden marker: {forbidden}')
+
+override_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (override_schema_path, override_functions_path, override_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.notifications',
+    'create table app.progress_updates',
+    'create table app.documents',
+    'create table app.financial_transactions',
+    'project_manager%access_allowed%true',
+):
+    require(forbidden not in override_all_sql,
+            f'Package 11.7 scope excludes forbidden marker: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(24);
+SELECT plan(23);
 
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'app.calculate_project_completion(uuid)'::regprocedure), 'private Project calculator is security definer');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.current_client_project_completion(uuid)'::regprocedure), 'public Client Project completion is security definer');
@@ -22,7 +22,6 @@ SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE ro
 SELECT ok(pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%project_manager%access_allowed%true%' AND pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%site_supervisor%access_allowed%true%' AND pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%accountant%access_allowed%true%', 'current_account does not activate reserved roles');
 SELECT ok(pg_get_functiondef('public.current_client_project_completion(uuid)'::regprocedure) NOT ILIKE '%counted_task_count%' AND pg_get_functiondef('public.current_client_project_completion(uuid)'::regprocedure) NOT ILIKE '%total_weight%', 'Client Project completion exposes aggregate only');
 SELECT ok(pg_get_functiondef('public.current_client_project_phase_completion(uuid)'::regprocedure) NOT ILIKE '%counted_task_count%' AND pg_get_functiondef('public.current_client_project_phase_completion(uuid)'::regprocedure) NOT ILIKE '%total_weight%', 'Client phase completion exposes aggregate only');
-SELECT hasnt_table('app', 'project_completion_overrides', 'no completion override table');
 SELECT hasnt_table('app', 'notifications', 'no notification table introduced by completion');
 SELECT hasnt_table('app', 'progress_updates', 'no progress updates introduced');
 
