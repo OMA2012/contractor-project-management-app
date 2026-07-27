@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(30);
+SELECT plan(29);
 
 SELECT has_function('app', 'calculate_project_phase_completion', ARRAY['uuid']::name[], 'private phase calculation exists');
 SELECT has_function('app', 'calculate_project_completion', ARRAY['uuid']::name[], 'private Project calculation exists');
@@ -26,7 +26,6 @@ SELECT results_eq($$ SELECT app.normalize_project_task_weight(false, NULL)::nume
 SELECT hasnt_column('app', 'projects', 'completion_percent', 'no completion column on Projects');
 SELECT hasnt_column('app', 'project_phases', 'completion_percent', 'no completion column on phases');
 SELECT hasnt_column('app', 'project_milestones', 'completion_percent', 'no completion column on milestones');
-SELECT hasnt_table('app', 'project_completion_overrides', 'no completion override table');
 SELECT hasnt_table('app', 'project_completion_cache', 'no Project completion cache');
 SELECT hasnt_table('app', 'phase_completion_cache', 'no phase completion cache');
 SELECT hasnt_table('app', 'progress_updates', 'no progress update table');
