@@ -33,7 +33,7 @@ SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE ro
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%complete%task%' $$, 'no public task completion RPC exists');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%status%task%' $$, 'no public task status-transition RPC exists');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'tasks' AND policyname ILIKE '%staff%'), 'no staff task RLS policy exists');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_assignments','task_updates','progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'task assignments, task updates and later objects remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('task_updates','progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'task updates and later objects remain absent');
 SELECT ok(pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%project_manager%access_allowed%true%' AND pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%site_supervisor%access_allowed%true%', 'current_account does not activate reserved roles');
 
 SELECT * FROM finish();

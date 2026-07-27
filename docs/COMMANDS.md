@@ -709,6 +709,50 @@ Central activity-log actions added by this package:
 
 Task activity metadata may include safe Project/task IDs and changed-state indicators for phase association, milestone association, dates, Client visibility, and completion-counting. It must omit or mask full descriptions, Client summary text, Auth subjects, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
 
+## Stage 11 Package 11.4: Task Assignment Record Foundation
+
+Package 11.4 adds task-assignment records only. It does not add task updates, task status transitions, task completion, progress calculations, assigned-staff application access, notifications, documents, finances, Flutter screens, Edge Functions, or reserved-role activation.
+
+`app.task_assignments` contains exactly:
+
+- `id`
+- `task_id`
+- `project_staff_assignment_id`
+- `assigned_at`
+- `assigned_by`
+- `removed_at`
+- `is_active`
+
+Project, staff user, and assignment-role context are derived through the linked task and `app.project_staff_assignments` row. Task assignments never store their own Project ID, user ID, role code, task status, progress, notes, version, Client visibility, or notification state.
+
+Assignment eligibility is based on an existing active Project staff assignment. The task must be active and `TODO`; the Project must be `DRAFT`, `QUOTATION`, `APPROVED`, `ACTIVE`, or `ON_HOLD`; the Project staff assignment must be active, belong to the same Project, reference an active staff user, and use `project_manager` or `site_supervisor`. Accountant, Client, and Owner/Admin are not task-assignment roles.
+
+Multiple active assignees may share one task. The database enforces only one active row for the same `(task_id, project_staff_assignment_id)` pair using a partial unique index. After removal, the same staff assignment may be assigned to the same task again through a new historical row. Removed rows are immutable, cannot be reactivated, and are never hard-deleted.
+
+Owner task-assignment management is exposed only through service-role gateways:
+
+- `public.server_assign_project_task(...)`
+- `public.server_remove_project_task_assignment(...)`
+- `public.server_owner_project_task_assignment_list(...)`
+- `public.server_owner_project_task_assignment_detail(...)`
+
+Clients receive no task-assignment reads, and existing Client-safe task reads do not expose assignment fields. Project Manager, Site Supervisor, and Accountant remain default-denied: no public staff task RPCs, no assignment RLS policies, no Flutter access, and no `public.current_account()` activation are added in this package.
+
+Package 11.4 adds dependency behavior:
+
+- `app.archive_project_task(...)` rejects archival while active task assignments exist.
+- `app.remove_project_staff_assignment(...)` atomically marks child active task assignments inactive when Project access is removed, preserving assignment history and writing one child activity event per automatically removed assignment.
+- `app.archive_project_record(...)` rejects archival while active task assignments remain.
+
+Central activity-log actions added by this package:
+
+- `project_task_assigned`
+- `project_task_assignment_removed`
+
+Task-assignment activity metadata may include safe Project/task/assignment IDs, assignment role code, affected active-assignment counts, and removal cause. It must omit or mask Auth subjects, staff email, staff phone, full staff profile data, Client identity, raw request bodies, IP/session/request secrets, and unrelated personal data.
+
+Package 11.5 remains responsible for task updates, status workflows, completion/progress events, and any explicit product decision to activate assigned-staff application access.
+
 ## Inspect schema manually
 
 ```bash
