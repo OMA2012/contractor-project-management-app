@@ -214,7 +214,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|has_function|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|has_function|has_sequence_privilege|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -244,7 +244,6 @@ for required in (
     require(required in all_sql, f'required object present: {required}')
 
 for prohibited in (
-    'create table app.financial_accounts',
     'create table app.financial_transactions',
     'create table app.ledger_entries',
     'create table app.client_payments',
@@ -3056,6 +3055,195 @@ for path in package_12_1_scope_files:
         for forbidden in package_12_1_global_exclusion_markers:
             require(forbidden not in text,
                     f'Package 12.1 global exclusion marker absent from {path.relative_to(ROOT)}: {forbidden}')
+
+financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
+financial_account_functions_path = ROOT / 'supabase/migrations/20260724103500_1132_financial_account_functions.sql'
+financial_account_grants_path = ROOT / 'supabase/migrations/20260724103600_1133_financial_account_grants.sql'
+financial_account_test_paths = [
+    ROOT / 'supabase/tests/51_package_13_1_financial_accounts_schema.test.sql',
+    ROOT / 'supabase/tests/52_package_13_1_financial_accounts_security.test.sql',
+    ROOT / 'supabase/tests/53_package_13_1_financial_accounts_operations.test.sql',
+]
+for path in (financial_account_schema_path, financial_account_functions_path, financial_account_grants_path, *financial_account_test_paths):
+    require(path.exists(), f'Package 13.1 artifact exists: {path.relative_to(ROOT)}')
+
+if financial_account_schema_path.exists():
+    financial_account_schema_sql = financial_account_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create sequence app.financial_account_number_seq',
+        "default ('fa-' || lpad(nextval('app.financial_account_number_seq')::text, 6, '0'))",
+        "create type app.financial_account_type as enum ('cash', 'bank')",
+        'create table app.financial_accounts',
+        'id uuid primary key default gen_random_uuid()',
+        'account_number varchar(50) not null',
+        'name varchar(160) not null',
+        'account_type app.financial_account_type not null',
+        'currency_code char(3) not null',
+        'bank_name varchar(160)',
+        'masked_account_identifier varchar(80)',
+        'encrypted_account_details bytea',
+        'is_active boolean not null default true',
+        'notes text',
+        'archived_at timestamptz',
+        'archived_by uuid',
+        'created_at timestamptz not null default now()',
+        'created_by uuid not null',
+        'updated_at timestamptz not null default now()',
+        'updated_by uuid not null',
+        'version_number integer not null default 1',
+        "account_number ~ '^fa-[0-9]{6}$'",
+        'financial_accounts_cash_bank_metadata_ck',
+        'alter table app.financial_accounts enable row level security',
+        'alter table app.financial_accounts force row level security',
+        'revoke all on app.financial_accounts from public, anon, authenticated, service_role',
+    ):
+        require(required in financial_account_schema_sql,
+                f'1131 financial account schema contains required marker: {required}')
+    approved_columns = [
+        'id', 'account_number', 'name', 'account_type', 'currency_code', 'bank_name',
+        'masked_account_identifier', 'encrypted_account_details', 'is_active', 'notes',
+        'archived_at', 'archived_by', 'created_at', 'created_by', 'updated_at',
+        'updated_by', 'version_number',
+    ]
+    for column in approved_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_account_schema_sql) is not None,
+                f'1131 app.financial_accounts approved column exists: {column}')
+    for forbidden in (
+        'create type app.financial_account_status',
+        ' status ',
+        'display_name',
+        'current_balance',
+        'opening_balance',
+        'ledger_account_id',
+        'bank_account_holder_name',
+        'bank_account_last_four',
+        'bank_branch',
+        'bank_swift_code',
+        'bank_iban_last_four',
+        'internal_notes',
+        'activated_at',
+        'activated_by',
+        'deactivated_at',
+        'deactivated_by',
+        'create table app.ledger_accounts',
+        'create table app.ledger_entries',
+        'create table app.financial_transactions',
+    ):
+        require(forbidden not in financial_account_schema_sql,
+                f'1131 financial account schema omits forbidden marker: {forbidden}')
+
+if financial_account_functions_path.exists():
+    financial_account_functions_sql = financial_account_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.owner_create_financial_account',
+        'create or replace function app.owner_update_financial_account',
+        'create or replace function app.owner_activate_financial_account',
+        'create or replace function app.owner_deactivate_financial_account',
+        'create or replace function app.owner_archive_financial_account',
+        'create or replace function app.owner_financial_account_list',
+        'create or replace function app.owner_financial_account_detail',
+        'create or replace function public.server_owner_create_financial_account',
+        'create or replace function public.server_owner_update_financial_account',
+        'create or replace function public.server_owner_activate_financial_account',
+        'create or replace function public.server_owner_deactivate_financial_account',
+        'create or replace function public.server_owner_archive_financial_account',
+        'create or replace function public.server_owner_financial_account_list',
+        'create or replace function public.server_owner_financial_account_detail',
+        'app.require_active_owner_admin',
+        'financial_account_created',
+        'financial_account_updated',
+        'financial_account_activated',
+        'financial_account_deactivated',
+        'financial_account_archived',
+        'financial account version conflict',
+    ):
+        require(required in financial_account_functions_sql,
+                f'1132 financial account functions contain required marker: {required}')
+    list_return = re.search(
+        r'create or replace function public\.server_owner_financial_account_list\(.*?returns table \((.*?)\)\s+language',
+        financial_account_functions_sql,
+        re.S,
+    )
+    detail_return = re.search(
+        r'create or replace function public\.server_owner_financial_account_detail\(.*?returns table \((.*?)\)\s+language',
+        financial_account_functions_sql,
+        re.S,
+    )
+    require(list_return is not None, '1132 Owner financial account list return shape is inspectable')
+    require(detail_return is not None, '1132 Owner financial account detail return shape is inspectable')
+    for label, match in (('list', list_return), ('detail', detail_return)):
+        if match:
+            returned = match.group(1)
+            require('encrypted_account_details' not in returned,
+                    f'1132 Owner financial account {label} omits encrypted details')
+    for forbidden in (
+        'current_financial_account',
+        'current_client_financial',
+        'current_accountant_financial',
+        'current_project_manager_financial',
+        'current_site_supervisor_financial',
+        'insert into app.ledger',
+        'insert into app.financial_transactions',
+        'current_balance',
+        'opening_balance',
+        'create table app.notifications',
+        'format(',
+        'raw_app_meta_data',
+    ):
+        require(forbidden not in financial_account_functions_sql,
+                f'1132 financial account functions omit forbidden marker: {forbidden}')
+
+if financial_account_grants_path.exists():
+    financial_account_grants_sql = financial_account_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.financial_accounts from public, anon, authenticated, service_role',
+        'revoke all on sequence app.financial_account_number_seq from public, anon, authenticated, service_role',
+        'revoke all on function app.owner_create_financial_account',
+        'revoke all on function app.owner_financial_account_list',
+        'grant execute on function public.server_owner_create_financial_account',
+        'grant execute on function public.server_owner_update_financial_account',
+        'grant execute on function public.server_owner_activate_financial_account',
+        'grant execute on function public.server_owner_deactivate_financial_account',
+        'grant execute on function public.server_owner_archive_financial_account',
+        'grant execute on function public.server_owner_financial_account_list',
+        'grant execute on function public.server_owner_financial_account_detail',
+        'to service_role',
+    ):
+        require(required in financial_account_grants_sql,
+                f'1133 financial account grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.financial_accounts',
+        'grant insert on app.financial_accounts',
+        'grant update on app.financial_accounts',
+        'grant delete on app.financial_accounts',
+        'to authenticated',
+        'current_accountant_financial',
+        'current_project_manager_financial',
+        'current_site_supervisor_financial',
+    ):
+        require(forbidden not in financial_account_grants_sql,
+                f'1133 financial account grants omit forbidden marker: {forbidden}')
+
+financial_account_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (financial_account_schema_path, financial_account_functions_path, financial_account_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.ledger_accounts',
+    'create table app.ledger_entries',
+    'create table app.financial_transactions',
+    'create table app.exchange_rates',
+    'create table app.payments',
+    'create table app.expenses',
+    'create table app.transfers',
+    'current_balance',
+    'opening_balance',
+    'public.current_account()',
+    'accountant%access_allowed%true',
+):
+    require(forbidden not in financial_account_all_sql,
+            f'Package 13.1 scope excludes forbidden marker: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':

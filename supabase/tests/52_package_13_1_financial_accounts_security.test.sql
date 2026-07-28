@@ -1,0 +1,32 @@
+BEGIN;
+SELECT plan(26);
+
+SELECT has_function('app', 'owner_create_financial_account', ARRAY['uuid','text','app.financial_account_type','character','text','text','bytea','boolean','text','text','text','text','inet'], 'private create exists');
+SELECT has_function('app', 'owner_update_financial_account', ARRAY['uuid','uuid','integer','text','app.financial_account_type','character','text','text','bytea','text','text','text','text','inet'], 'private update exists');
+SELECT has_function('app', 'owner_activate_financial_account', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private activate exists');
+SELECT has_function('app', 'owner_deactivate_financial_account', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private deactivate exists');
+SELECT has_function('app', 'owner_archive_financial_account', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private archive exists');
+SELECT has_function('app', 'owner_financial_account_list', ARRAY['uuid','boolean','integer','integer'], 'private list exists');
+SELECT has_function('app', 'owner_financial_account_detail', ARRAY['uuid','uuid'], 'private detail exists');
+SELECT has_function('public', 'server_owner_create_financial_account', ARRAY['uuid','text','app.financial_account_type','character','text','text','bytea','boolean','text','text','text','text','inet'], 'server create exists');
+SELECT has_function('public', 'server_owner_update_financial_account', ARRAY['uuid','uuid','integer','text','app.financial_account_type','character','text','text','bytea','text','text','text','text','inet'], 'server update exists');
+SELECT has_function('public', 'server_owner_financial_account_list', ARRAY['uuid','boolean','integer','integer'], 'server list exists');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.financial_accounts', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'authenticated has no direct financial account access');
+SELECT ok(NOT has_table_privilege('service_role', 'app.financial_accounts', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'service role has no direct financial account access');
+SELECT ok(NOT has_sequence_privilege('service_role', 'app.financial_account_number_seq', 'USAGE'), 'service role has no sequence usage');
+SELECT ok(NOT has_function_privilege('authenticated', 'app.owner_create_financial_account(uuid,text,app.financial_account_type,character,text,text,bytea,boolean,text,text,text,text,inet)', 'EXECUTE'), 'authenticated cannot execute private create');
+SELECT ok(NOT has_function_privilege('service_role', 'app.owner_create_financial_account(uuid,text,app.financial_account_type,character,text,text,bytea,boolean,text,text,text,text,inet)', 'EXECUTE'), 'service role cannot execute private create');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_create_financial_account(uuid,text,app.financial_account_type,character,text,text,bytea,boolean,text,text,text,text,inet)', 'EXECUTE'), 'service role can execute server create');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_update_financial_account(uuid,uuid,integer,text,app.financial_account_type,character,text,text,bytea,text,text,text,text,inet)', 'EXECUTE'), 'service role can execute server update');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_activate_financial_account(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'service role can execute server activate');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_deactivate_financial_account(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'service role can execute server deactivate');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_archive_financial_account(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'service role can execute server archive');
+SELECT ok(NOT has_function_privilege('authenticated', 'public.server_owner_create_financial_account(uuid,text,app.financial_account_type,character,text,text,bytea,boolean,text,text,text,text,inet)', 'EXECUTE'), 'authenticated cannot execute server create');
+SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname = 'app' AND tablename = 'financial_accounts' $$, 'no broad financial account policies');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_financial_account','current_financial_account_list','current_client_financial_accounts','current_accountant_financial_accounts','current_project_manager_financial_accounts','current_site_supervisor_financial_accounts') $$, 'no Client or reserved-role financial account RPCs');
+SELECT ok(pg_get_function_result('public.server_owner_financial_account_list(uuid, boolean, integer, integer)'::regprocedure) NOT LIKE '%encrypted_account_details%', 'list output excludes encrypted details');
+SELECT ok(pg_get_function_result('public.server_owner_financial_account_detail(uuid, uuid)'::regprocedure) NOT LIKE '%encrypted_account_details%', 'detail output excludes encrypted details');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_account%', 'current_account unchanged for finance');
+
+SELECT * FROM finish();
+ROLLBACK;

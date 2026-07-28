@@ -11,6 +11,10 @@
 | 7 | `20260721220700_0907_foundation_integrity_triggers.sql` | Adds version timestamps, role/type guards, owner-only actor validation, last-owner protection, immutable role history, and hard-delete guards | 0903–0906 | Replace functions/triggers in a new migration; do not edit applied file | Constraint suite |
 | 8 | `20260721220800_0908_default_deny_rls.sql` | Enables/forces RLS and revokes direct anon/authenticated access without adding policies | 0902–0907 | Later package adds reviewed policies/grants in a new migration | Default-deny suite |
 
+| 51 | `20260724103400_1131_financial_account_schema.sql` | Adds Package 13.1 financial-account type, immutable global FA numbering, exact financial account table, guards, RLS and direct-DML revocation | 0902, 0904, 0911, 0913 | Forward-fix only; account rows are retained and never hard-deleted | 51 schema suite |
+| 52 | `20260724103500_1132_financial_account_functions.sql` | Adds Owner/Admin-only trusted financial-account create/update/activate/deactivate/archive/list/detail functions and service wrappers | 1131, owner authorization, activity logs | Replace functions in forward migration; no Client or reserved-role access | 52 security and 53 operations suites |
+| 53 | `20260724103600_1133_financial_account_grants.sql` | Grants service-role execution on server wrappers only and keeps direct table/private function access revoked | 1132 | Forward-fix grants only | 52 security suite |
+
 Every file is transactional. Production correction is forward-fix first; never rewrite an already applied migration.
 
 ## Stage 12 Package 12.1 Addendum
