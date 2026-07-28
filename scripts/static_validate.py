@@ -1748,7 +1748,7 @@ task_update_scope_sql = '\n'.join(
 require('create table app.task_updates' in all_sql, '11.5 adds task update history')
 require('create table app.progress_updates' not in task_update_scope_sql and 'create table app.completion_overrides' not in task_update_scope_sql, '11.5 does not add progress or completion override objects')
 require('create table app.notifications' not in task_update_scope_sql, '11.5 does not add notifications')
-require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.5 does not add documents')
+require('create table app.project_documents' not in all_sql, '11.5 does not add legacy project_documents')
 require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.5 does not add finance or ledger objects')
 
 functions_dir = ROOT / 'supabase/functions'
@@ -2818,6 +2818,244 @@ for forbidden in (
 ):
     require(forbidden not in notification_all_sql,
             f'Package 11.9 scope excludes forbidden marker: {forbidden}')
+
+document_schema_path = ROOT / 'supabase/migrations/20260724103100_1128_documents.sql'
+document_functions_path = ROOT / 'supabase/migrations/20260724103200_1129_document_functions.sql'
+document_grants_path = ROOT / 'supabase/migrations/20260724103300_1130_document_grants.sql'
+document_test_paths = [
+    ROOT / 'supabase/tests/48_package_12_1_documents_schema.test.sql',
+    ROOT / 'supabase/tests/49_package_12_1_documents_security.test.sql',
+    ROOT / 'supabase/tests/50_package_12_1_documents_operations.test.sql',
+]
+for path in (document_schema_path, document_functions_path, document_grants_path, *document_test_paths):
+    require(path.exists(), f'Package 12.1 artifact exists: {path.relative_to(ROOT)}')
+
+if document_schema_path.exists():
+    document_schema_sql = document_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create sequence app.document_number_seq',
+        "('doc-' || lpad(nextval('app.document_number_seq')::text, 6, '0'))",
+        'create type app.document_status as enum',
+        "'active'",
+        "'archived'",
+        'create table app.document_types',
+        'code varchar(50) primary key',
+        'name varchar(120) not null',
+        'default_client_visible boolean not null default false',
+        'is_active boolean not null default true',
+        'create table app.documents',
+        'document_number varchar(60) not null',
+        'storage_bucket varchar(100) not null',
+        'storage_object_key text not null',
+        'original_file_name varchar(255) not null',
+        'mime_type varchar(150) not null',
+        'file_size_bytes bigint not null',
+        'sha256_hash bytea not null',
+        'document_type_code varchar(50) not null',
+        "status app.document_status not null default 'active'",
+        'client_visible boolean not null default false',
+        'uploaded_at timestamptz not null default transaction_timestamp()',
+        'uploaded_by uuid not null',
+        'archived_at timestamptz',
+        'archived_by uuid',
+        'documents_document_number_uk unique',
+        'documents_storage_object_key_uk unique',
+        'documents_uploaded_by_fk',
+        'documents_archived_by_fk',
+        'octet_length(sha256_hash) = 32',
+        'file_size_bytes > 0',
+        'documents_archive_pair_ck',
+        'documents_status_archive_ck',
+        'create table app.document_links',
+        'client_payment_id uuid',
+        'payment_request_id uuid',
+        'project_expense_id uuid',
+        'currency_exchange_id uuid',
+        'document_links_exactly_one_target_ck',
+        'document_links_finance_targets_disabled_ck',
+        'document_links_client_fk',
+        'document_links_project_fk',
+        'document_links_task_fk',
+        'document_links_progress_update_fk',
+        'alter table app.documents enable row level security',
+        'alter table app.document_links force row level security',
+    ):
+        require(required in document_schema_sql,
+                f'1128 document schema contains required marker: {required}')
+    for forbidden in (
+        'create table app.client_payments',
+        'create table app.payment_requests',
+        'create table app.project_expenses',
+        'create table app.currency_exchanges',
+        'references app.client_payments',
+        'references app.payment_requests',
+        'references app.project_expenses',
+        'references app.currency_exchanges',
+        'mime_type in',
+        'max_file_size',
+        'retention',
+        'quarantine',
+        'scanner',
+        'thumbnail',
+        'signed_url',
+        'bucket create',
+    ):
+        require(forbidden not in document_schema_sql,
+                f'1128 document schema omits forbidden marker: {forbidden}')
+
+if document_functions_path.exists():
+    document_functions_sql = document_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.owner_create_document_metadata',
+        'create or replace function app.owner_archive_document_metadata',
+        'create or replace function app.owner_link_document',
+        'create or replace function app.current_client_document_list_for_authenticated_user',
+        'create or replace function public.current_client_document_list',
+        'create or replace function public.server_owner_create_document_metadata',
+        'create or replace function public.server_owner_archive_document_metadata',
+        'create or replace function public.server_owner_link_document',
+        'finance document link targets are not enabled',
+        'document type code must be uppercase and stable',
+        'd.status = \'active\'',
+        'd.client_visible',
+    ):
+        require(required in document_functions_sql,
+                f'1129 document functions contain required marker: {required}')
+    for forbidden in (
+        'create or replace function public.current_project_manager_document',
+        'create or replace function public.current_accountant_document',
+        'create or replace function public.current_site_supervisor_document',
+        'upload_document',
+        'document_upload',
+        'download',
+        'signed',
+        'scanner',
+        'thumbnail',
+        'storage.objects',
+        'create table app.client_payments',
+        'create table app.payment_requests',
+        'create table app.project_expenses',
+        'create table app.currency_exchanges',
+        'raw_app_meta_data',
+    ):
+        require(forbidden not in document_functions_sql,
+                f'1129 document functions omit forbidden marker: {forbidden}')
+
+if document_grants_path.exists():
+    document_grants_sql = document_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.document_types from public, anon, authenticated, service_role',
+        'revoke all on app.documents from public, anon, authenticated, service_role',
+        'revoke all on app.document_links from public, anon, authenticated, service_role',
+        'grant execute on function public.current_client_document_list(integer, integer) to authenticated',
+        'grant execute on function public.server_owner_create_document_metadata',
+        'grant execute on function public.server_owner_archive_document_metadata',
+        'grant execute on function public.server_owner_link_document',
+        'to service_role',
+    ):
+        require(required in document_grants_sql,
+                f'1130 document grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.documents',
+        'grant insert on app.documents',
+        'grant update on app.documents',
+        'grant delete on app.documents',
+        'current_project_manager_document',
+        'current_accountant_document',
+        'current_site_supervisor_document',
+    ):
+        require(forbidden not in document_grants_sql,
+                f'1130 document grants omit forbidden marker: {forbidden}')
+
+document_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (document_schema_path, document_functions_path, document_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.client_payments',
+    'create table app.payment_requests',
+    'create table app.project_expenses',
+    'create table app.currency_exchanges',
+    'create table app.document_scans',
+    'create table app.document_thumbnails',
+    'storage.objects',
+    'signed_url',
+    'edge function',
+    'project_manager%access_allowed%true',
+):
+    require(forbidden not in document_all_sql,
+            f'Package 12.1 scope excludes forbidden marker: {forbidden}')
+
+commands_path = ROOT / 'docs/COMMANDS.md'
+require(commands_path.exists(), 'docs/COMMANDS.md exists')
+if commands_path.exists():
+    commands_sql = commands_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'stage 12 package 12.1: document metadata foundation',
+        'package 12.1 adds document metadata only',
+        'doc-000001',
+        'doc-000002',
+        'app.document_status',
+        'app.document_types',
+        'app.documents',
+        'app.document_links',
+        'finance target columns remain nullable but constrained to `null`',
+        'no placeholder finance tables are created',
+        'owner/admin may manage metadata',
+        'client may read only client-visible metadata linked to their own readable records',
+        'project manager, accountant, and site supervisor remain unusable/default-denied',
+    ):
+        require(required in commands_sql,
+                f'docs/COMMANDS.md documents Package 12.1 boundary marker: {required}')
+
+package_12_1_global_exclusion_markers = (
+    'storage.objects',
+    'storage.buckets',
+    'create bucket',
+    'create storage bucket',
+    'upload_document',
+    'document_upload',
+    'download_document',
+    'document_download',
+    'signed_url',
+    'signed url',
+    'create signed',
+    'scanner',
+    'thumbnail',
+    'create table app.document_scans',
+    'create table app.document_thumbnails',
+    'create table app.client_payments',
+    'create table app.payment_requests',
+    'create table app.project_expenses',
+    'create table app.currency_exchanges',
+    'references app.client_payments',
+    'references app.payment_requests',
+    'references app.project_expenses',
+    'references app.currency_exchanges',
+    'current_project_manager_document',
+    'current_accountant_document',
+    'current_site_supervisor_document',
+    'project_manager%access_allowed%true',
+    'accountant%access_allowed%true',
+    'site_supervisor%access_allowed%true',
+    'mime_type in (',
+    'max_file_size',
+    'retention_period',
+    'quarantine_period',
+    'scanner_policy',
+)
+package_12_1_scope_files = [
+    *migrations,
+    *sorted((ROOT / 'supabase/functions').rglob('*')),
+    *sorted((ROOT / 'app/lib').rglob('*')),
+]
+for path in package_12_1_scope_files:
+    if path.exists() and path.is_file():
+        text = path.read_text(encoding='utf-8', errors='ignore').lower()
+        for forbidden in package_12_1_global_exclusion_markers:
+            require(forbidden not in text,
+                    f'Package 12.1 global exclusion marker absent from {path.relative_to(ROOT)}: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':

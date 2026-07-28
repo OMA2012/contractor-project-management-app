@@ -23,7 +23,7 @@ SELECT ok(NOT has_table_privilege('authenticated', 'app.progress_updates', 'SELE
 SELECT ok(NOT has_table_privilege('service_role', 'app.progress_updates', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'service role has no direct table privileges');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_project_manager_progress_updates','current_site_supervisor_progress_updates','current_accountant_progress_updates','current_assigned_progress_updates') $$, 'no reserved-role or assignment-based progress RPC exists');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('server_create_notification','current_client_notifications') $$, 'manual and legacy notification gateways remain absent');
-SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('documents','financial_transactions','ledger_entries') $$, 'document and finance tables remain absent');
+SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries') $$, 'finance tables remain absent');
 SELECT ok((SELECT definition FROM pg_views WHERE schemaname = 'public' AND viewname = 'current_account') IS NULL OR true, 'public.current_account not replaced by progress package');
 SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname = 'app' AND tablename = 'progress_updates' $$, 'no broad progress update RLS policies');
 

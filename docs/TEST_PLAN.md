@@ -76,3 +76,13 @@ supabase stop --no-backup
 ## Package exit gate
 
 All static checks and all pgTAP assertions must pass with no Critical/High defect before Package 09.2 begins.
+
+## Stage 12 Package 12.1 Tests
+
+Package 12.1 adds tests 48-50:
+
+- `48_package_12_1_documents_schema.test.sql` verifies exact document enum/table columns, document numbering defaults, metadata constraints, link constraints, enabled foreign keys, disabled finance link targets, and excluded finance/storage/scanner objects.
+- `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
+- `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
+
+Static validation now also checks the 1128-1130 migration markers, tests 48-50, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/finance/reserved-role behavior.

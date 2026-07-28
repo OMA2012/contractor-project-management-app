@@ -30,7 +30,7 @@ SELECT ok(pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE
 SELECT ok(pg_get_functiondef('public.current_client_project_tasks(uuid)'::regprocedure) NOT ILIKE '%task_assignments%', 'Client task list does not expose assignments');
 SELECT ok(pg_get_functiondef('public.current_client_project_task(uuid)'::regprocedure) NOT ILIKE '%task_assignments%', 'Client task detail does not expose assignments');
 SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','documents')), 'later finance and document objects remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries')), 'later finance objects remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;
