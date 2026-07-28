@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(31);
+SELECT plan(30);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -55,7 +55,7 @@ SELECT * FROM public.server_owner_revoke_project_completion_override('00000000-0
 SELECT results_eq($$ SELECT official_completion_percent, is_overridden FROM public.server_owner_official_project_completion('00000000-0000-0000-0000-000000004101', (SELECT id FROM app.projects WHERE name = 'Override Operations Project')) $$, $$ VALUES (0.00::numeric(5,2), false) $$, 'revocation restores calculated completion as official');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_revoke_project_completion_override('00000000-0000-0000-0000-000000004101', (SELECT id FROM app.project_completion_overrides WHERE reason = 'Superseding request reason'), 'Again') $$, '23514', 'Project completion override cannot be revoked.', 'repeated revocation rejected');
 SELECT results_eq($$ SELECT reason FROM app.project_completion_overrides WHERE reason = 'Superseding request reason' $$, $$ VALUES ('Superseding request reason'::text) $$, 'original override reason remains unchanged after revocation');
-SELECT results_eq($$ SELECT derived_state FROM public.server_owner_project_completion_override_list('00000000-0000-0000-0000-000000004101', (SELECT id FROM app.projects WHERE name = 'Override Operations Project'), 10, 0) ORDER BY created_at DESC LIMIT 1 $$, $$ VALUES ('SUPERSEDED_OR_REVOKED'::text) $$, 'Owner history derives state');
+SELECT results_eq($$ SELECT derived_state FROM public.server_owner_project_completion_override_list('00000000-0000-0000-0000-000000004101', (SELECT id FROM app.projects WHERE name = 'Override Operations Project'), 10, 0) WHERE reason = 'Superseding request reason' $$, $$ VALUES ('SUPERSEDED_OR_REVOKED'::text) $$, 'Owner history derives state');
 SELECT results_eq($$ SELECT override_percent, reason FROM public.server_owner_project_completion_override_detail('00000000-0000-0000-0000-000000004101', (SELECT id FROM app.project_completion_overrides WHERE reason = 'Superseding request reason')) $$, $$ VALUES (80.00::numeric(5,2), 'Superseding request reason'::text) $$, 'Owner detail returns retained history');
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000004103', true);
 SELECT results_eq($$ SELECT calculated_completion_percent, official_completion_percent, is_overridden FROM public.current_client_project_completion((SELECT id FROM app.projects WHERE name = 'Override Operations Project')) $$, $$ VALUES (0.00::numeric(5,2), 0.00::numeric(5,2), false) $$, 'Client sees fallback official completion after revocation');
@@ -72,7 +72,6 @@ SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_comple
 SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_completion_override_revoked' AND reason = 'Revocation reason kept'), 'revocation activity retains reason');
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'denied_privileged_operation' AND reason IN ('Future time', 'Missing time', '   ')), 'denied logs do not echo submitted reasons');
 SELECT results_eq($$ SELECT version_number FROM app.projects WHERE name = 'Override Operations Project' $$, $$ VALUES (1) $$, 'override workflows do not increment Project version');
-SELECT hasnt_table('app', 'progress_updates', 'progress update table remains absent');
 SELECT hasnt_table('app', 'notifications', 'notification table remains absent');
 SELECT hasnt_table('app', 'financial_transactions', 'financial objects remain absent');
 

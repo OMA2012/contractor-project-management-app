@@ -915,6 +915,80 @@ Clients never receive override IDs, reasons, effective timestamps, creators, app
 
 Override rows are permanently retained. Direct update, delete and truncate are prohibited; controlled approval and revocation are the only mutation paths after request creation. Project Manager, Site Supervisor, and Accountant remain default-denied, no assignment-based override access is added, and `public.current_account()` remains unchanged. Package 11.8 progress updates remain excluded.
 
+## Stage 11 Package 11.8: Progress Update Foundation
+
+Package 11.8 adds narrative Project progress updates only. It does not add task-linked progress, delay/problem fields, next-planned-work fields, separate private and Client summaries, notifications, photographs, document storage, upcoming or overdue views, calendar functions, Flutter screens, Edge Functions, finance, assigned-staff access, or reserved-role activation.
+
+The external data dictionary is authoritative for `app.progress_updates`. The table contains exactly:
+
+- `id`
+- `project_id`
+- `milestone_id`
+- `title`
+- `summary`
+- `reported_completion_percent`
+- `status`
+- `client_visible`
+- `submitted_at`
+- `submitted_by`
+- `approved_at`
+- `approved_by`
+- `rejected_at`
+- `rejected_by`
+- `rejection_reason`
+- `published_at`
+- `archived_at`
+- `archived_by`
+- `created_at`
+- `created_by`
+- `updated_at`
+- `updated_by`
+- `version_number`
+
+`app.progress_update_status` has exactly `DRAFT`, `SUBMITTED`, `APPROVED`, and `REJECTED`. Publication and archival are represented by timestamps, not enum values. A published row may later be archived; the `published_at` timestamp is retained as history while archived rows disappear from active Client feeds.
+
+First-release workflow is Owner-only:
+
+- Create a `DRAFT`.
+- Edit only while still `DRAFT`.
+- Submit from `DRAFT` to `SUBMITTED`.
+- Approve from `SUBMITTED` to `APPROVED` by a different active Owner/Admin than the creator.
+- Reject from `SUBMITTED` to `REJECTED` with a required reason.
+- Change Client visibility only while approved, unpublished, and unarchived.
+- Publish only approved, visible, unarchived updates for Projects whose Client portal relationship remains readable.
+- Archive only approved or rejected updates.
+
+Approval requires two distinct active Owner/Admin accounts. Approval alone does not expose an update to Clients; publication is a separate explicit action. Package 11.8 publishes the single `summary` field, so it must not contain internal notes, private delay assessment, staff-private comments, supplier information, financial information, or secrets before publication.
+
+Optional `milestone_id` must reference an active same-Project milestone at draft creation and draft editing. Client reads return `milestone_id` only when the milestone independently remains Client-visible, active, and not hidden behind an inactive or private phase; otherwise the Client-safe projection returns `NULL`.
+
+Client access is read-only and limited to active authenticated Clients reading their own Projects. Client list/detail output contains only:
+
+- `id`
+- `project_id`
+- `milestone_id`
+- `title`
+- `summary`
+- `reported_completion_percent`
+- `published_at`
+
+Clients never receive status, draft/submission/approval/rejection metadata, rejection reasons, version numbers, unpublished or archived history, activity metadata, Auth subjects, staff identities, or private Project data. Cross-Client identifiers use the existing safe no-row behavior.
+
+Progress updates are narrative snapshots. They do not update tasks, insert task-update history, change phase or Project completion, change official completion overrides, alter Project/phase/milestone status, create notifications, access storage, create documents, or create financial records.
+
+Activity actions added by this package:
+
+- `progress_update_created`
+- `progress_update_updated`
+- `progress_update_submitted`
+- `progress_update_approved`
+- `progress_update_rejected`
+- `progress_update_client_visibility_changed`
+- `progress_update_published`
+- `progress_update_archived`
+
+Successful reads create no activity entry. Denied-operation logs must not echo submitted summaries or rejection reasons. Project Manager, Site Supervisor, and Accountant remain default-denied, no assignment-based progress gateway is added, and `public.current_account()` remains unchanged. Package 11.9 notifications remain excluded.
+
 ## Inspect schema manually
 
 ```bash

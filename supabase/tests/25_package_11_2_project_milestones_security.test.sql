@@ -27,7 +27,7 @@ SELECT ok(NOT has_function_privilege('authenticated', 'public.server_create_proj
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_staff_project_milestones', 'current_project_manager_project_milestones', 'current_site_supervisor_project_milestones') $$, 'no public staff milestone RPC exists');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name LIKE '%reopen%milestone%' $$, 'no milestone reopening function exists');
 SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'progress, finance and document tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('completion_overrides','financial_transactions','ledger_entries','documents')), 'finance and document tables remain absent');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'project_milestones' AND policyname ILIKE '%staff%'), 'no staff milestone RLS policy exists');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname LIKE '%assignment%milestone%'), 'assignment helpers are not exposed through milestone public RPCs');
 

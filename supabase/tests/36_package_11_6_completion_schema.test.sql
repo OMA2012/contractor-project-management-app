@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(29);
+SELECT plan(28);
 
 SELECT has_function('app', 'calculate_project_phase_completion', ARRAY['uuid']::name[], 'private phase calculation exists');
 SELECT has_function('app', 'calculate_project_completion', ARRAY['uuid']::name[], 'private Project calculation exists');
@@ -28,7 +28,6 @@ SELECT hasnt_column('app', 'project_phases', 'completion_percent', 'no completio
 SELECT hasnt_column('app', 'project_milestones', 'completion_percent', 'no completion column on milestones');
 SELECT hasnt_table('app', 'project_completion_cache', 'no Project completion cache');
 SELECT hasnt_table('app', 'phase_completion_cache', 'no phase completion cache');
-SELECT hasnt_table('app', 'progress_updates', 'no progress update table');
 SELECT ok((SELECT pg_get_functiondef('app.calculate_project_completion(uuid)'::regprocedure) ILIKE '%round(%' AND pg_get_functiondef('app.calculate_project_completion(uuid)'::regprocedure) ILIKE '%nullif(sum(t.weight_percent), 0)%' AND pg_get_functiondef('app.calculate_project_completion(uuid)'::regprocedure) ILIKE '%0.00%'), 'Project calculator uses rounded null-safe weighted formula');
 SELECT ok((SELECT pg_get_functiondef('app.calculate_project_phase_completion(uuid)'::regprocedure) ILIKE '%t.phase_id = p_phase_id%'), 'phase calculator is scoped by phase_id');
 SELECT ok((SELECT pg_get_functiondef('app.calculate_project_completion(uuid)'::regprocedure) ILIKE '%t.project_id = p_project_id%'), 'Project calculator is scoped by project_id');

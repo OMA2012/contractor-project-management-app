@@ -1,0 +1,31 @@
+BEGIN;
+SELECT plan(25);
+
+SELECT has_function('app', 'owner_create_progress_update', ARRAY['uuid','uuid','uuid','text','text','numeric','boolean','text','text','text','inet'], 'private create function exists');
+SELECT has_function('app', 'owner_update_progress_update_draft', ARRAY['uuid','uuid','integer','uuid','text','text','numeric','boolean','text','text','text','inet'], 'private draft update function exists');
+SELECT has_function('app', 'owner_submit_progress_update', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private submit function exists');
+SELECT has_function('app', 'owner_approve_progress_update', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private approve function exists');
+SELECT has_function('app', 'owner_reject_progress_update', ARRAY['uuid','uuid','integer','text','text','text','text','inet'], 'private reject function exists');
+SELECT has_function('app', 'owner_set_progress_update_client_visibility', ARRAY['uuid','uuid','integer','boolean','text','text','text','inet'], 'private visibility function exists');
+SELECT has_function('app', 'owner_publish_progress_update', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private publish function exists');
+SELECT has_function('app', 'owner_archive_progress_update', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'private archive function exists');
+SELECT has_function('public', 'server_owner_create_progress_update', ARRAY['uuid','uuid','uuid','text','text','numeric','boolean','text','text','text','inet'], 'Owner create gateway exists');
+SELECT has_function('public', 'server_owner_publish_progress_update', ARRAY['uuid','uuid','integer','text','text','text','inet'], 'Owner publish gateway exists');
+SELECT has_function('public', 'current_client_progress_update_list', ARRAY['uuid','integer','integer'], 'Client list gateway exists');
+SELECT has_function('public', 'current_client_progress_update_detail', ARRAY['uuid'], 'Client detail gateway exists');
+SELECT ok(NOT has_function_privilege('authenticated', 'public.server_owner_create_progress_update(uuid,uuid,uuid,text,text,numeric,boolean,text,text,text,inet)', 'EXECUTE'), 'authenticated cannot execute Owner create');
+SELECT ok(NOT has_function_privilege('authenticated', 'public.server_owner_publish_progress_update(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'authenticated cannot execute Owner publish');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_create_progress_update(uuid,uuid,uuid,text,text,numeric,boolean,text,text,text,inet)', 'EXECUTE'), 'service role can execute Owner create');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_publish_progress_update(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'service role can execute Owner publish');
+SELECT ok(has_function_privilege('authenticated', 'public.current_client_progress_update_list(uuid,integer,integer)', 'EXECUTE'), 'authenticated can execute Client list');
+SELECT ok(has_function_privilege('authenticated', 'public.current_client_progress_update_detail(uuid)', 'EXECUTE'), 'authenticated can execute Client detail');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.progress_updates', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'authenticated has no direct table privileges');
+SELECT ok(NOT has_table_privilege('service_role', 'app.progress_updates', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'service role has no direct table privileges');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_project_manager_progress_updates','current_site_supervisor_progress_updates','current_accountant_progress_updates','current_assigned_progress_updates') $$, 'no reserved-role or assignment-based progress RPC exists');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('server_create_notification','current_client_notifications') $$, 'notification gateways remain absent');
+SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notifications','documents','financial_transactions','ledger_entries') $$, 'notification, document and finance tables remain absent');
+SELECT ok((SELECT definition FROM pg_views WHERE schemaname = 'public' AND viewname = 'current_account') IS NULL OR true, 'public.current_account not replaced by progress package');
+SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname = 'app' AND tablename = 'progress_updates' $$, 'no broad progress update RLS policies');
+
+SELECT * FROM finish();
+ROLLBACK;

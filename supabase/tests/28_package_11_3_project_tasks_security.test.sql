@@ -34,7 +34,7 @@ SELECT has_function('public', 'server_complete_project_task', ARRAY['uuid','uuid
 SELECT has_function('public', 'server_change_project_task_status', ARRAY['uuid','uuid','integer','app.project_task_status','text','text','text','text','inet']::name[], 'task status workflow gateway is implemented in Package 11.5');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app' AND tablename = 'tasks' AND policyname ILIKE '%staff%'), 'no staff task RLS policy exists');
 SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','financial_transactions','ledger_entries','documents')), 'progress and later objects remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','documents')), 'later finance and document objects remain absent');
 SELECT ok(pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%project_manager%access_allowed%true%' AND pg_get_functiondef('public.current_account()'::regprocedure) NOT ILIKE '%site_supervisor%access_allowed%true%', 'current_account does not activate reserved roles');
 
 SELECT * FROM finish();
