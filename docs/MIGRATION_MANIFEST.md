@@ -14,8 +14,13 @@
 | 51 | `20260724103400_1131_financial_account_schema.sql` | Adds Package 13.1 financial-account type, immutable global FA numbering, exact financial account table, guards, RLS and direct-DML revocation | 0902, 0904, 0911, 0913 | Forward-fix only; account rows are retained and never hard-deleted | 51 schema suite |
 | 52 | `20260724103500_1132_financial_account_functions.sql` | Adds Owner/Admin-only trusted financial-account create/update/activate/deactivate/archive/list/detail functions and service wrappers | 1131, owner authorization, activity logs | Replace functions in forward migration; no Client or reserved-role access | 52 security and 53 operations suites |
 | 53 | `20260724103600_1133_financial_account_grants.sql` | Grants service-role execution on server wrappers only and keeps direct table/private function access revoked | 1132 | Forward-fix grants only | 52 security suite |
+| 54 | `20260724103700_1134_ledger_accounts_and_exchange_rates.sql` | Adds Package 13.2 ledger-account and manual exchange-rate enums, exact tables, constraints, indexes, forced RLS, append-only/delete guards and direct-DML revocation | 0902, 0904, 1131 | Forward-fix only; ledger accounts and rates are retained and direct mutation remains denied | 54 schema suite |
+| 55 | `20260724103800_1135_ledger_account_sync_and_exchange_rate_functions.sql` | Adds private financial-account asset-ledger synchronization, idempotent backfill, Owner/Admin-only manual exchange-rate functions, service wrappers, activity logging and private conversion helper | 1134, owner authorization, activity logs | Replace functions/triggers in a later forward migration; no Client or reserved-role access | 55 security and 56 operations suites |
+| 56 | `20260724103900_1136_ledger_account_exchange_rate_grants.sql` | Grants service-role execution on Owner exchange-rate gateways only and keeps direct table/private helper access revoked | 1135 | Forward-fix grants only | 55 security suite |
 
 Every file is transactional. Production correction is forward-fix first; never rewrite an already applied migration.
+
+Package 13.2 creates one `FINANCIAL_ASSET` ledger account per financial account using `ASSET-<financial_account.account_number>` codes and adds append-only manual exchange rates. It does not seed CONTROL accounts, add ledger entries, create balances, post transactions, retrieve rates automatically, activate Accountant access, or change `public.current_account()`.
 
 ## Stage 12 Package 12.1 Addendum
 

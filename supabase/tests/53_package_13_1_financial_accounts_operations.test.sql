@@ -67,7 +67,7 @@ SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE previous_values::tex
 SELECT throws_ok($$ SELECT * FROM public.server_owner_financial_account_list('00000000-0000-0000-0000-000000005302', true, 50, 0) $$, '42501', 'Privileged operation denied.', 'Client cannot list financial accounts');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_financial_account_list('00000000-0000-0000-0000-000000005303', true, 50, 0) $$, '42501', 'Privileged operation denied.', 'Accountant cannot list financial accounts');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_financial_account_list','current_accountant_financial_accounts','current_project_manager_financial_accounts','current_site_supervisor_financial_accounts') $$, 'reserved role current financial RPCs absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_accounts','ledger_entries','account_balances','exchange_rates','payments','expenses','transfers','refunds','reversals','adjustments')), 'excluded financial workflow tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','account_balances','payments','expenses','transfers','refunds','reversals','adjustments')), 'excluded financial workflow tables remain absent');
 SELECT is((SELECT count(*)::integer FROM app.financial_accounts), 2, 'only account rows created');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_account%', 'current_account not changed');
 

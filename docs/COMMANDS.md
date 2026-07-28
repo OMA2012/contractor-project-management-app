@@ -1127,6 +1127,58 @@ Financial-account activity actions:
 
 Activity metadata may include account number, type, currency, active/archive state, changed field names, and version numbers. It must omit encrypted account details, raw notes, unmasked account identifiers, balances, ledger references, raw request bodies, secrets, and monetary amounts.
 
+## Stage 13 Package 13.2: Ledger Account and Manual Exchange-Rate Foundation
+
+Package 13.2 adds only system-managed asset ledger accounts and manual exchange rates. It does not add financial events, financial transactions, ledger entries, posting, opening balances, account balances, payments, expenses, transfers, currency-exchange business events, refunds, reversals, adjustments, finance notifications, Flutter, Edge Functions, automatic rate retrieval, Accountant activation, editable balance columns, or changes to `public.current_account()`.
+
+`app.ledger_account_kind` has exactly:
+
+- `FINANCIAL_ASSET`
+- `CONTROL`
+
+`app.entry_side` has exactly:
+
+- `DEBIT`
+- `CREDIT`
+
+`app.ledger_accounts` contains exactly:
+
+- `id`
+- `code`
+- `name`
+- `account_kind`
+- `financial_account_id`
+- `currency_code`
+- `normal_side`
+- `is_system`
+- `is_active`
+
+Every financial account has exactly one system-managed asset ledger account. Asset ledger account codes use `ASSET-<financial_account.account_number>`, for example `ASSET-FA-000001`. The asset ledger name copies the financial-account name, currency copies the financial-account currency, normal side is `DEBIT`, and active state follows `financial_accounts.is_active AND archived_at IS NULL`. The sync helper is private, idempotent, concurrency-safe, and invoked by an `app.financial_accounts` trigger. CONTROL accounts are schema-supported but not seeded.
+
+`app.exchange_rates` contains exactly:
+
+- `id`
+- `rate_date`
+- `base_currency_code`
+- `quote_currency_code`
+- `rate_value`
+- `source`
+- `source_reference`
+- `entered_by`
+- `created_at`
+
+Exchange-rate convention is explicit: `1 base_currency = rate_value quote_currency`. Rates are exact `numeric(30,12)`, positive, manually entered, append-only, and never automatically retrieved. Exact duplicates by rate date, base currency, quote currency, rate value, and source are rejected; correction is done by entering a new row. Owner/Admin exchange-rate list ordering is deterministic by `rate_date DESC, created_at DESC, id DESC`.
+
+The private conversion helper uses exact numeric arithmetic: same currency returns the amount, base-to-quote multiplies, quote-to-base divides, unrelated pairs reject, negative amounts reject, and non-positive rates reject. Package 13.2 performs no rounding; currency-specific rounding remains deferred to posting.
+
+First-release access remains Owner/Admin only through service-role gateways. Clients have no ledger-account or exchange-rate access. Project Manager, Accountant, and Site Supervisor remain unusable/default-denied; Package 13.2 adds no reserved-role RPCs and does not modify `public.current_account()`.
+
+Exchange-rate activity action:
+
+- `exchange_rate_created`
+
+Activity metadata may include exchange-rate ID, rate date, base currency, quote currency, rate value, and source. It must omit raw `source_reference`, automatic quote payloads, Client-visible finance data, secrets, and unrelated request content.
+
 ## Inspect schema manually
 
 ```bash
