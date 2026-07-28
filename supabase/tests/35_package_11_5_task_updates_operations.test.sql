@@ -108,7 +108,7 @@ SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_task_s
 SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_task_completed'), 'completion activity logged');
 SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_task_reopened'), 'reopen activity logged');
 SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_task_cancelled'), 'cancellation activity logged');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('progress_updates','completion_overrides','notifications','financial_transactions','ledger_entries','documents')), 'progress updates, completion overrides, notifications, finance and documents remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notifications','financial_transactions','ledger_entries','documents')), 'notifications, finance and documents remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -214,7 +214,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|has_function|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|has_function|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -1740,8 +1740,13 @@ if task_update_grants_path.exists():
         require(forbidden not in task_update_grants_sql,
                 f'1115 task update grants omit prohibited grant: {forbidden}')
 
+task_update_scope_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (task_update_schema_path, task_update_functions_path, task_update_grants_path)
+    if p.exists()
+)
 require('create table app.task_updates' in all_sql, '11.5 adds task update history')
-require('create table app.progress_updates' not in all_sql and 'create table app.completion_overrides' not in all_sql, '11.5 does not add progress or completion override objects')
+require('create table app.progress_updates' not in task_update_scope_sql and 'create table app.completion_overrides' not in task_update_scope_sql, '11.5 does not add progress or completion override objects')
 require('create table app.notifications' not in all_sql, '11.5 does not add notifications')
 require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.5 does not add documents')
 require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.5 does not add finance or ledger objects')
@@ -2417,6 +2422,195 @@ for forbidden in (
 ):
     require(forbidden not in override_all_sql,
             f'Package 11.7 scope excludes forbidden marker: {forbidden}')
+
+progress_schema_path = ROOT / 'supabase/migrations/20260724102500_1122_progress_updates.sql'
+progress_functions_path = ROOT / 'supabase/migrations/20260724102600_1123_progress_update_functions.sql'
+progress_grants_path = ROOT / 'supabase/migrations/20260724102700_1124_progress_update_grants.sql'
+progress_test_paths = [
+    ROOT / 'supabase/tests/42_package_11_8_progress_updates_schema.test.sql',
+    ROOT / 'supabase/tests/43_package_11_8_progress_updates_security.test.sql',
+    ROOT / 'supabase/tests/44_package_11_8_progress_updates_operations.test.sql',
+]
+for path in (progress_schema_path, progress_functions_path, progress_grants_path, *progress_test_paths):
+    require(path.exists(), f'Package 11.8 artifact exists: {path.relative_to(ROOT)}')
+
+if progress_schema_path.exists():
+    progress_schema_sql = progress_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.progress_update_status as enum',
+        "'draft'",
+        "'submitted'",
+        "'approved'",
+        "'rejected'",
+        'create table app.progress_updates',
+        'id uuid primary key default gen_random_uuid()',
+        'project_id uuid not null references app.projects(id) on delete restrict',
+        'milestone_id uuid references app.project_milestones(id) on delete restrict',
+        'title varchar(200) not null',
+        'summary text not null',
+        'reported_completion_percent numeric(5,2)',
+        'status app.progress_update_status not null default',
+        'client_visible boolean not null default false',
+        'archived_by uuid references app.users(id) on delete restrict',
+        'version_number integer not null default 1',
+        'progress_updates_state_ck',
+        'progress_updates_publication_visibility_ck',
+        'progress_updates_approver_differs_ck',
+        'progress_updates_client_feed_idx',
+        'before update on app.progress_updates',
+        'before delete on app.progress_updates',
+        'before truncate on app.progress_updates',
+        'app.allow_progress_update_mutation',
+        'alter table app.progress_updates enable row level security',
+        'alter table app.progress_updates force row level security',
+    ):
+        require(required in progress_schema_sql,
+                f'1122 progress schema contains required marker: {required}')
+    for forbidden in (
+        'task_id',
+        'phase_id',
+        'private_summary',
+        'client_summary',
+        'delay_reason',
+        'next_planned_work',
+        'create table app.notifications',
+        'create table app.documents',
+        'financial_transactions',
+        "'published'",
+        "'archived'",
+    ):
+        require(forbidden not in progress_schema_sql,
+                f'1122 progress schema omits forbidden marker: {forbidden}')
+
+if progress_functions_path.exists():
+    progress_functions_sql = progress_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.owner_create_progress_update',
+        'create or replace function app.owner_update_progress_update_draft',
+        'create or replace function app.owner_submit_progress_update',
+        'create or replace function app.owner_approve_progress_update',
+        'create or replace function app.owner_reject_progress_update',
+        'create or replace function app.owner_set_progress_update_client_visibility',
+        'create or replace function app.owner_publish_progress_update',
+        'create or replace function app.owner_archive_progress_update',
+        'create or replace function app.owner_progress_update_list',
+        'create or replace function app.owner_progress_update_detail',
+        'create or replace function app.current_client_progress_update_list_for_authenticated_user',
+        'create or replace function app.current_client_progress_update_detail_for_authenticated_user',
+        'create or replace function public.current_client_progress_update_list',
+        'create or replace function public.current_client_progress_update_detail',
+        'create or replace function public.server_owner_create_progress_update',
+        'create or replace function public.server_owner_set_progress_update_client_visibility',
+        'create or replace function public.server_owner_publish_progress_update',
+        'app.require_active_owner_admin',
+        'progress_update_created',
+        'progress_update_updated',
+        'progress_update_submitted',
+        'progress_update_approved',
+        'progress_update_rejected',
+        'progress_update_client_visibility_changed',
+        'progress_update_published',
+        'progress_update_archived',
+        'progress update cannot be edited',
+        'progress update requires different owner approval',
+        'progress update visibility cannot be changed',
+        'progress update cannot be published for this project client',
+        'phase_row.is_active and phase_row.client_visible',
+    ):
+        require(required in progress_functions_sql,
+                f'1123 progress functions contain required marker: {required}')
+    for forbidden in (
+        'current_project_manager_progress',
+        'current_site_supervisor_progress',
+        'current_accountant_progress',
+        'current_assigned_progress',
+        'insert into app.notifications',
+        'update app.tasks',
+        'insert into app.task_updates',
+        'update app.projects set status',
+        'create table app.notifications',
+        'format(',
+        'raw_app_meta_data',
+    ):
+        require(forbidden not in progress_functions_sql,
+                f'1123 progress functions omit forbidden marker: {forbidden}')
+    client_return = re.search(
+        r'create or replace function public\.current_client_progress_update_list\(.*?returns table \((.*?)\)\s+language',
+        progress_functions_sql,
+        re.S,
+    )
+    require(client_return is not None, '1123 Client progress list return shape is inspectable')
+    if client_return:
+        returned = client_return.group(1)
+        for safe_field in (
+            'id uuid',
+            'project_id uuid',
+            'milestone_id uuid',
+            'title text',
+            'summary text',
+            'reported_completion_percent numeric(5,2)',
+            'published_at timestamptz',
+        ):
+            require(safe_field in returned,
+                    f'1123 Client progress list returns safe field: {safe_field}')
+        for private_field in (
+            'status',
+            'created_by',
+            'updated_by',
+            'submitted_by',
+            'approved_by',
+            'rejected_by',
+            'rejection_reason',
+            'version_number',
+        ):
+            require(private_field not in returned,
+                    f'1123 Client progress list omits private field: {private_field}')
+
+if progress_grants_path.exists():
+    progress_grants_sql = progress_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.progress_updates from public, anon, authenticated, service_role',
+        'revoke all on function app.owner_create_progress_update',
+        'revoke all on function app.owner_publish_progress_update',
+        'revoke all on function app.current_client_progress_update_list_for_authenticated_user',
+        'grant execute on function public.server_owner_create_progress_update',
+        'grant execute on function public.server_owner_publish_progress_update',
+        'grant execute on function public.server_owner_set_progress_update_client_visibility',
+        'grant execute on function public.current_client_progress_update_list(uuid, integer, integer) to authenticated',
+        'grant execute on function public.current_client_progress_update_detail(uuid) to authenticated',
+        'to service_role',
+    ):
+        require(required in progress_grants_sql,
+                f'1124 progress grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.progress_updates',
+        'grant insert on app.progress_updates',
+        'grant update on app.progress_updates',
+        'grant delete on app.progress_updates',
+        'current_project_manager_progress',
+        'current_site_supervisor_progress',
+        'current_assigned_progress',
+    ):
+        require(forbidden not in progress_grants_sql,
+                f'1124 progress grants omit forbidden marker: {forbidden}')
+
+progress_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (progress_schema_path, progress_functions_path, progress_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.notifications',
+    'create table app.documents',
+    'create table app.financial_transactions',
+    'create table app.ledger_entries',
+    'task_id',
+    'delay_reason',
+    'next_planned_work',
+    'project_manager%access_allowed%true',
+):
+    require(forbidden not in progress_all_sql,
+            f'Package 11.8 scope excludes forbidden marker: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':

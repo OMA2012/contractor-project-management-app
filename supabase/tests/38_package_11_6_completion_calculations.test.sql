@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(25);
+SELECT plan(24);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -87,7 +87,6 @@ SELECT results_eq($$ SELECT app.calculate_project_completion((SELECT id FROM app
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE action IN ('view_project_completion','view_project_phase_completion') AND outcome = 'success'), 'successful calculation creates no activity event');
 SELECT results_eq($$ SELECT version_number FROM app.projects WHERE name = 'Completion Project' $$, $$ VALUES (3) $$, 'calculation does not increment Project version');
 SELECT hasnt_table('app', 'notifications', 'calculation creates no notifications');
-SELECT hasnt_table('app', 'progress_updates', 'progress updates remain absent');
 SELECT hasnt_table('app', 'financial_transactions', 'financial objects remain absent');
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000003804', true);
 SELECT is_empty($$ SELECT * FROM public.current_client_project_completion((SELECT id FROM app.projects WHERE name = 'Completion Project')) $$, 'Project Manager denied');
