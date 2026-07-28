@@ -29,3 +29,9 @@
 The actual Phase 0 Git checkout and environment credentials were not supplied, and Supabase CLI, Docker, PostgreSQL, Flutter and Dart are unavailable in this execution environment.
 
 No migration, pgTAP, CI, development, or staging pass is claimed.
+
+## Stage 12 Package 12.1 Update
+
+Implemented migrations 1128-1130, tests 48-50, older document-absence assertion updates, static validation coverage, and documentation updates for the metadata-only document foundation.
+
+Verification results for this package are recorded from the current run output when available; no deploy, merge, commit, push, or follow-on package work is part of Package 12.1.

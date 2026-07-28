@@ -38,7 +38,7 @@ SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'app.notifications'::
 SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid = 'app.notifications'::regclass), 'notifications RLS forced');
 SELECT throws_ok($$ INSERT INTO app.notifications DEFAULT VALUES $$, '23514', 'Notifications require trusted creation context.', 'direct insert denied by trusted context');
 SELECT throws_ok($$ TRUNCATE app.notifications $$, '23514', 'Notifications cannot be truncated.', 'truncate prevented');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_preferences','notification_delivery_attempts','documents','financial_transactions','ledger_entries')), 'delivery preference, document and finance objects remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_preferences','notification_delivery_attempts','financial_transactions','ledger_entries')), 'delivery preference and finance objects remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -1029,6 +1029,46 @@ State-change activity actions added by this package are `notification_marked_rea
 
 Other notification producers and external delivery infrastructure are deferred to later approved packages.
 
+## Stage 12 Package 12.1: Document Metadata Foundation
+
+Package 12.1 adds document metadata only. It does not add Storage bucket creation, upload, download, signed URLs, Edge Functions, scanner integration, thumbnails, Flutter UI, notification integration, finance implementation, placeholder finance tables, or reserved-role activation.
+
+`app.document_status` has exactly `ACTIVE` and `ARCHIVED`.
+
+`app.document_types` contains exactly:
+
+- `code`
+- `name`
+- `default_client_visible`
+- `is_active`
+
+`app.documents` contains exactly:
+
+- `id`
+- `document_number`
+- `storage_bucket`
+- `storage_object_key`
+- `original_file_name`
+- `mime_type`
+- `file_size_bytes`
+- `sha256_hash`
+- `document_type_code`
+- `status`
+- `client_visible`
+- `notes`
+- `uploaded_at`
+- `uploaded_by`
+- `archived_at`
+- `archived_by`
+
+Document numbers are global, concurrency-safe, six-digit, gap-tolerant, never reset yearly, and immutable after creation. The first two allocated numbers are `DOC-000001` and `DOC-000002`.
+
+`app.document_links` preserves exactly the eight approved target columns: Client, Project, task, progress update, client payment, payment request, project expense, and currency exchange. Package 12.1 enables links only to existing Client, Project, task, and progress-update targets. The four future finance target columns remain nullable but constrained to `NULL`; their foreign keys and enabled behavior are deferred until those finance tables exist. No placeholder finance tables are created.
+
+Package 12.1 enforces only approved metadata constraints: nonblank MIME type, positive file size, a 32-byte SHA-256 hash, paired archive fields, unique document number, unique storage object key, and exactly one link target. It does not invent a MIME allowlist, maximum file size, retention period, quarantine period, or scanner policy.
+
+First-release access remains unchanged: Owner/Admin may manage metadata; Client may read only Client-visible metadata linked to their own readable records; Project Manager, Accountant, and Site Supervisor remain unusable/default-denied.
+
 ## Inspect schema manually
 
 ```bash
