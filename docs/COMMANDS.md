@@ -989,6 +989,46 @@ Activity actions added by this package:
 
 Successful reads create no activity entry. Denied-operation logs must not echo submitted summaries or rejection reasons. Project Manager, Site Supervisor, and Accountant remain default-denied, no assignment-based progress gateway is added, and `public.current_account()` remains unchanged. Package 11.9 notifications remain excluded.
 
+## Stage 11 Package 11.9: In-App Notification Foundation
+
+Package 11.9 adds in-app database notifications only. It does not add email, push, SMS, WhatsApp, delivery status, retry queues, scheduled jobs, preferences, task deadline producers, upcoming or overdue processing, document producers, financial producers, Flutter screens, Edge Functions, assigned-staff access, or reserved-role activation.
+
+`app.notification_status` has exactly `UNREAD`, `READ`, and `ARCHIVED`. `app.notifications` contains exactly:
+
+- `id`
+- `recipient_user_id`
+- `project_id`
+- `notification_type`
+- `title`
+- `body`
+- `status`
+- `related_entity_type`
+- `related_entity_id`
+- `created_at`
+- `read_at`
+- `archived_at`
+
+Package 11.9 has one producer: publishing a Client-visible progress update creates one duplicate-safe `PROGRESS_UPDATE_PUBLISHED` notification for the Project-owning Client portal user. The related entity is `progress_update`, and trusted database code derives the recipient, Project, notification type, title, body, and related entity. Callers cannot choose a recipient or provide arbitrary notification text.
+
+The notification text is constant and safe:
+
+- Title: `New project progress update`
+- Body: `A new progress update is available for your project.`
+
+The progress-publication transaction is atomic: the progress update is marked published, its version increments once, the notification is inserted or found through duplicate suppression, and the existing `progress_update_published` activity entry is written together. If Client or portal-user resolution fails, publication, versioning, notification insertion, and success activity all roll back. Package 11.9 adds no separate `notification_created` activity action.
+
+Notification creation is protected by the trusted transaction-local context `app.notification_creation_context = progress_update_publication`, private functions, forced RLS, revoked direct DML, and narrow public gateways. Duplicate suppression uses the recipient, notification type, related entity type, and related entity ID so retries do not create duplicate progress-publication notifications.
+
+Current-recipient inbox functions derive the user from `auth.uid()` and allow only a single usable first-release context: Owner/Admin or Client. Reserved roles remain predefined but unusable, and `public.current_account()` is unchanged. Inbox output omits `recipient_user_id` and returns only notification fields safe for the current recipient. List ordering is deterministic by `created_at DESC, id DESC`; archived rows are excluded by default unless explicitly requested by status or include-archived filtering.
+
+Reading a notification does not mark it read. Mark-read, mark-unread, and archive are current-recipient-only state changes. The first read sets `read_at`; later unread/read toggles retain that first-read timestamp. Repeated mark-read, mark-unread, or archive calls are idempotent no-ops and create no duplicate activity. Archive is terminal: there is no unarchive, no read/unread after archive, and no hard deletion.
+
+Notification related-entity fields are navigation hints only. Opening a linked progress update must still call the approved progress-detail endpoint and independently pass Client ownership, Project readability, publication visibility, and archive restrictions. Historical notification rows may retain inaccessible related IDs, but notification access never bypasses entity-specific authorization.
+
+State-change activity actions added by this package are `notification_marked_read`, `notification_marked_unread`, and `notification_archived`. Activity metadata may include notification ID, Project ID, notification type, previous status, new status, and accepted request/correlation context. It must not include title, body, progress summary, recipient contact data, Client name, Auth subject, tokens, session secrets, or raw request content.
+
+Other notification producers and external delivery infrastructure are deferred to later approved packages.
+
 ## Inspect schema manually
 
 ```bash

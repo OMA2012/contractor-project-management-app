@@ -32,7 +32,7 @@ SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.tasks'::regclass AND conname = 'tasks_workflow_state_ck'), 'canonical task workflow state constraint exists');
 SELECT ok(pg_get_functiondef('app.tasks_trusted_update_guard()'::regprocedure) ILIKE '%app.allow_project_task_workflow%' AND pg_get_functiondef('app.tasks_trusted_update_guard()'::regprocedure) ILIKE '%Project task workflow fields require trusted functions%', 'task trusted update guard permits workflow only in trusted context');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = 'app'::regnamespace AND typname IN ('task_update_status','task_workflow_status')), 'no additional task status enum is created');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notifications','financial_transactions','ledger_entries','documents')), 'notifications, finance and documents remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','documents')), 'finance and documents remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(20);
+SELECT plan(19);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -96,7 +96,6 @@ SELECT ok(
   'Client completion output excludes override private fields'
 );
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE action IN ('view_project_completion','view_project_completion_override') AND outcome = 'success'), 'successful reads create no activity entries');
-SELECT hasnt_table('app', 'notifications', 'notifications remain absent');
 SELECT hasnt_table('app', 'financial_transactions', 'financial objects remain absent');
 
 SELECT * FROM finish();

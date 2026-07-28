@@ -104,7 +104,7 @@ SELECT ok(NOT EXISTS (
     )
 ), 'task assignment activity masks emails, Auth subjects and Client identity');
 SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notifications','financial_transactions','ledger_entries','documents')), 'notifications, finance and documents remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','documents')), 'finance and documents remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;
