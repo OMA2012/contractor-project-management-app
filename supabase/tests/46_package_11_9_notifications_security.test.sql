@@ -1,0 +1,31 @@
+BEGIN;
+SELECT plan(25);
+
+SELECT has_function('app', 'create_progress_update_published_notification', ARRAY['uuid'], 'private progress notification helper exists');
+SELECT has_function('app', 'current_notification_list_for_authenticated_user', ARRAY['app.notification_status','boolean','integer','integer'], 'private current list exists');
+SELECT has_function('app', 'current_notification_detail_for_authenticated_user', ARRAY['uuid'], 'private current detail exists');
+SELECT has_function('app', 'current_mark_notification_read_for_authenticated_user', ARRAY['uuid'], 'private mark read exists');
+SELECT has_function('app', 'current_mark_notification_unread_for_authenticated_user', ARRAY['uuid'], 'private mark unread exists');
+SELECT has_function('app', 'current_archive_notification_for_authenticated_user', ARRAY['uuid'], 'private archive exists');
+SELECT has_function('public', 'current_notification_list', ARRAY['app.notification_status','boolean','integer','integer'], 'public current list exists');
+SELECT has_function('public', 'current_notification_detail', ARRAY['uuid'], 'public current detail exists');
+SELECT has_function('public', 'current_mark_notification_read', ARRAY['uuid'], 'public mark read exists');
+SELECT has_function('public', 'current_mark_notification_unread', ARRAY['uuid'], 'public mark unread exists');
+SELECT has_function('public', 'current_archive_notification', ARRAY['uuid'], 'public archive exists');
+SELECT ok(NOT has_table_privilege('authenticated', 'app.notifications', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'authenticated has no direct notification table access');
+SELECT ok(NOT has_table_privilege('service_role', 'app.notifications', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'), 'service_role has no direct notification table access');
+SELECT ok(NOT has_function_privilege('authenticated', 'app.create_progress_update_published_notification(uuid)', 'EXECUTE'), 'authenticated cannot execute private creation helper');
+SELECT ok(NOT has_function_privilege('service_role', 'app.create_progress_update_published_notification(uuid)', 'EXECUTE'), 'service_role cannot execute private creation helper');
+SELECT ok(has_function_privilege('authenticated', 'public.current_notification_list(app.notification_status,boolean,integer,integer)', 'EXECUTE'), 'authenticated can execute current list');
+SELECT ok(has_function_privilege('authenticated', 'public.current_notification_detail(uuid)', 'EXECUTE'), 'authenticated can execute current detail');
+SELECT ok(has_function_privilege('authenticated', 'public.current_mark_notification_read(uuid)', 'EXECUTE'), 'authenticated can mark read');
+SELECT ok(has_function_privilege('authenticated', 'public.current_mark_notification_unread(uuid)', 'EXECUTE'), 'authenticated can mark unread');
+SELECT ok(has_function_privilege('authenticated', 'public.current_archive_notification(uuid)', 'EXECUTE'), 'authenticated can archive');
+SELECT ok(NOT has_function_privilege('service_role', 'public.current_notification_list(app.notification_status,boolean,integer,integer)', 'EXECUTE'), 'service_role cannot use current-user inbox list');
+SELECT ok(has_function_privilege('service_role', 'public.server_owner_publish_progress_update(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'service_role still has Owner publish gateway');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('server_create_notification','current_project_manager_notifications','current_site_supervisor_notifications','current_assigned_notifications','current_notification_unread_count') $$, 'no manual, reserved-role, assigned, or unread-count notification RPCs');
+SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname = 'app' AND tablename = 'notifications' $$, 'no broad notification RLS policies');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_delivery_attempts','notification_preferences','notification_retry_queue','documents','financial_transactions','ledger_entries')), 'delivery, preference, document and finance tables absent');
+
+SELECT * FROM finish();
+ROLLBACK;

@@ -39,7 +39,7 @@ SELECT ok(EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'app' AND tablenam
 SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'app.progress_updates'::regclass), 'RLS is enabled');
 SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid = 'app.progress_updates'::regclass), 'RLS is forced');
 SELECT throws_ok($$ INSERT INTO app.progress_updates DEFAULT VALUES $$, '23502', 'null value in column "project_id" of relation "progress_updates" violates not-null constraint', 'direct incomplete insert rejected by constraints');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notifications','documents','document_links','financial_transactions','ledger_entries')), 'notifications, documents and finance remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('documents','document_links','financial_transactions','ledger_entries')), 'documents and finance remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

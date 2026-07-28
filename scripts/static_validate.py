@@ -1747,7 +1747,7 @@ task_update_scope_sql = '\n'.join(
 )
 require('create table app.task_updates' in all_sql, '11.5 adds task update history')
 require('create table app.progress_updates' not in task_update_scope_sql and 'create table app.completion_overrides' not in task_update_scope_sql, '11.5 does not add progress or completion override objects')
-require('create table app.notifications' not in all_sql, '11.5 does not add notifications')
+require('create table app.notifications' not in task_update_scope_sql, '11.5 does not add notifications')
 require('create table app.documents' not in all_sql and 'create table app.project_documents' not in all_sql, '11.5 does not add documents')
 require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.5 does not add finance or ledger objects')
 
@@ -2611,6 +2611,213 @@ for forbidden in (
 ):
     require(forbidden not in progress_all_sql,
             f'Package 11.8 scope excludes forbidden marker: {forbidden}')
+
+notification_schema_path = ROOT / 'supabase/migrations/20260724102800_1125_notifications.sql'
+notification_functions_path = ROOT / 'supabase/migrations/20260724102900_1126_notification_functions.sql'
+notification_grants_path = ROOT / 'supabase/migrations/20260724103000_1127_notification_grants.sql'
+notification_test_paths = [
+    ROOT / 'supabase/tests/45_package_11_9_notifications_schema.test.sql',
+    ROOT / 'supabase/tests/46_package_11_9_notifications_security.test.sql',
+    ROOT / 'supabase/tests/47_package_11_9_notifications_operations.test.sql',
+]
+for path in (notification_schema_path, notification_functions_path, notification_grants_path, *notification_test_paths):
+    require(path.exists(), f'Package 11.9 artifact exists: {path.relative_to(ROOT)}')
+
+if notification_schema_path.exists():
+    notification_schema_sql = notification_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.notification_status as enum',
+        "'unread'",
+        "'read'",
+        "'archived'",
+        'create table app.notifications',
+        'id uuid primary key default gen_random_uuid()',
+        'recipient_user_id uuid not null references app.users(id) on delete restrict',
+        'project_id uuid references app.projects(id) on delete restrict',
+        'notification_type varchar(60) not null',
+        'title varchar(200) not null',
+        'body text not null',
+        "status app.notification_status not null default 'unread'",
+        'related_entity_type varchar(60)',
+        'related_entity_id uuid',
+        'created_at timestamptz not null default transaction_timestamp()',
+        'read_at timestamptz',
+        'archived_at timestamptz',
+        'notifications_related_pair_ck',
+        'notifications_state_ck',
+        'notifications_timestamp_order_ck',
+        'notifications_recipient_inbox_idx',
+        'notifications_recipient_unread_idx',
+        'notifications_project_context_idx',
+        'notifications_related_unique_idx',
+        'where related_entity_type is not null',
+        'app.notification_creation_context',
+        'app.notification_state_context',
+        'before insert on app.notifications',
+        'before update on app.notifications',
+        'before delete on app.notifications',
+        'before truncate on app.notifications',
+        'alter table app.notifications enable row level security',
+        'alter table app.notifications force row level security',
+    ):
+        require(required in notification_schema_sql,
+                f'1125 notification schema contains required marker: {required}')
+    for forbidden in (
+        'delivery_status',
+        'delivery_channel',
+        'email_address',
+        'phone_number',
+        'sent_at',
+        'delivered_at',
+        'retry_count',
+        'next_retry_at',
+        'link_url',
+        'deep_link',
+        'payload',
+        'metadata jsonb',
+        'created_by',
+        'updated_at',
+        'version_number',
+        'deleted_at',
+        "'pending'",
+        "'sent'",
+        "'failed'",
+        "'dismissed'",
+    ):
+        require(forbidden not in notification_schema_sql,
+                f'1125 notification schema omits forbidden marker: {forbidden}')
+
+if notification_functions_path.exists():
+    notification_functions_sql = notification_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.current_notification_recipient_context',
+        'create or replace function app.create_progress_update_published_notification',
+        "current_setting('app.notification_creation_context'",
+        'progress_update_publication',
+        'progress update notification recipient is not available',
+        'progress_update_published',
+        'progress_update',
+        'progress_update_published',
+        'new project progress update',
+        'a new progress update is available for your project.',
+        'on conflict (recipient_user_id, notification_type, related_entity_type, related_entity_id)',
+        'create or replace function app.owner_publish_progress_update',
+        'notification_id',
+        'notification_created',
+        'create or replace function app.current_notification_list_for_authenticated_user',
+        'p_status = \'archived\'',
+        'p_include_archived',
+        'order by n.created_at desc, n.id desc',
+        'create or replace function app.current_notification_detail_for_authenticated_user',
+        'create or replace function app.current_mark_notification_read_for_authenticated_user',
+        'coalesce(n.read_at, workflow_at)',
+        'notification_marked_read',
+        'create or replace function app.current_mark_notification_unread_for_authenticated_user',
+        'notification_marked_unread',
+        'create or replace function app.current_archive_notification_for_authenticated_user',
+        'notification_archived',
+        'archived notification cannot be changed',
+        'create or replace function public.current_notification_list',
+        'create or replace function public.current_notification_detail',
+        'create or replace function public.current_mark_notification_read',
+        'create or replace function public.current_mark_notification_unread',
+        'create or replace function public.current_archive_notification',
+    ):
+        require(required in notification_functions_sql,
+                f'1126 notification functions contain required marker: {required}')
+    for forbidden in (
+        'create or replace function public.server_create_notification',
+        'current_project_manager_notifications',
+        'current_site_supervisor_notifications',
+        'current_accountant_notifications',
+        'current_assigned_notifications',
+        'current_notification_unread_count',
+        'insert into app.notification_delivery',
+        'insert into app.notification_preferences',
+        'insert into app.task_updates',
+        'update app.tasks',
+        'format(',
+        'raw_app_meta_data',
+        'progress_row.title',
+        'progress_row.summary',
+    ):
+        require(forbidden not in notification_functions_sql,
+                f'1126 notification functions omit forbidden marker: {forbidden}')
+    client_return = re.search(
+        r'create or replace function public\.current_notification_list\(.*?returns table \((.*?)\)\s+language',
+        notification_functions_sql,
+        re.S,
+    )
+    require(client_return is not None, '1126 current notification list return shape is inspectable')
+    if client_return:
+        returned = client_return.group(1)
+        for safe_field in (
+            'id uuid',
+            'project_id uuid',
+            'notification_type text',
+            'title text',
+            'body text',
+            'status app.notification_status',
+            'related_entity_type text',
+            'related_entity_id uuid',
+            'created_at timestamptz',
+            'read_at timestamptz',
+            'archived_at timestamptz',
+        ):
+            require(safe_field in returned,
+                    f'1126 notification list returns safe field: {safe_field}')
+        require('recipient_user_id' not in returned,
+                '1126 notification list omits recipient_user_id')
+
+if notification_grants_path.exists():
+    notification_grants_sql = notification_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.notifications from public, anon, authenticated, service_role',
+        'revoke all on function app.create_progress_update_published_notification(uuid) from public, anon, authenticated, service_role',
+        'revoke all on function app.current_notification_list_for_authenticated_user',
+        'grant execute on function public.current_notification_list(app.notification_status, boolean, integer, integer) to authenticated',
+        'grant execute on function public.current_notification_detail(uuid) to authenticated',
+        'grant execute on function public.current_mark_notification_read(uuid) to authenticated',
+        'grant execute on function public.current_mark_notification_unread(uuid) to authenticated',
+        'grant execute on function public.current_archive_notification(uuid) to authenticated',
+        'grant execute on function public.server_owner_publish_progress_update',
+        'to service_role',
+    ):
+        require(required in notification_grants_sql,
+                f'1127 notification grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.notifications',
+        'grant insert on app.notifications',
+        'grant update on app.notifications',
+        'grant delete on app.notifications',
+        'grant execute on function app.create_progress_update_published_notification(uuid) to service_role',
+        'current_project_manager_notifications',
+        'current_assigned_notifications',
+    ):
+        require(forbidden not in notification_grants_sql,
+                f'1127 notification grants omit forbidden marker: {forbidden}')
+
+notification_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (notification_schema_path, notification_functions_path, notification_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.notification_delivery_attempts',
+    'create table app.notification_preferences',
+    'create table app.notification_retry_queue',
+    'create table app.documents',
+    'create table app.financial_transactions',
+    'create table app.ledger_entries',
+    'upcoming',
+    'overdue',
+    'payment_request',
+    'expense',
+    'document_notification',
+    'project_manager%access_allowed%true',
+):
+    require(forbidden not in notification_all_sql,
+            f'Package 11.9 scope excludes forbidden marker: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
