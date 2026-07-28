@@ -3245,6 +3245,195 @@ for forbidden in (
     require(forbidden not in financial_account_all_sql,
             f'Package 13.1 scope excludes forbidden marker: {forbidden}')
 
+ledger_account_schema_path = ROOT / 'supabase/migrations/20260724103700_1134_ledger_accounts_and_exchange_rates.sql'
+ledger_account_functions_path = ROOT / 'supabase/migrations/20260724103800_1135_ledger_account_sync_and_exchange_rate_functions.sql'
+ledger_account_grants_path = ROOT / 'supabase/migrations/20260724103900_1136_ledger_account_exchange_rate_grants.sql'
+ledger_account_test_paths = [
+    ROOT / 'supabase/tests/54_package_13_2_ledger_accounts_schema.test.sql',
+    ROOT / 'supabase/tests/55_package_13_2_ledger_accounts_security.test.sql',
+    ROOT / 'supabase/tests/56_package_13_2_ledger_accounts_operations.test.sql',
+]
+for path in (ledger_account_schema_path, ledger_account_functions_path, ledger_account_grants_path, *ledger_account_test_paths):
+    require(path.exists(), f'Package 13.2 artifact exists: {path.relative_to(ROOT)}')
+
+if ledger_account_schema_path.exists():
+    ledger_account_schema_sql = ledger_account_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        "create type app.ledger_account_kind as enum ('financial_asset', 'control')",
+        "create type app.entry_side as enum ('debit', 'credit')",
+        'create table app.ledger_accounts',
+        'id uuid primary key default gen_random_uuid()',
+        'code varchar(80) not null',
+        'name varchar(160) not null',
+        'account_kind app.ledger_account_kind not null',
+        'financial_account_id uuid',
+        'currency_code char(3) not null',
+        'normal_side app.entry_side not null',
+        'is_system boolean not null default true',
+        'is_active boolean not null default true',
+        'ledger_accounts_code_uk unique',
+        'ledger_accounts_financial_account_uk unique',
+        'references app.financial_accounts(id) on delete restrict',
+        'references app.currencies(code) on delete restrict',
+        'ledger_accounts_kind_financial_account_ck',
+        'ledger_accounts_financial_asset_debit_ck',
+        'ledger_accounts_system_managed_ck',
+        'create table app.exchange_rates',
+        'rate_value numeric(30,12) not null',
+        "source varchar(120) not null default 'manual'",
+        'exchange_rates_exact_duplicate_uk unique',
+        'rate_date,',
+        'base_currency_code,',
+        'quote_currency_code,',
+        'rate_value,',
+        'source',
+        'alter table app.ledger_accounts enable row level security',
+        'alter table app.ledger_accounts force row level security',
+        'alter table app.exchange_rates enable row level security',
+        'alter table app.exchange_rates force row level security',
+        'revoke all on app.ledger_accounts from public, anon, authenticated, service_role',
+        'revoke all on app.exchange_rates from public, anon, authenticated, service_role',
+    ):
+        require(required in ledger_account_schema_sql,
+                f'1134 ledger/rate schema contains required marker: {required}')
+    ledger_columns = [
+        'id', 'code', 'name', 'account_kind', 'financial_account_id',
+        'currency_code', 'normal_side', 'is_system', 'is_active',
+    ]
+    exchange_columns = [
+        'id', 'rate_date', 'base_currency_code', 'quote_currency_code',
+        'rate_value', 'source', 'source_reference', 'entered_by', 'created_at',
+    ]
+    for column in ledger_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', ledger_account_schema_sql) is not None,
+                f'1134 app.ledger_accounts approved column exists: {column}')
+    for column in exchange_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', ledger_account_schema_sql) is not None,
+                f'1134 app.exchange_rates approved column exists: {column}')
+    for forbidden in (
+        'status',
+        'version_number',
+        'opening_balance',
+        'current_balance',
+        'create sequence app.ledger',
+        'create table app.ledger_entries',
+        'create table app.financial_transactions',
+        'create table app.account_balances',
+        'create table app.payments',
+        'create table app.expenses',
+        'create table app.transfers',
+        'create table app.currency_exchanges',
+        'create table app.refunds',
+        'create table app.reversals',
+        'create table app.adjustments',
+    ):
+        require(forbidden not in ledger_account_schema_sql,
+                f'1134 ledger/rate schema omits forbidden marker: {forbidden}')
+
+if ledger_account_functions_path.exists():
+    ledger_account_functions_sql = ledger_account_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.ensure_financial_asset_ledger_account',
+        "'asset-' || financial_row.account_number",
+        'create trigger financial_accounts_asset_ledger_sync',
+        'after insert or update of name, currency_code, is_active, archived_at on app.financial_accounts',
+        'create or replace function app.owner_create_exchange_rate',
+        'create or replace function app.owner_exchange_rate_list',
+        'create or replace function app.owner_exchange_rate_detail',
+        'create or replace function app.convert_amount_with_exchange_rate',
+        'create or replace function public.server_owner_create_exchange_rate',
+        'create or replace function public.server_owner_exchange_rate_list',
+        'create or replace function public.server_owner_exchange_rate_detail',
+        'app.require_active_owner_admin',
+        'exchange_rate_created',
+        'order by er.rate_date desc, er.created_at desc, er.id desc',
+        'duplicate exchange rate',
+        'exchange rate does not match conversion currencies',
+    ):
+        require(required in ledger_account_functions_sql,
+                f'1135 ledger/rate functions contain required marker: {required}')
+    for forbidden in (
+        'create sequence app.ledger',
+        'create or replace function app.owner_update_exchange_rate',
+        'create or replace function app.owner_delete_exchange_rate',
+        'create or replace function app.owner_archive_exchange_rate',
+        'current_client_exchange',
+        'current_accountant_exchange',
+        'current_project_manager_exchange',
+        'current_site_supervisor_exchange',
+        'insert into app.financial_transactions',
+        'insert into app.ledger_entries',
+        'current_balance',
+        'opening_balance',
+        'fetch(',
+        'http',
+        'source_reference\', source_reference',
+        'public.current_account()',
+    ):
+        require(forbidden not in ledger_account_functions_sql,
+                f'1135 ledger/rate functions omit forbidden marker: {forbidden}')
+    require('source_reference' not in re.search(
+        r'create or replace function public\.server_owner_exchange_rate_list\(.*?returns table \((.*?)\)\s+language',
+        ledger_account_functions_sql,
+        re.S,
+    ).group(1), '1135 Owner exchange rate list omits source_reference')
+
+if ledger_account_grants_path.exists():
+    ledger_account_grants_sql = ledger_account_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.ledger_accounts from public, anon, authenticated, service_role',
+        'revoke all on app.exchange_rates from public, anon, authenticated, service_role',
+        'revoke all on function app.ensure_financial_asset_ledger_account',
+        'revoke all on function app.convert_amount_with_exchange_rate',
+        'grant execute on function public.server_owner_create_exchange_rate',
+        'grant execute on function public.server_owner_exchange_rate_list',
+        'grant execute on function public.server_owner_exchange_rate_detail',
+        'to service_role',
+    ):
+        require(required in ledger_account_grants_sql,
+                f'1136 ledger/rate grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.ledger_accounts',
+        'grant insert on app.ledger_accounts',
+        'grant update on app.ledger_accounts',
+        'grant delete on app.ledger_accounts',
+        'grant select on app.exchange_rates',
+        'grant insert on app.exchange_rates',
+        'grant update on app.exchange_rates',
+        'grant delete on app.exchange_rates',
+        'to authenticated',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in ledger_account_grants_sql,
+                f'1136 ledger/rate grants omit forbidden marker: {forbidden}')
+
+ledger_account_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (ledger_account_schema_path, ledger_account_functions_path, ledger_account_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.financial_events',
+    'create table app.financial_transactions',
+    'create table app.ledger_entries',
+    'create table app.account_balances',
+    'create table app.payments',
+    'create table app.expenses',
+    'create table app.transfers',
+    'create table app.currency_exchanges',
+    'create table app.refunds',
+    'create table app.reversals',
+    'create table app.adjustments',
+    'current_balance',
+    'opening_balance',
+    'accountant%access_allowed%true',
+    'public.current_account()',
+):
+    require(forbidden not in ledger_account_all_sql,
+            f'Package 13.2 scope excludes forbidden marker: {forbidden}')
+
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
         text = path.read_text(encoding='utf-8', errors='ignore')

@@ -13,7 +13,7 @@ This review package implements only the first database foundation for the Contra
 - default-deny RLS preparation;
 - pgTAP tests and a database-only CI gate.
 
-It now includes the Stage 13 Package 13.1 database foundation for Owner/Admin-managed CASH and BANK financial accounts. It does **not** implement financial transactions, ledger accounts or entries, balances, posting, opening balances, exchange rates, payments, expenses, transfers, currency exchanges, refunds, reversals, adjustments, finance notifications, documents, Flutter finance screens, Edge Functions, or financial reports.
+It now includes the Stage 13 Package 13.2 database foundation for Owner/Admin-managed CASH and BANK financial accounts, system-managed asset ledger accounts, and manual exchange rates. It does **not** implement financial events, financial transactions, ledger entries, balances, posting, opening balances, payments, expenses, transfers, currency-exchange business events, refunds, reversals, adjustments, finance notifications, Flutter finance screens, Edge Functions, or financial reports.
 
 ## Integration commands
 

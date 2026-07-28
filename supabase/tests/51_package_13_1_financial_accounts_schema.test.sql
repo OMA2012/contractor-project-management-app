@@ -56,8 +56,8 @@ SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'financial_account
 SELECT ok(EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'app' AND tablename = 'financial_accounts' AND indexname = 'financial_accounts_owner_list_order_idx'), 'owner list order index exists');
 SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid = 'app.financial_accounts'::regclass), 'financial accounts RLS enabled');
 SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid = 'app.financial_accounts'::regclass), 'financial accounts RLS forced');
-SELECT throws_ok($$ TRUNCATE app.financial_accounts $$, '23514', 'Financial accounts cannot be truncated.', 'truncate prevented');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_accounts','ledger_entries','account_balances','exchange_rates','payments','expenses','transfers')), 'later finance objects remain absent');
+SELECT throws_ok($$ TRUNCATE app.financial_accounts CASCADE $$, '23514', 'Financial accounts cannot be truncated.', 'truncate prevented');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries','account_balances','payments','expenses','transfers')), 'later financial workflow objects remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;
