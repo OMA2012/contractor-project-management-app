@@ -18,7 +18,7 @@ SELECT ok(has_function_privilege('authenticated', 'public.current_client_documen
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_owner_create_document_metadata(uuid, text, text, text, text, bigint, bytea, character varying, boolean, text)', 'EXECUTE'), 'authenticated cannot execute owner create');
 SELECT ok(has_function_privilege('service_role', 'public.server_owner_create_document_metadata(uuid, text, text, text, text, bigint, bytea, character varying, boolean, text)', 'EXECUTE'), 'service role can execute owner create');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_project_manager_document_list','current_accountant_document_list','current_site_supervisor_document_list') $$, 'reserved role document gateways absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('storage_buckets','document_scans','document_thumbnails','client_payments','payment_requests','project_expenses','currency_exchanges')), 'storage scanner thumbnail finance objects absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('storage_buckets','document_scans','document_thumbnails','payment_requests','project_expenses','currency_exchanges')), 'storage scanner thumbnail finance objects absent except Package 14.1 client payments');
 
 SELECT * FROM finish();
 ROLLBACK;

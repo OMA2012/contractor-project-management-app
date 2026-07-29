@@ -1314,3 +1314,76 @@ git add .github/workflows/package-09-1-database.yml \
   .env.example .gitignore README.md docs scripts supabase
 git commit -m "feat(db): add Stage 09 Package 09.1 identity foundation"
 ```
+## Stage 14 Package 14.1: Client Payment and Ledger-Posting Foundation
+
+Package 14.1 adds Client Payment intake and posting only. It does not add payment requests, payment matching, allocation of one payment across Projects, cross-currency matching, project expenses, transfers, currency-exchange business workflows, refunds, file upload, transfer-evidence storage, document-finance link activation, payment notifications, Flutter, Edge Functions, Accountant activation, automatic exchange-rate retrieval, editable balances, arbitrary journal entries, or changes to `public.current_account()`.
+
+`app.client_payments` contains exactly:
+
+- `id`
+- `financial_event_id`
+- `project_id`
+- `client_id`
+- `amount`
+- `currency_code`
+- `received_account_id`
+- `received_date`
+- `payment_reference`
+- `payer_name`
+- `is_client_submitted`
+- `submitted_by_client_user_id`
+- `notes`
+
+The subtype belongs to exactly one Project and must match the parent `CLIENT_PAYMENT` financial event. Project ownership by Client, positive amount, active currency, payment/event/transaction date equality, and receiving-account currency are enforced by trusted functions and subtype guards. `received_account_id` may be `NULL` for drafts and Client submissions, but is required before Owner submission or approval.
+
+Owner/Admin service-role gateways:
+
+- `public.server_owner_create_client_payment(...)`
+- `public.server_owner_update_client_payment(...)`
+- `public.server_owner_verify_client_submitted_payment(...)`
+- `public.server_owner_submit_client_payment(...)`
+- `public.server_owner_reject_client_payment(...)`
+- `public.server_owner_approve_client_payment(...)`
+- `public.server_owner_client_payment_list(...)`
+- `public.server_owner_client_payment_detail(...)`
+- `public.server_owner_project_client_payment_totals(...)`
+
+Current-Client authenticated gateways:
+
+- `public.current_client_submit_payment(...)`
+- `public.current_client_approved_payment_list(...)`
+- `public.current_client_approved_payment_detail(...)`
+
+Owner-created payments start with financial event and transaction status `DRAFT`. Owner draft updates use `financial_events.version_number` optimistic concurrency and are allowed only while both parent records remain `DRAFT`. Owner submission requires an active, unarchived receiving account in the payment currency and creates no ledger entries.
+
+Client-created payments use the current authenticated Client identity, require the Project to belong to that Client, and create the event, transaction and subtype atomically as `SUBMITTED`. Client submission sets `is_client_submitted = true` and `submitted_by_client_user_id` to the linked portal user. It does not accept contractor-private notes, receiving-account selection, file evidence, document upload, approval, rejection, or update behavior.
+
+Owner verification of a Client-submitted payment may update only `received_account_id` and contractor-private `notes`, while preserving amount, currency, date, Project, Client, payment reference, payer name and Client submitter. Incorrect Client-submitted facts must be rejected and submitted again as a new payment.
+
+Approval requires a different active Owner/Admin than `financial_events.created_by`, is idempotent for already approved/posted payments, and atomically posts exactly two ledger entries:
+
+- debit: receiving financial account `FINANCIAL_ASSET` ledger account
+- credit: `CTRL-CLIENT-PAYMENT-<currency_code>` Client Payment `CONTROL` ledger account
+
+The Client Payment control account is system-managed, one per currency, with name `Client Payment Control - <currency_code>`, `financial_account_id = NULL`, `normal_side = CREDIT`, `is_system = true`, and `is_active = true`.
+
+Posting uses the Project reporting currency. If payment currency differs from reporting currency, a manual transaction-date exchange rate is required and its immutable snapshot is copied to both ledger lines. Source and reporting currencies must balance. Draft, submitted and rejected payments have no balance effect; financial-account balances and Project payment totals are derived only from posted ledger entries.
+
+Duplicate protection uses `financial_events.duplicate_fingerprint` with Client, Project, currency, received date, amount, and normalized payment reference. Nonblank references are trimmed and case-normalized; `NULL` references use an explicit null marker. Exact non-rejected duplicates are rejected, the same reference is allowed for a different Project, and a replacement can be submitted after rejection.
+
+Client-safe approved-payment reads return only approved events whose transactions are `POSTED` and whose Projects belong to the authenticated Client. Output includes payment ID, Project ID/reference, amount, currency, received date, payment reference, approval date and safe statuses. It omits payer name, received account, bank data, notes, creator/submitter/approver IDs, duplicate fingerprint, exchange-rate internals, ledger internals, activity metadata and unrelated Client data.
+
+After approval/posting, the payment subtype, parent event, transaction and ledger entries are immutable. Direct update, delete and truncate are denied; corrections use the existing reversal or controlled-adjustment foundation.
+
+Activity actions added by this package:
+
+- `client_payment_created`
+- `client_payment_client_submitted`
+- `client_payment_updated`
+- `client_payment_verified`
+- `client_payment_submitted`
+- `client_payment_rejected`
+- `client_payment_approved`
+- `client_payment_transaction_posted`
+
+Activity logs do not include raw notes, payer names, bank/account details, unrestricted payment evidence, request bodies, secrets, exchange-rate source references or unrelated personal data. Idempotent approval retries do not duplicate posting logs.

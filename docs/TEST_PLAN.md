@@ -9,7 +9,7 @@
 - all eight migrations parse as PostgreSQL;
 - exact Package 09.1 file count and order;
 - required foundation tables exist in SQL;
-- Package 13.4 financial accounts, system-managed asset ledger accounts, manual exchange rates, central ledger structure, opening-balance posting, full reversals, and controlled adjustments are present, while payment, expense, transfer, currency-exchange business, refund, notification, Flutter and Edge Function workflows remain absent;
+- Package 14.1 financial accounts, system-managed asset ledger accounts, manual exchange rates, central ledger structure, opening-balance posting, full reversals, controlled adjustments, and Client Payment posting are present, while payment request, matching, expense, transfer, currency-exchange business, refund, upload, document-finance activation, notification, Flutter and Edge Function workflows remain absent;
 - exact five role codes are present;
 - forbidden roles/features are absent;
 - last-owner guard and default-deny RLS exist;
@@ -83,6 +83,14 @@ python3 scripts/static_validate.py
 
 `62_package_13_4_financial_corrections_operations.test.sql` verifies reversal of opening-balance and reversal transactions, repeated full-reversal prevention, exact opposite ledger totals, original history immutability, adjustment increase/decrease, optional and linked adjusted-transaction references, deterministic `CTRL-ADJUSTMENT-<currency_code>` accounts, exchange-rate snapshots, different-Owner approval, rejection without ledger effect, idempotent approval retry, posted-only balance effects, rollback on missing rate, and Client/reserved-role denial.
 
+### pgTAP Stage 14 Package 14.1 Client Payment suites
+
+`63_package_14_1_client_payments_schema.test.sql` verifies the exact approved 13-column `app.client_payments` schema, data types, defaults, FKs, one subtype row per event, RLS, immutability triggers, forbidden columns, and the narrow `client_payment_posting` ledger context while preserving Stage 13 contexts.
+
+`64_package_14_1_client_payments_security.test.sql` verifies direct-DML revocation, no broad policies, private helper revocation, service-role-only Owner gateways, authenticated-only current-Client gateways, Client-safe return shapes, no Client account-selection/approval/rejection/internal-note gateways, no Accountant/reserved-role activation, no document-link or notification producer behavior, and no `public.current_account()` change.
+
+`65_package_14_1_client_payments_operations.test.sql` verifies Owner draft/update/submit/reject/approve, Client direct submission as `SUBMITTED`, narrow Owner verification of Client-submitted payments, forbidden Client-submitted fact mutation, Project/Client identity, account/currency/date/amount validation, normalized duplicate behavior, different-Owner approval, exact two-line posting, same-currency and multi-currency snapshots, idempotent approval, rollback on missing rate, posted-only balances and Project totals, immutable payments, Client-safe own-payment reads, cross-Client denial, reserved-role denial, and explicit exclusions.
+
 Run all database tests:
 
 ```bash
@@ -117,4 +125,4 @@ Package 12.1 adds tests 48-50:
 - `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
-Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.

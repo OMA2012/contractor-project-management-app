@@ -13,7 +13,7 @@ This review package implements only the first database foundation for the Contra
 - default-deny RLS preparation;
 - pgTAP tests and a database-only CI gate.
 
-It now includes the Stage 13 Package 13.4 database foundation for Owner/Admin-managed CASH and BANK financial accounts, system-managed asset ledger accounts, manual exchange rates, central financial-event/transaction/ledger-entry structure, opening-balance posting, full reversals, and controlled same-currency financial adjustments. It does **not** implement client payments, payment requests, project expenses, transfers, currency-exchange business workflows, refunds, finance notifications, Flutter finance screens, Edge Functions, document-finance activation, Accountant activation, arbitrary journal entries, editable balances, or financial reports.
+It now includes the Stage 14 Package 14.1 database foundation for Client Payments: the exact approved 13-column `app.client_payments` subtype, Owner-created drafts, Client-created submitted payments, Owner verification, submission/rejection, different-Owner approval with atomic two-line ledger posting, deterministic `CTRL-CLIENT-PAYMENT-<currency_code>` control accounts, posted-only Project payment totals, Client-safe approved-payment reads, RLS, grants and tests. It does **not** implement payment requests, payment matching, project expenses, transfers, currency-exchange business workflows, refunds, file upload, transfer-evidence storage, finance notifications, Flutter finance screens, Edge Functions, document-finance activation, Accountant activation, arbitrary journal entries, editable balances, or financial reports.
 
 ## Integration commands
 

@@ -75,7 +75,7 @@ SELECT hasnt_column('app','financial_accounts','opening_balance','financial acco
 SELECT hasnt_column('app','ledger_accounts','current_balance','ledger account current balance column absent');
 SELECT hasnt_column('app','ledger_accounts','opening_balance','ledger account opening balance column absent');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_transaction%', 'current_account unchanged');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%client_payment%'), 'client payment workflow absent');
+SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'server_owner_create_client_payment'), 'Package 14.1 client payment workflow present');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%project_expense%'), 'project expense workflow absent');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%account_transfer%'), 'transfer workflow absent');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%currency_exchange%'), 'currency exchange workflow absent');
