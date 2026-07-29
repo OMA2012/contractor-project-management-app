@@ -69,7 +69,7 @@ SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid='app.account_openi
 
 SELECT throws_ok($$ TRUNCATE app.ledger_entries $$, '23514', 'Ledger entries cannot be truncated.', 'ledger entry truncate prevented');
 SELECT throws_ok($$ TRUNCATE app.financial_events CASCADE $$, '23514', 'Financial events cannot be truncated.', 'financial event truncate prevented');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','payment_requests','expenses','transfers','currency_exchanges','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent except Package 14.2 payment requests');
 SELECT hasnt_column('app','financial_accounts','current_balance','financial account current balance column absent');
 SELECT hasnt_column('app','financial_accounts','opening_balance','financial account opening balance column absent');
 SELECT hasnt_column('app','ledger_accounts','current_balance','ledger account current balance column absent');

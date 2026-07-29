@@ -1387,3 +1387,92 @@ Activity actions added by this package:
 - `client_payment_transaction_posted`
 
 Activity logs do not include raw notes, payer names, bank/account details, unrestricted payment evidence, request bodies, secrets, exchange-rate source references or unrelated personal data. Idempotent approval retries do not duplicate posting logs.
+
+## Stage 14 Package 14.2: Payment Request Foundation
+
+Package 14.2 adds Payment Request records only. It does not add payment matches, payment allocation, partial-payment processing, payment-to-request ledger posting, financial events, financial transactions, ledger entries, project expenses, transfers, currency-exchange business workflows, refunds, supporting documents, transfer evidence, file upload, document-link activation, notifications, scheduled automation, Flutter, Edge Functions, Project Manager activation, Accountant activation, Site Supervisor activation, editable balances, arbitrary journals, or changes to `public.current_account()`.
+
+`app.payment_request_status` contains exactly:
+
+- `DRAFT`
+- `SENT`
+- `VIEWED`
+- `PARTIALLY_PAID`
+- `PAID`
+- `OVERDUE`
+- `CANCELLED`
+
+`PARTIALLY_PAID` and `PAID` are structural placeholders for Package 14.3 matching. Package 14.2 provides no generic status setter and no operation that manually assigns those statuses.
+
+`app.payment_requests` contains exactly:
+
+- `id`
+- `request_number`
+- `project_id`
+- `client_id`
+- `requested_amount`
+- `currency_code`
+- `request_date`
+- `due_date`
+- `status`
+- `description`
+- `sent_at`
+- `viewed_at`
+- `cancelled_at`
+- `cancelled_by`
+- `cancellation_reason`
+- `created_at`
+- `created_by`
+- `updated_at`
+- `updated_by`
+- `version_number`
+
+Request numbers are database-generated from `app.payment_request_number_seq` in global, immutable six-digit form:
+
+```text
+PREQ-000001
+PREQ-000002
+```
+
+The sequence has `MAXVALUE 999999`, `NO CYCLE`, no yearly reset, and no runtime role privileges.
+
+Owner/Admin service-role gateways:
+
+- `public.server_owner_create_payment_request(...)`
+- `public.server_owner_update_payment_request(...)`
+- `public.server_owner_send_payment_request(...)`
+- `public.server_owner_cancel_payment_request(...)`
+- `public.server_owner_payment_request_list(...)`
+- `public.server_owner_payment_request_detail(...)`
+- `public.server_owner_refresh_payment_request_overdue(...)`
+
+Current-Client authenticated gateways:
+
+- `public.current_client_payment_request_list(...)`
+- `public.current_client_view_payment_request_detail(...)`
+
+Allowed lifecycle transitions are `DRAFT -> SENT`, `DRAFT -> CANCELLED`, `SENT -> VIEWED`, `SENT -> OVERDUE`, `SENT -> CANCELLED`, `VIEWED -> OVERDUE`, `VIEWED -> CANCELLED`, and `OVERDUE -> CANCELLED`. `CANCELLED` is terminal in Package 14.2.
+
+Effective overdue status is calculated from the contractor-local date using `contractor_profiles.time_zone`. Owner and Client list/detail reads do not mutate stored overdue status. The explicit Owner/Admin overdue refresh marks only stored `SENT` or `VIEWED` requests whose due date is before the contractor-local date; it is idempotent, preserves `viewed_at`, increments each changed row once, and creates no scheduler, cron job or notification.
+
+Client list reads are read-only and never update `viewed_at`, status, activity logs or version. `public.current_client_view_payment_request_detail(...)` intentionally acknowledges a Client view: it locks the authorized request, records the first `viewed_at`, changes stored `SENT` to `VIEWED` only when not effectively overdue, and logs `payment_request_viewed` at most once.
+
+Client-safe request responses include request ID, request number, safe Project ID/reference, requested amount, currency, request date, due date, description, sent/viewed timestamps, stored status, effective status, and calculated zero-match values:
+
+```text
+paid_amount = 0
+remaining_amount = requested_amount
+```
+
+These values are response fields only. Package 14.3 will replace the zero-match calculation with approved payment-match aggregation. Client responses do not expose `created_by`, `updated_by`, `cancelled_by`, `cancellation_reason`, unrelated Client IDs, activity metadata, internal security metadata, financial-event data, ledger data or document data.
+
+Activity actions added by this package:
+
+- `payment_request_created`
+- `payment_request_updated`
+- `payment_request_sent`
+- `payment_request_viewed`
+- `payment_request_marked_overdue`
+- `payment_request_cancelled`
+
+Activity logs include safe identifiers and transitions only: request ID, request number, Project ID, Client ID, currency, prior/new status, actor and version. They do not include description text, cancellation reason text, request bodies, Client personal details, secrets or unrelated financial data.

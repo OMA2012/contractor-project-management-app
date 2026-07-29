@@ -99,7 +99,7 @@ SELECT throws_ok($$ SELECT * FROM public.server_owner_opening_balance_list('0000
 SELECT throws_ok($$ SELECT * FROM public.server_owner_opening_balance_list('00000000-0000-0000-0000-000000005904', 50, 0) $$, '42501', 'Privileged operation denied.', 'Accountant denied opening balance list');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_opening_balance_list('00000000-0000-0000-0000-000000005905', 50, 0) $$, '42501', 'Privileged operation denied.', 'Project Manager denied opening balance list');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_opening_balance_list('00000000-0000-0000-0000-000000005906', 50, 0) $$, '42501', 'Privileged operation denied.', 'Site Supervisor denied opening balance list');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','payment_requests','expenses','transfers','currency_exchanges','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent except Package 14.2 payment requests');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_event%', 'current_account not changed');
 SELECT is((SELECT count(*)::integer FROM app.financial_transactions WHERE reverses_transaction_id IS NOT NULL), 0, 'no reversal workflow rows created');
 

@@ -91,6 +91,14 @@ python3 scripts/static_validate.py
 
 `65_package_14_1_client_payments_operations.test.sql` verifies Owner draft/update/submit/reject/approve, Client direct submission as `SUBMITTED`, narrow Owner verification of Client-submitted payments, forbidden Client-submitted fact mutation, Project/Client identity, account/currency/date/amount validation, normalized duplicate behavior, different-Owner approval, exact two-line posting, same-currency and multi-currency snapshots, idempotent approval, rollback on missing rate, posted-only balances and Project totals, immutable payments, Client-safe own-payment reads, cross-Client denial, reserved-role denial, and explicit exclusions.
 
+### pgTAP Stage 14 Package 14.2 Payment Request suites
+
+`66_package_14_2_payment_requests_schema.test.sql` verifies the exact approved `app.payment_request_status` enum order, exact 20-column `app.payment_requests` schema, data types, defaults, FKs, checks, `PREQ-000001` numbering sequence, indexes, forced RLS, trusted mutation/delete/truncate guards and forbidden columns.
+
+`67_package_14_2_payment_requests_security.test.sql` verifies direct table and sequence revocation, no broad policies, private helper revocation, service-role-only Owner gateways, authenticated-only current-Client gateways, Client-safe return shapes, no Client mutation/status gateways, no reserved-role activation, no financial/ledger/notification side effects and no `public.current_account()` change.
+
+`68_package_14_2_payment_requests_operations.test.sql` verifies Owner create/update/send/cancel, optimistic concurrency, active currency and date validation, contractor-local-date behavior, `PREQ` numbering exhaustion, Client draft hiding, own sent/cancelled visibility, cross-Client denial, explicit first-view acknowledgement, idempotent view logging, effective overdue without read mutation, Owner overdue refresh, calculated zero-match paid/remaining values, terminal cancellation, direct-DML denial, no manual `PARTIALLY_PAID`/`PAID` transition, reserved-role denial and continued absence of matching, uploads, document activation, notifications, financial events, transactions and ledger entries.
+
 Run all database tests:
 
 ```bash
@@ -125,4 +133,4 @@ Package 12.1 adds tests 48-50:
 - `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
-Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
