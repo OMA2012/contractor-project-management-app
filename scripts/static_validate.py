@@ -214,7 +214,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|has_pk|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|has_function|hasnt_function|has_sequence_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|has_function|hasnt_function|has_sequence|has_sequence_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -2970,7 +2970,6 @@ document_all_sql = '\n'.join(
 )
 for forbidden in (
     'create table app.client_payments',
-    'create table app.payment_requests',
     'create table app.project_expenses',
     'create table app.currency_exchanges',
     'create table app.document_scans',
@@ -3021,10 +3020,8 @@ package_12_1_global_exclusion_markers = (
     'thumbnail',
     'create table app.document_scans',
     'create table app.document_thumbnails',
-    'create table app.payment_requests',
     'create table app.project_expenses',
     'create table app.currency_exchanges',
-    'references app.payment_requests',
     'references app.project_expenses',
     'references app.currency_exchanges',
     'current_project_manager_document',
@@ -4117,6 +4114,250 @@ for required in (
     'edge functions',
 ):
     require(required in readme_sql, f'README documents Package 14.1 marker: {required}')
+
+payment_request_schema_path = ROOT / 'supabase/migrations/20260724104900_1146_payment_requests.sql'
+payment_request_functions_path = ROOT / 'supabase/migrations/20260724105000_1147_payment_request_functions.sql'
+payment_request_grants_path = ROOT / 'supabase/migrations/20260724105100_1148_payment_request_grants.sql'
+payment_request_test_paths = [
+    ROOT / 'supabase/tests/66_package_14_2_payment_requests_schema.test.sql',
+    ROOT / 'supabase/tests/67_package_14_2_payment_requests_security.test.sql',
+    ROOT / 'supabase/tests/68_package_14_2_payment_requests_operations.test.sql',
+]
+for path in (payment_request_schema_path, payment_request_functions_path, payment_request_grants_path, *payment_request_test_paths):
+    require(path.exists(), f'Package 14.2 artifact exists: {path.relative_to(ROOT)}')
+
+if payment_request_schema_path.exists():
+    payment_request_schema_sql = payment_request_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create sequence app.payment_request_number_seq',
+        'maxvalue 999999',
+        "default ('preq-' || lpad(nextval('app.payment_request_number_seq')::text, 6, '0'))",
+        'create type app.payment_request_status as enum',
+        "'draft'",
+        "'sent'",
+        "'viewed'",
+        "'partially_paid'",
+        "'paid'",
+        "'overdue'",
+        "'cancelled'",
+        'create table app.payment_requests',
+        'id uuid primary key default gen_random_uuid()',
+        'request_number varchar(60) not null',
+        'requested_amount numeric(20,6) not null',
+        'status app.payment_request_status not null default',
+        'version_number integer not null default 1',
+        'payment_requests_request_number_uk unique',
+        'payment_requests_amount_ck check',
+        'payment_requests_date_order_ck check',
+        'payment_requests_description_ck check',
+        'payment_requests_lifecycle_fields_ck check',
+        'payment_requests_project_status_due_idx',
+        'payment_requests_client_status_due_idx',
+        'payment_requests_outstanding_due_idx',
+        "status in ('sent','viewed','overdue')",
+        'create or replace function app.payment_requests_trusted_mutation_guard',
+        'payment_request_owner_mutation',
+        'payment_request_client_view',
+        'payment_request_overdue_refresh',
+        'payment requests cannot be deleted',
+        'payment requests cannot be truncated',
+        'alter table app.payment_requests enable row level security',
+        'alter table app.payment_requests force row level security',
+        'revoke all on app.payment_request_number_seq from public, anon, authenticated, service_role',
+        'revoke all on app.payment_requests from public, anon, authenticated, service_role',
+    ):
+        require(required in payment_request_schema_sql,
+                f'1146 payment request schema contains required marker: {required}')
+    payment_request_columns = [
+        'id', 'request_number', 'project_id', 'client_id', 'requested_amount',
+        'currency_code', 'request_date', 'due_date', 'status', 'description',
+        'sent_at', 'viewed_at', 'cancelled_at', 'cancelled_by',
+        'cancellation_reason', 'created_at', 'created_by', 'updated_at',
+        'updated_by', 'version_number',
+    ]
+    schema_body = re.search(r'create table app\.payment_requests\s*\((.*?)\n\);', payment_request_schema_sql, re.S)
+    require(schema_body is not None, '1146 app.payment_requests table body is inspectable')
+    if schema_body:
+        declared = []
+        for line in schema_body.group(1).splitlines():
+            match = re.match(r'\s*([a-z_]+)\s+(?:uuid|varchar|numeric|char|date|app\.payment_request_status|text|timestamptz|integer)', line)
+            if match:
+                declared.append(match.group(1))
+        require(declared == payment_request_columns,
+                '1146 app.payment_requests has exactly the approved 20 columns')
+    for forbidden in (
+        'paid_amount',
+        'remaining_amount',
+        'matched_amount',
+        'client_payment_id',
+        'financial_event_id',
+        'financial_transaction_id',
+        'ledger_entry_id',
+        'reporting_currency_code',
+        'exchange_rate_id',
+        'document_id',
+        'milestone_id',
+        'phase_id',
+        'client_comment',
+        'notification_id',
+        'archived_at timestamptz',
+        'deleted_at',
+        "'submitted'",
+        "'approved'",
+        "'rejected'",
+        "'expired'",
+        "'archived'",
+        "'deleted'",
+    ):
+        require(forbidden not in payment_request_schema_sql,
+                f'1146 payment request schema omits forbidden marker: {forbidden}')
+
+if payment_request_functions_path.exists():
+    payment_request_functions_sql = payment_request_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.contractor_local_date',
+        'contractor time zone is not configured',
+        'contractor time zone is invalid',
+        'now() at time zone contractor_time_zone',
+        'create or replace function app.payment_request_effective_status',
+        "p_status in ('sent','viewed')",
+        'create or replace function app.current_payment_request_client_context',
+        'u.auth_subject = auth.uid()',
+        'create or replace function app.owner_create_payment_request',
+        'create or replace function app.owner_update_payment_request',
+        'create or replace function app.owner_send_payment_request',
+        'create or replace function app.owner_cancel_payment_request',
+        'create or replace function app.owner_payment_request_list',
+        'create or replace function app.owner_payment_request_detail',
+        'create or replace function app.owner_refresh_payment_request_overdue',
+        'create or replace function app.current_client_payment_request_list',
+        'create or replace function app.current_client_view_payment_request_detail',
+        'payment_request_created',
+        'payment_request_updated',
+        'payment_request_sent',
+        'payment_request_viewed',
+        'payment_request_marked_overdue',
+        'payment_request_cancelled',
+        '0::numeric(20,6)',
+        'pr.requested_amount::numeric(20,6)',
+        'p.client_id=client_ctx.client_id',
+        "pr.status in ('sent','viewed','overdue','cancelled','partially_paid','paid')",
+        'create or replace function public.server_owner_create_payment_request',
+        'create or replace function public.server_owner_update_payment_request',
+        'create or replace function public.server_owner_send_payment_request',
+        'create or replace function public.server_owner_cancel_payment_request',
+        'create or replace function public.server_owner_payment_request_list',
+        'create or replace function public.server_owner_payment_request_detail',
+        'create or replace function public.server_owner_refresh_payment_request_overdue',
+        'create or replace function public.current_client_payment_request_list',
+        'create or replace function public.current_client_view_payment_request_detail',
+    ):
+        require(required in payment_request_functions_sql,
+                f'1147 payment request functions contain required marker: {required}')
+    client_detail_return = re.search(
+        r'create or replace function public\.current_client_view_payment_request_detail\(.*?returns table \((.*?)\)\s+language',
+        payment_request_functions_sql,
+        re.S,
+    )
+    require(client_detail_return is not None, '1147 Client payment request detail return shape is inspectable')
+    if client_detail_return:
+        for required in ('paid_amount numeric', 'remaining_amount numeric', 'effective_status app.payment_request_status'):
+            require(required in client_detail_return.group(1),
+                    f'1147 Client detail returns safe calculated field: {required}')
+        for forbidden in ('client_id', 'created_by', 'updated_by', 'cancelled_by', 'cancellation_reason', 'activity', 'ledger', 'financial_event'):
+            require(forbidden not in client_detail_return.group(1),
+                    f'1147 Client detail omits unsafe field: {forbidden}')
+    for forbidden in (
+        'create table app.payment_matches',
+        'insert into app.payment_matches',
+        'insert into app.financial_events',
+        'insert into app.financial_transactions',
+        'insert into app.ledger_entries',
+        'insert into app.notifications',
+        'document_links',
+        'storage.objects',
+        'payment_upload',
+        'transfer_evidence',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+        'public.current_account()',
+        'set_payment_request_status',
+    ):
+        require(forbidden not in payment_request_functions_sql,
+                f'1147 payment request functions omit forbidden marker: {forbidden}')
+
+if payment_request_grants_path.exists():
+    payment_request_grants_sql = payment_request_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.payment_request_number_seq from public, anon, authenticated, service_role',
+        'revoke all on app.payment_requests from public, anon, authenticated, service_role',
+        'revoke all on function app.contractor_local_date',
+        'revoke all on function app.payment_request_effective_status',
+        'revoke all on function app.current_payment_request_client_context',
+        'grant execute on function public.server_owner_create_payment_request',
+        'grant execute on function public.server_owner_update_payment_request',
+        'grant execute on function public.server_owner_send_payment_request',
+        'grant execute on function public.server_owner_cancel_payment_request',
+        'grant execute on function public.server_owner_payment_request_list',
+        'grant execute on function public.server_owner_payment_request_detail',
+        'grant execute on function public.server_owner_refresh_payment_request_overdue',
+        'grant execute on function public.current_client_payment_request_list',
+        'grant execute on function public.current_client_view_payment_request_detail',
+        'to service_role',
+        'to authenticated',
+    ):
+        require(required in payment_request_grants_sql,
+                f'1148 payment request grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.payment_requests',
+        'grant insert on app.payment_requests',
+        'grant update on app.payment_requests',
+        'grant delete on app.payment_requests',
+        'to anon',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in payment_request_grants_sql,
+                f'1148 payment request grants omit forbidden marker: {forbidden}')
+
+payment_request_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (payment_request_schema_path, payment_request_functions_path, payment_request_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.payment_matches',
+    'create table app.payment_allocations',
+    'create table app.project_expenses',
+    'create table app.account_transfers',
+    'create table app.currency_exchanges',
+    'create table app.refunds',
+    'create table app.payment_uploads',
+    'create table app.payment_evidence',
+    'create table app.account_balances',
+    'insert into app.notifications',
+    'storage.objects',
+    'edge function',
+    'flutter',
+    'accountant%access_allowed%true',
+    'public.current_account()',
+):
+    require(forbidden not in payment_request_all_sql,
+            f'Package 14.2 scope excludes forbidden marker: {forbidden}')
+
+for path in payment_request_test_paths:
+    if path.exists():
+        test_sql = path.read_text(encoding='utf-8', errors='ignore').lower()
+        for required in (
+            'payment_requests',
+            'payment_request_status',
+            'preq-000001',
+            'current_client_view_payment_request_detail',
+        ):
+            require(required in test_sql,
+                    f'{path.name} covers Package 14.2 marker: {required}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
