@@ -101,7 +101,7 @@ SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'progress_updat
 SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'progress_update_archived'), 'archive activity logged');
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.task_updates WHERE update_note = 'Summary safe for publication'), 'progress snapshots do not create task updates');
 SELECT results_eq($$ SELECT calculated_completion_percent, official_completion_percent FROM public.server_owner_official_project_completion('00000000-0000-0000-0000-000000004401', (SELECT id FROM app.projects WHERE name = 'Progress Project A')) $$, $$ VALUES (0.00::numeric(5,2), 0.00::numeric(5,2)) $$, 'progress updates do not change calculated or official completion');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries')), 'no finance created');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('payments')), 'no finance created');
 SELECT is((SELECT count(*)::integer FROM app.projects WHERE name IN ('Progress Project A','Progress Project B') AND status = 'APPROVED'), 2, 'Project statuses unchanged by progress workflow');
 
 SELECT * FROM finish();

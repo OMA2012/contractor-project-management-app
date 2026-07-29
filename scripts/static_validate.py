@@ -214,7 +214,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|has_function|has_sequence_privilege|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|has_function|hasnt_function|has_sequence_privilege|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -244,8 +244,6 @@ for required in (
     require(required in all_sql, f'required object present: {required}')
 
 for prohibited in (
-    'create table app.financial_transactions',
-    'create table app.ledger_entries',
     'create table app.client_payments',
     'create table app.project_expenses',
 ):
@@ -1748,7 +1746,7 @@ require('create table app.task_updates' in all_sql, '11.5 adds task update histo
 require('create table app.progress_updates' not in task_update_scope_sql and 'create table app.completion_overrides' not in task_update_scope_sql, '11.5 does not add progress or completion override objects')
 require('create table app.notifications' not in task_update_scope_sql, '11.5 does not add notifications')
 require('create table app.project_documents' not in all_sql, '11.5 does not add legacy project_documents')
-require('create table app.financial_transactions' not in all_sql and 'create table app.ledger_entries' not in all_sql, '11.5 does not add finance or ledger objects')
+require('create table app.financial_transactions' not in task_update_scope_sql and 'create table app.ledger_entries' not in task_update_scope_sql, '11.5 does not add finance or ledger objects')
 
 functions_dir = ROOT / 'supabase/functions'
 require(functions_dir.exists(), 'shared Edge Function helper directory exists')
@@ -3433,6 +3431,255 @@ for forbidden in (
 ):
     require(forbidden not in ledger_account_all_sql,
             f'Package 13.2 scope excludes forbidden marker: {forbidden}')
+
+financial_posting_schema_path = ROOT / 'supabase/migrations/20260724104000_1137_financial_transactions_and_ledger_entries.sql'
+financial_posting_functions_path = ROOT / 'supabase/migrations/20260724104100_1138_financial_posting_functions.sql'
+financial_posting_grants_path = ROOT / 'supabase/migrations/20260724104200_1139_financial_posting_grants.sql'
+financial_posting_test_paths = [
+    ROOT / 'supabase/tests/57_package_13_3_financial_transactions_schema.test.sql',
+    ROOT / 'supabase/tests/58_package_13_3_financial_transactions_security.test.sql',
+    ROOT / 'supabase/tests/59_package_13_3_financial_transactions_operations.test.sql',
+]
+for path in (financial_posting_schema_path, financial_posting_functions_path, financial_posting_grants_path, *financial_posting_test_paths):
+    require(path.exists(), f'Package 13.3 artifact exists: {path.relative_to(ROOT)}')
+
+if financial_posting_schema_path.exists():
+    financial_posting_schema_sql = financial_posting_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create sequence app.financial_event_number_seq',
+        'create sequence app.financial_transaction_number_seq',
+        "default ('fe-' || lpad(nextval('app.financial_event_number_seq')::text, 6, '0'))",
+        "default ('ft-' || lpad(nextval('app.financial_transaction_number_seq')::text, 6, '0'))",
+        'create type app.financial_event_type as enum',
+        "'opening_balance'",
+        "'client_payment'",
+        "'project_expense'",
+        "'account_transfer'",
+        "'currency_exchange'",
+        "'refund'",
+        "'reversal'",
+        "'adjustment'",
+        'create type app.financial_event_status as enum',
+        'create type app.financial_transaction_status as enum',
+        "'posted'",
+        'create table app.financial_events',
+        'create table app.financial_transactions',
+        'create table app.ledger_entries',
+        'create table app.account_opening_balances',
+        'financial_events_non_rejected_duplicate_uk',
+        'financial_transactions_event_uk unique',
+        'ledger_entries_transaction_line_uk unique',
+        'ledger_entries_amount_side_ck',
+        'ledger_entries_reporting_amount_side_ck',
+        'ledger_entries_rate_snapshot_ck',
+        'account_opening_balances_event_uk unique',
+        'alter table app.financial_events enable row level security',
+        'alter table app.financial_events force row level security',
+        'alter table app.financial_transactions enable row level security',
+        'alter table app.financial_transactions force row level security',
+        'alter table app.ledger_entries enable row level security',
+        'alter table app.ledger_entries force row level security',
+        'alter table app.account_opening_balances enable row level security',
+        'alter table app.account_opening_balances force row level security',
+        'opening_balance_posting',
+        'owner_financial_mutation',
+        'posted ledger entries are immutable',
+        'ledger entries cannot be truncated',
+    ):
+        require(required in financial_posting_schema_sql,
+                f'1137 financial posting schema contains required marker: {required}')
+    event_columns = [
+        'id', 'event_number', 'event_type', 'project_id', 'client_id', 'event_date',
+        'status', 'description', 'submitted_at', 'submitted_by', 'duplicate_fingerprint',
+        'approved_at', 'approved_by', 'rejected_at', 'rejected_by', 'rejection_reason',
+        'created_at', 'created_by', 'updated_at', 'updated_by', 'version_number',
+    ]
+    transaction_columns = [
+        'id', 'transaction_number', 'financial_event_id', 'transaction_date', 'status',
+        'reporting_currency_code', 'description', 'reverses_transaction_id',
+        'approved_at', 'approved_by', 'posted_at', 'posted_by', 'rejected_at',
+        'rejected_by', 'rejection_reason', 'created_at', 'created_by', 'version_number',
+    ]
+    ledger_entry_columns = [
+        'id', 'financial_transaction_id', 'line_no', 'ledger_account_id', 'project_id',
+        'client_id', 'currency_code', 'debit_amount', 'credit_amount',
+        'reporting_currency_code', 'reporting_debit_amount', 'reporting_credit_amount',
+        'exchange_rate_id', 'rate_base_currency_code', 'rate_quote_currency_code',
+        'rate_value', 'rate_source', 'rounding_adjustment', 'memo', 'created_at',
+        'created_by',
+    ]
+    opening_columns = [
+        'id', 'financial_event_id', 'financial_account_id', 'amount', 'currency_code',
+        'opening_date', 'notes',
+    ]
+    for column in event_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_posting_schema_sql) is not None,
+                f'1137 app.financial_events approved column exists: {column}')
+    for column in transaction_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_posting_schema_sql) is not None,
+                f'1137 app.financial_transactions approved column exists: {column}')
+    for column in ledger_entry_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_posting_schema_sql) is not None,
+                f'1137 app.ledger_entries approved column exists: {column}')
+    for column in opening_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_posting_schema_sql) is not None,
+                f'1137 app.account_opening_balances approved column exists: {column}')
+    for forbidden in (
+        'exchange_fee',
+        'reversed',
+        'create table app.payments',
+        'create table app.payment_requests',
+        'create table app.expenses',
+        'create table app.project_expenses',
+        'create table app.transfers',
+        'create table app.currency_exchanges',
+        'create table app.refunds',
+        'create table app.reversals',
+        'create table app.adjustments',
+        'create table app.account_balances',
+        'current_balance',
+        'max(event_number',
+        'max(transaction_number',
+        'public.current_account()',
+    ):
+        require(forbidden not in financial_posting_schema_sql,
+                f'1137 financial posting schema omits forbidden marker: {forbidden}')
+
+if financial_posting_functions_path.exists():
+    financial_posting_functions_sql = financial_posting_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.ensure_opening_balance_control_ledger_account',
+        "'ctrl-opening-' || p_currency_code::text",
+        'create or replace function app.owner_create_opening_balance',
+        'create or replace function app.owner_update_opening_balance',
+        'create or replace function app.owner_submit_opening_balance',
+        'create or replace function app.owner_reject_opening_balance',
+        'create or replace function app.owner_approve_opening_balance',
+        'create or replace function app.owner_opening_balance_list',
+        'create or replace function app.owner_opening_balance_detail',
+        'create or replace function app.owner_financial_account_balance',
+        'create or replace function app.owner_financial_account_balances_by_currency',
+        'create or replace function app.owner_cash_totals_by_currency',
+        'create or replace function app.owner_bank_totals_by_currency',
+        'create or replace function public.server_owner_create_opening_balance',
+        'create or replace function public.server_owner_update_opening_balance',
+        'create or replace function public.server_owner_submit_opening_balance',
+        'create or replace function public.server_owner_reject_opening_balance',
+        'create or replace function public.server_owner_approve_opening_balance',
+        'create or replace function public.server_owner_financial_account_balance',
+        'app.require_active_owner_admin',
+        'opening balance requires different owner approval',
+        'transaction-date exchange rate is required',
+        'order by er.created_at desc, er.id desc',
+        'insert into app.ledger_entries',
+        'having sum(debit_amount) <> sum(credit_amount)',
+        'having sum(reporting_debit_amount) <> sum(reporting_credit_amount)',
+        'opening_balance_created',
+        'opening_balance_updated',
+        'opening_balance_submitted',
+        'opening_balance_rejected',
+        'opening_balance_approved',
+        'financial_transaction_posted',
+    ):
+        require(required in financial_posting_functions_sql,
+                f'1138 financial posting functions contain required marker: {required}')
+    list_return = re.search(
+        r'create or replace function public\.server_owner_opening_balance_list\(.*?returns table \((.*?)\)\s+language',
+        financial_posting_functions_sql,
+        re.S,
+    )
+    require(list_return is not None, '1138 Owner opening balance list return shape is inspectable')
+    if list_return:
+        require('notes' not in list_return.group(1), '1138 Owner opening balance list omits raw notes')
+    for forbidden in (
+        'create or replace function app.owner_create_client_payment',
+        'create or replace function app.owner_create_project_expense',
+        'create or replace function app.owner_create_account_transfer',
+        'create or replace function app.owner_create_currency_exchange',
+        'create or replace function app.owner_create_refund',
+        'create or replace function app.owner_create_reversal',
+        'create or replace function app.owner_create_adjustment',
+        'current_client_financial',
+        'current_accountant_financial',
+        'current_project_manager_financial',
+        'current_site_supervisor_financial',
+        'encrypted_account_details',
+        'raw_app_meta_data',
+        'fetch(',
+        'http',
+        'max(event_number',
+        'max(transaction_number',
+        'public.current_account()',
+    ):
+        require(forbidden not in financial_posting_functions_sql,
+                f'1138 financial posting functions omit forbidden marker: {forbidden}')
+
+if financial_posting_grants_path.exists():
+    financial_posting_grants_sql = financial_posting_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.financial_events from public, anon, authenticated, service_role',
+        'revoke all on app.financial_transactions from public, anon, authenticated, service_role',
+        'revoke all on app.ledger_entries from public, anon, authenticated, service_role',
+        'revoke all on app.account_opening_balances from public, anon, authenticated, service_role',
+        'revoke all on app.financial_event_number_seq from public, anon, authenticated, service_role',
+        'revoke all on app.financial_transaction_number_seq from public, anon, authenticated, service_role',
+        'revoke all on function app.ensure_opening_balance_control_ledger_account',
+        'revoke all on function app.owner_create_opening_balance',
+        'grant execute on function public.server_owner_create_opening_balance',
+        'grant execute on function public.server_owner_update_opening_balance',
+        'grant execute on function public.server_owner_submit_opening_balance',
+        'grant execute on function public.server_owner_reject_opening_balance',
+        'grant execute on function public.server_owner_approve_opening_balance',
+        'grant execute on function public.server_owner_opening_balance_list',
+        'grant execute on function public.server_owner_opening_balance_detail',
+        'grant execute on function public.server_owner_financial_account_balance',
+        'grant execute on function public.server_owner_financial_account_balances_by_currency',
+        'grant execute on function public.server_owner_cash_totals_by_currency',
+        'grant execute on function public.server_owner_bank_totals_by_currency',
+        'to service_role',
+    ):
+        require(required in financial_posting_grants_sql,
+                f'1139 financial posting grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.financial_events',
+        'grant insert on app.financial_events',
+        'grant update on app.financial_events',
+        'grant delete on app.financial_events',
+        'grant select on app.ledger_entries',
+        'grant insert on app.ledger_entries',
+        'grant update on app.ledger_entries',
+        'grant delete on app.ledger_entries',
+        'to authenticated',
+        'current_client',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in financial_posting_grants_sql,
+                f'1139 financial posting grants omit forbidden marker: {forbidden}')
+
+financial_posting_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (financial_posting_schema_path, financial_posting_functions_path, financial_posting_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.payments',
+    'create table app.payment_requests',
+    'create table app.expenses',
+    'create table app.project_expenses',
+    'create table app.transfers',
+    'create table app.currency_exchanges',
+    'create table app.refunds',
+    'create table app.reversals',
+    'create table app.adjustments',
+    'create table app.account_balances',
+    'current_balance',
+    'accountant%access_allowed%true',
+    'public.current_account()',
+):
+    require(forbidden not in financial_posting_all_sql,
+            f'Package 13.3 scope excludes forbidden marker: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
