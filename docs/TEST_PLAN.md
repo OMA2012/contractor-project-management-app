@@ -9,7 +9,7 @@
 - all eight migrations parse as PostgreSQL;
 - exact Package 09.1 file count and order;
 - required foundation tables exist in SQL;
-- Package 13.3 financial accounts, system-managed asset ledger accounts, manual exchange rates, central ledger structure, and opening-balance posting are present, while payment, expense, transfer, currency-exchange business, refund, reversal, adjustment, notification, Flutter and Edge Function workflows remain absent;
+- Package 13.4 financial accounts, system-managed asset ledger accounts, manual exchange rates, central ledger structure, opening-balance posting, full reversals, and controlled adjustments are present, while payment, expense, transfer, currency-exchange business, refund, notification, Flutter and Edge Function workflows remain absent;
 - exact five role codes are present;
 - forbidden roles/features are absent;
 - last-owner guard and default-deny RLS exist;
@@ -75,6 +75,14 @@ python3 scripts/static_validate.py
 
 `59_package_13_3_financial_transactions_operations.test.sql` verifies Owner/Admin opening-balance create/update/submit/reject/approve workflows, optimistic concurrency, different-Owner approval, atomic two-line posting, same-currency and multi-currency exchange-rate snapshots, posted-only dynamic balances, idempotent approval retry, immutable posted records, safe failure without partial posting, and Client/reserved-role denial.
 
+### pgTAP Stage 13 Package 13.4 financial-correction suites
+
+`60_package_13_4_financial_corrections_schema.test.sql` verifies exact `app.adjustment_direction` values, exact `app.financial_reversals` and `app.financial_adjustments` columns, full-reversal-only and positive-amount constraints, subtype FKs, forced RLS, correction posting contexts, no correction status enum, no `REVERSED` status, and continued absence of excluded finance workflows.
+
+`61_package_13_4_financial_corrections_security.test.sql` verifies private Owner/Admin correction functions, service-role-only server gateways, direct-DML revocation, private helper revocation, no broad RLS policies, no Client or reserved-role correction RPCs, and no change to `public.current_account()`.
+
+`62_package_13_4_financial_corrections_operations.test.sql` verifies reversal of opening-balance and reversal transactions, repeated full-reversal prevention, exact opposite ledger totals, original history immutability, adjustment increase/decrease, optional and linked adjusted-transaction references, deterministic `CTRL-ADJUSTMENT-<currency_code>` accounts, exchange-rate snapshots, different-Owner approval, rejection without ledger effect, idempotent approval retry, posted-only balance effects, rollback on missing rate, and Client/reserved-role denial.
+
 Run all database tests:
 
 ```bash
@@ -109,4 +117,4 @@ Package 12.1 adds tests 48-50:
 - `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
-Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
