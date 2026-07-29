@@ -1246,6 +1246,50 @@ Opening-balance and posting activity actions:
 
 Activity metadata may identify the event, transaction, financial account, currency, version, status transition, ledger-entry count, and safe identifiers. It must omit encrypted account details, raw notes, request bodies, secrets, and unnecessary personal data.
 
+## Stage 13 Package 13.4: Reversal and Controlled Adjustment Foundation
+
+Package 13.4 adds Owner/Admin-only correction workflows for full reversals and controlled financial adjustments. It does not add refunds, client payments, payment requests, payment matching, project expenses, account transfers, currency-exchange business workflows, finance notifications, Flutter, Edge Functions, Accountant activation, document-finance activation, automatic exchange-rate retrieval, editable balances, arbitrary journal entries, or partial reversals.
+
+`app.adjustment_direction` has exactly:
+
+- `INCREASE`
+- `DECREASE`
+
+`app.financial_reversals` contains exactly:
+
+- `id`
+- `financial_event_id`
+- `original_transaction_id`
+- `reason`
+- `full_reversal`
+- `reversal_date`
+
+`app.financial_adjustments` contains exactly:
+
+- `id`
+- `financial_event_id`
+- `adjusted_transaction_id`
+- `financial_account_id`
+- `direction`
+- `amount`
+- `currency_code`
+- `adjustment_date`
+- `reason`
+
+Reversal approval requires a different active Owner/Admin, a posted target transaction, no existing full reversal for that target, and atomic posting. It copies every target ledger line to the correction transaction with debit/credit and reporting debit/credit sides exchanged while preserving ledger account, project, client, currency, reporting currency, exchange-rate snapshots and rounding value. The target transaction and its ledger entries are never edited.
+
+Adjustment approval requires a different active Owner/Admin, an active unarchived financial account, an active asset ledger, positive amount, matching account/asset/adjustment currency, matching event/transaction/adjustment dates, and an optional adjusted transaction that is already posted. `INCREASE` debits the financial asset and credits `CTRL-ADJUSTMENT-<currency_code>`; `DECREASE` debits the adjustment control account and credits the financial asset. Reporting conversion uses the approved transaction-date manual exchange rate when needed and snapshots the rate on both entries.
+
+Adjustment CONTROL accounts are deterministic, private, idempotent and system-managed:
+
+```text
+CTRL-ADJUSTMENT-USD
+CTRL-ADJUSTMENT-SAR
+CTRL-ADJUSTMENT-YER
+```
+
+First-release access remains Owner/Admin only through service-role gateways. Clients, Project Managers, Accountants and Site Supervisors remain denied, and `public.current_account()` is unchanged.
+
 ## Inspect schema manually
 
 ```bash

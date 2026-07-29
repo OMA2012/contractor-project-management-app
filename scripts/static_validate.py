@@ -3681,6 +3681,204 @@ for forbidden in (
     require(forbidden not in financial_posting_all_sql,
             f'Package 13.3 scope excludes forbidden marker: {forbidden}')
 
+financial_correction_schema_path = ROOT / 'supabase/migrations/20260724104300_1140_financial_reversals_and_adjustments.sql'
+financial_correction_functions_path = ROOT / 'supabase/migrations/20260724104400_1141_financial_correction_functions.sql'
+financial_correction_grants_path = ROOT / 'supabase/migrations/20260724104500_1142_financial_correction_grants.sql'
+financial_correction_test_paths = [
+    ROOT / 'supabase/tests/60_package_13_4_financial_corrections_schema.test.sql',
+    ROOT / 'supabase/tests/61_package_13_4_financial_corrections_security.test.sql',
+    ROOT / 'supabase/tests/62_package_13_4_financial_corrections_operations.test.sql',
+]
+for path in (financial_correction_schema_path, financial_correction_functions_path, financial_correction_grants_path, *financial_correction_test_paths):
+    require(path.exists(), f'Package 13.4 artifact exists: {path.relative_to(ROOT)}')
+
+if financial_correction_schema_path.exists():
+    financial_correction_schema_sql = financial_correction_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.adjustment_direction as enum',
+        "'increase'",
+        "'decrease'",
+        'create table app.financial_reversals',
+        'create table app.financial_adjustments',
+        'financial_reversals_event_uk unique',
+        'financial_reversals_original_transaction_uk unique',
+        'financial_reversals_full_only_ck check',
+        'financial_adjustments_event_uk unique',
+        'financial_adjustments_amount_ck check',
+        'financial_adjustments_reason_ck check',
+        'create or replace function app.financial_reversals_trusted_mutation_guard',
+        'create or replace function app.financial_adjustments_trusted_mutation_guard',
+        'financial_reversal_posting',
+        'financial_adjustment_posting',
+        'opening_balance_posting',
+        'alter table app.financial_reversals enable row level security',
+        'alter table app.financial_reversals force row level security',
+        'alter table app.financial_adjustments enable row level security',
+        'alter table app.financial_adjustments force row level security',
+        'revoke all on app.financial_reversals from public, anon, authenticated, service_role',
+        'revoke all on app.financial_adjustments from public, anon, authenticated, service_role',
+    ):
+        require(required in financial_correction_schema_sql,
+                f'1140 financial correction schema contains required marker: {required}')
+    reversal_columns = ['id', 'financial_event_id', 'original_transaction_id', 'reason', 'full_reversal', 'reversal_date']
+    adjustment_columns = ['id', 'financial_event_id', 'adjusted_transaction_id', 'financial_account_id', 'direction', 'amount', 'currency_code', 'adjustment_date', 'reason']
+    for column in reversal_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_correction_schema_sql) is not None,
+                f'1140 app.financial_reversals approved column exists: {column}')
+    for column in adjustment_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', financial_correction_schema_sql) is not None,
+                f'1140 app.financial_adjustments approved column exists: {column}')
+    for forbidden in (
+        'create type app.reversal_status',
+        'create type app.adjustment_status',
+        "'reversed'",
+        'partial_reversal',
+        'archived_at',
+        'archived_by',
+        'create sequence app.reversal',
+        'create sequence app.adjustment',
+        'create table app.reversals',
+        'create table app.adjustments',
+        'create table app.payments',
+        'create table app.payment_requests',
+        'create table app.project_expenses',
+        'create table app.currency_exchanges',
+        'create table app.refunds',
+        'public.current_account()',
+    ):
+        require(forbidden not in financial_correction_schema_sql,
+                f'1140 financial correction schema omits forbidden marker: {forbidden}')
+
+if financial_correction_functions_path.exists():
+    financial_correction_functions_sql = financial_correction_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.ensure_adjustment_control_ledger_account',
+        "'ctrl-adjustment-' || p_currency_code::text",
+        "'adjustment control - ' || p_currency_code::text",
+        'create or replace function app.owner_create_reversal',
+        'create or replace function app.owner_submit_reversal',
+        'create or replace function app.owner_reject_reversal',
+        'create or replace function app.owner_approve_reversal',
+        'create or replace function app.owner_reversal_list',
+        'create or replace function app.owner_reversal_detail',
+        'create or replace function app.owner_create_adjustment',
+        'create or replace function app.owner_update_adjustment',
+        'create or replace function app.owner_submit_adjustment',
+        'create or replace function app.owner_reject_adjustment',
+        'create or replace function app.owner_approve_adjustment',
+        'create or replace function app.owner_adjustment_list',
+        'create or replace function app.owner_adjustment_detail',
+        'create or replace function public.server_owner_create_reversal',
+        'create or replace function public.server_owner_approve_reversal',
+        'create or replace function public.server_owner_create_adjustment',
+        'create or replace function public.server_owner_approve_adjustment',
+        'financial reversal requires different owner approval',
+        'financial adjustment requires different owner approval',
+        'transaction-date exchange rate is required',
+        'reversal_created',
+        'reversal_submitted',
+        'reversal_rejected',
+        'reversal_approved',
+        'reversal_transaction_posted',
+        'adjustment_created',
+        'adjustment_updated',
+        'adjustment_submitted',
+        'adjustment_rejected',
+        'adjustment_approved',
+        'adjustment_transaction_posted',
+    ):
+        require(required in financial_correction_functions_sql,
+                f'1141 financial correction functions contain required marker: {required}')
+    for forbidden in (
+        'max(event_number',
+        'max(transaction_number',
+        'create table app.idempotency',
+        'create or replace function app.owner_create_client_payment',
+        'create or replace function app.owner_create_project_expense',
+        'create or replace function app.owner_create_account_transfer',
+        'create or replace function app.owner_create_currency_exchange',
+        'create or replace function app.owner_create_refund',
+        'current_client_reversal',
+        'current_client_adjustment',
+        'current_accountant_reversal',
+        'current_accountant_adjustment',
+        'current_project_manager_reversal',
+        'current_site_supervisor_adjustment',
+        'encrypted_account_details',
+        'raw_app_meta_data',
+        'fetch(',
+        'http',
+        'public.current_account()',
+    ):
+        require(forbidden not in financial_correction_functions_sql,
+                f'1141 financial correction functions omit forbidden marker: {forbidden}')
+
+if financial_correction_grants_path.exists():
+    financial_correction_grants_sql = financial_correction_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.financial_reversals from public, anon, authenticated, service_role',
+        'revoke all on app.financial_adjustments from public, anon, authenticated, service_role',
+        'revoke all on function app.ensure_adjustment_control_ledger_account',
+        'revoke all on function app.owner_create_reversal',
+        'revoke all on function app.owner_create_adjustment',
+        'grant execute on function public.server_owner_create_reversal',
+        'grant execute on function public.server_owner_submit_reversal',
+        'grant execute on function public.server_owner_reject_reversal',
+        'grant execute on function public.server_owner_approve_reversal',
+        'grant execute on function public.server_owner_reversal_list',
+        'grant execute on function public.server_owner_reversal_detail',
+        'grant execute on function public.server_owner_create_adjustment',
+        'grant execute on function public.server_owner_update_adjustment',
+        'grant execute on function public.server_owner_submit_adjustment',
+        'grant execute on function public.server_owner_reject_adjustment',
+        'grant execute on function public.server_owner_approve_adjustment',
+        'grant execute on function public.server_owner_adjustment_list',
+        'grant execute on function public.server_owner_adjustment_detail',
+        'to service_role',
+    ):
+        require(required in financial_correction_grants_sql,
+                f'1142 financial correction grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.financial_reversals',
+        'grant insert on app.financial_reversals',
+        'grant update on app.financial_reversals',
+        'grant delete on app.financial_reversals',
+        'grant select on app.financial_adjustments',
+        'grant insert on app.financial_adjustments',
+        'grant update on app.financial_adjustments',
+        'grant delete on app.financial_adjustments',
+        'to authenticated',
+        'current_client',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in financial_correction_grants_sql,
+                f'1142 financial correction grants omit forbidden marker: {forbidden}')
+
+financial_correction_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (financial_correction_schema_path, financial_correction_functions_path, financial_correction_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.payments',
+    'create table app.payment_requests',
+    'create table app.payment_matches',
+    'create table app.expenses',
+    'create table app.project_expenses',
+    'create table app.transfers',
+    'create table app.account_transfers',
+    'create table app.currency_exchanges',
+    'create table app.refunds',
+    'create table app.account_balances',
+    'current_balance',
+    'accountant%access_allowed%true',
+    'public.current_account()',
+):
+    require(forbidden not in financial_correction_all_sql,
+            f'Package 13.4 scope excludes forbidden marker: {forbidden}')
+
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
         text = path.read_text(encoding='utf-8', errors='ignore')
