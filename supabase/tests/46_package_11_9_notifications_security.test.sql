@@ -25,7 +25,7 @@ SELECT ok(NOT has_function_privilege('service_role', 'public.current_notificatio
 SELECT ok(has_function_privilege('service_role', 'public.server_owner_publish_progress_update(uuid,uuid,integer,text,text,text,inet)', 'EXECUTE'), 'service_role still has Owner publish gateway');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('server_create_notification','current_project_manager_notifications','current_site_supervisor_notifications','current_assigned_notifications','current_notification_unread_count') $$, 'no manual, reserved-role, assigned, or unread-count notification RPCs');
 SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname = 'app' AND tablename = 'notifications' $$, 'no broad notification RLS policies');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_delivery_attempts','notification_preferences','notification_retry_queue','financial_transactions','ledger_entries')), 'delivery, preference and finance tables absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_delivery_attempts','notification_preferences','notification_retry_queue','payments')), 'delivery, preference and finance tables absent');
 
 SELECT * FROM finish();
 ROLLBACK;

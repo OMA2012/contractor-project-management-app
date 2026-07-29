@@ -36,7 +36,7 @@ SELECT ok(pg_get_functiondef('app.task_assignments_trusted_update_guard()'::regp
 SELECT ok(pg_get_functiondef('app.prevent_task_assignment_delete()'::regprocedure) ILIKE '%Project task assignments cannot be deleted%', 'delete trigger raises deterministic error');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'app' AND table_name = 'task_assignments' AND column_name IN ('user_id','project_id','role_code','assigned_role','task_status','completion_percent','notes','removal_reason','removed_by','updated_at','updated_by','version_number','client_visible')), 'forbidden task-assignment columns are absent');
 SELECT has_table('app', 'task_updates', 'task updates are implemented in Package 11.5');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries')), 'later finance tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('payments')), 'later finance tables remain absent');
 SELECT ok(pg_get_functiondef('app.assign_project_task(uuid,uuid,uuid,text,text,text,inet)'::regprocedure) NOT ILIKE '%insert into app.user_roles%', 'assignment does not create user roles');
 SELECT ok(pg_get_functiondef('app.assign_project_task(uuid,uuid,uuid,text,text,text,inet)'::regprocedure) NOT ILIKE '%public.current_account%', 'assignment does not activate current_account');
 

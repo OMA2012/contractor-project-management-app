@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(29);
+SELECT plan(28);
 
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 VALUES
@@ -72,7 +72,6 @@ SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_comple
 SELECT ok(EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'project_completion_override_revoked' AND reason = 'Revocation reason kept'), 'revocation activity retains reason');
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE action = 'denied_privileged_operation' AND reason IN ('Future time', 'Missing time', '   ')), 'denied logs do not echo submitted reasons');
 SELECT results_eq($$ SELECT version_number FROM app.projects WHERE name = 'Override Operations Project' $$, $$ VALUES (1) $$, 'override workflows do not increment Project version');
-SELECT hasnt_table('app', 'financial_transactions', 'financial objects remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

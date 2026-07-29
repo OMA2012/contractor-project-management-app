@@ -106,7 +106,7 @@ SELECT is((SELECT count(*)::integer FROM app.notifications WHERE related_entity_
 SELECT set_config('app.notification_state_context', '', true);
 SELECT throws_ok($$ UPDATE app.notifications SET title = 'Changed' $$, '23514', 'Notifications require trusted state functions.', 'direct update denied');
 SELECT throws_ok($$ DELETE FROM app.notifications $$, '23514', 'Notifications cannot be deleted.', 'direct delete denied');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_delivery_attempts','notification_preferences','notification_retry_queue','financial_transactions','ledger_entries')), 'delivery queues, preferences and finance absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('notification_delivery_attempts','notification_preferences','notification_retry_queue','payments')), 'delivery queues, preferences and finance absent');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_project_manager_notifications','current_site_supervisor_notifications','current_assigned_notifications','server_create_notification') $$, 'reserved-role and arbitrary creation gateways absent');
 
 SELECT * FROM finish();

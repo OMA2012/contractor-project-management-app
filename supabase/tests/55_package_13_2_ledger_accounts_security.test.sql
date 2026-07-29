@@ -45,7 +45,7 @@ SELECT throws_ok($$ UPDATE app.exchange_rates SET source = 'CORRECTED' $$, '2351
 SELECT throws_ok($$ DELETE FROM app.exchange_rates $$, '23514', 'Exchange rates cannot be deleted.', 'exchange rate delete prevented');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%accountant%exchange%' $$, 'Accountant exchange-rate functions absent');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%client%exchange%' $$, 'Client exchange-rate functions absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_events','financial_transactions','ledger_entries','account_balances','payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments')), 'excluded finance workflow tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('account_balances','payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments')), 'excluded finance workflow tables remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;

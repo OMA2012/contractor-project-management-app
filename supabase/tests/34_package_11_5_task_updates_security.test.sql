@@ -36,7 +36,7 @@ SELECT ok(pg_get_functiondef('app.archive_project_task(uuid,uuid,integer,text,te
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = 'app.task_updates'::regclass), 'task updates have no broad RLS policy');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname LIKE '%project_manager%task%'), 'no Project Manager task workflow RPC exists');
 SELECT ok(NOT EXISTS (SELECT 1 FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname LIKE '%site_supervisor%task%'), 'no Site Supervisor task workflow RPC exists');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('financial_transactions','ledger_entries')), 'excluded finance objects remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('payments')), 'excluded finance objects remain absent');
 
 SELECT * FROM finish();
 ROLLBACK;
