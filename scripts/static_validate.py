@@ -213,8 +213,8 @@ for path in migrations:
 
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
-    r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|has_function|hasnt_function|has_sequence_privilege|function_lang_is|volatility_is|isnt|is|is_empty|ok|lives_ok|'
+    r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|has_pk|columns_are|col_is_pk|fk_ok|'
+    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|has_function|hasnt_function|has_sequence_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -244,7 +244,6 @@ for required in (
     require(required in all_sql, f'required object present: {required}')
 
 for prohibited in (
-    'create table app.client_payments',
     'create table app.project_expenses',
 ):
     require(prohibited not in all_sql, f'prohibited Package 09.1 object absent: {prohibited}')
@@ -3022,11 +3021,9 @@ package_12_1_global_exclusion_markers = (
     'thumbnail',
     'create table app.document_scans',
     'create table app.document_thumbnails',
-    'create table app.client_payments',
     'create table app.payment_requests',
     'create table app.project_expenses',
     'create table app.currency_exchanges',
-    'references app.client_payments',
     'references app.payment_requests',
     'references app.project_expenses',
     'references app.currency_exchanges',
@@ -3878,6 +3875,248 @@ for forbidden in (
 ):
     require(forbidden not in financial_correction_all_sql,
             f'Package 13.4 scope excludes forbidden marker: {forbidden}')
+
+client_payment_schema_path = ROOT / 'supabase/migrations/20260724104600_1143_client_payments.sql'
+client_payment_functions_path = ROOT / 'supabase/migrations/20260724104700_1144_client_payment_functions.sql'
+client_payment_grants_path = ROOT / 'supabase/migrations/20260724104800_1145_client_payment_grants.sql'
+client_payment_test_paths = [
+    ROOT / 'supabase/tests/63_package_14_1_client_payments_schema.test.sql',
+    ROOT / 'supabase/tests/64_package_14_1_client_payments_security.test.sql',
+    ROOT / 'supabase/tests/65_package_14_1_client_payments_operations.test.sql',
+]
+for path in (client_payment_schema_path, client_payment_functions_path, client_payment_grants_path, *client_payment_test_paths):
+    require(path.exists(), f'Package 14.1 artifact exists: {path.relative_to(ROOT)}')
+
+if client_payment_schema_path.exists():
+    client_payment_schema_sql = client_payment_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.client_payments',
+        'id uuid primary key default gen_random_uuid()',
+        'financial_event_id uuid not null',
+        'project_id uuid not null',
+        'client_id uuid not null',
+        'amount numeric(20,6) not null',
+        'currency_code char(3) not null',
+        'received_account_id uuid',
+        'received_date date not null',
+        'payment_reference varchar(120)',
+        'payer_name varchar(200)',
+        'is_client_submitted boolean not null default false',
+        'submitted_by_client_user_id uuid',
+        'notes text',
+        'client_payments_event_uk unique',
+        'client_payments_amount_ck check',
+        'client_payments_client_submitter_ck check',
+        'create or replace function app.client_payments_trusted_mutation_guard',
+        'approved client payments are immutable',
+        'client_payment_posting',
+        'opening_balance_posting',
+        'financial_reversal_posting',
+        'financial_adjustment_posting',
+        'alter table app.client_payments enable row level security',
+        'alter table app.client_payments force row level security',
+        'revoke all on app.client_payments from public, anon, authenticated, service_role',
+    ):
+        require(required in client_payment_schema_sql,
+                f'1143 client payment schema contains required marker: {required}')
+    client_payment_columns = [
+        'id', 'financial_event_id', 'project_id', 'client_id', 'amount',
+        'currency_code', 'received_account_id', 'received_date',
+        'payment_reference', 'payer_name', 'is_client_submitted',
+        'submitted_by_client_user_id', 'notes',
+    ]
+    for column in client_payment_columns:
+        require(re.search(rf'(?m)^\s*{column}\s+', client_payment_schema_sql) is not None,
+                f'1143 app.client_payments approved column exists: {column}')
+    schema_body = re.search(r'create table app\.client_payments\s*\((.*?)\n\);', client_payment_schema_sql, re.S)
+    require(schema_body is not None, '1143 app.client_payments table body is inspectable')
+    if schema_body:
+        declared = re.findall(r'(?m)^\s*([a-z_]+)\s+(?:uuid|numeric|char|varchar|boolean|text|date)', schema_body.group(1))
+        require(declared == client_payment_columns,
+                '1143 app.client_payments has exactly the approved 13 columns')
+    for forbidden in (
+        'payment_number',
+        'payment_method',
+        'status app.',
+        'approval',
+        'approved_at',
+        'approved_by',
+        'created_at',
+        'updated_at',
+        'version_number',
+        'archived_at timestamptz',
+        'converted_amount',
+        'document_id',
+        'payment_request_id',
+    ):
+        require(forbidden not in client_payment_schema_sql,
+                f'1143 client payment schema omits forbidden marker: {forbidden}')
+
+if client_payment_functions_path.exists():
+    client_payment_functions_sql = client_payment_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.normalize_client_payment_reference',
+        'create or replace function app.client_payment_duplicate_fingerprint',
+        "'<null>'",
+        'create or replace function app.ensure_client_payment_control_ledger_account',
+        "'ctrl-client-payment-' || p_currency_code::text",
+        "'client payment control - ' || p_currency_code::text",
+        "'control'",
+        "'credit'",
+        'create or replace function app.owner_create_client_payment',
+        'create or replace function app.owner_update_client_payment',
+        'create or replace function app.owner_verify_client_submitted_payment',
+        'create or replace function app.owner_submit_client_payment',
+        'create or replace function app.owner_reject_client_payment',
+        'create or replace function app.owner_approve_client_payment',
+        'create or replace function app.current_client_submit_payment',
+        'create or replace function app.current_client_approved_payment_list',
+        'create or replace function app.current_client_approved_payment_detail',
+        'create or replace function app.owner_project_client_payment_totals',
+        'client payment requires different owner approval',
+        'app.financial_transaction_reporting_snapshot',
+        'client_payment_created',
+        'client_payment_client_submitted',
+        'client_payment_updated',
+        'client_payment_verified',
+        'client_payment_submitted',
+        'client_payment_rejected',
+        'client_payment_approved',
+        'client_payment_transaction_posted',
+        'insert into app.ledger_entries',
+        'snap.exchange_rate_id',
+        'snap.rate_base_currency_code',
+        'snap.rate_quote_currency_code',
+        'snap.rate_value',
+        'snap.rate_source',
+    ):
+        require(required in client_payment_functions_sql,
+                f'1144 client payment functions contain required marker: {required}')
+    client_list_return = re.search(
+        r'create or replace function public\.current_client_approved_payment_list\(.*?returns table \((.*?)\)\s+language',
+        client_payment_functions_sql,
+        re.S,
+    )
+    require(client_list_return is not None, '1144 Client approved payment list return shape is inspectable')
+    if client_list_return:
+        for forbidden in ('payer_name', 'received_account_id', 'notes', 'approved_by', 'exchange_rate', 'ledger'):
+            require(forbidden not in client_list_return.group(1),
+                    f'1144 Client approved payment list omits unsafe field: {forbidden}')
+    for forbidden in (
+        'create table app.idempotency',
+        'create table app.payment_requests',
+        'create table app.payment_matches',
+        'create table app.project_expenses',
+        'create table app.currency_exchanges',
+        'create table app.refunds',
+        'storage.objects',
+        'document_links',
+        'insert into app.notifications',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+        'public.current_account()',
+        'fetch(',
+        'http',
+    ):
+        require(forbidden not in client_payment_functions_sql,
+                f'1144 client payment functions omit forbidden marker: {forbidden}')
+
+if client_payment_grants_path.exists():
+    client_payment_grants_sql = client_payment_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.client_payments from public, anon, authenticated, service_role',
+        'revoke all on function app.ensure_client_payment_control_ledger_account',
+        'revoke all on function app.owner_create_client_payment',
+        'grant execute on function public.server_owner_create_client_payment',
+        'grant execute on function public.server_owner_update_client_payment',
+        'grant execute on function public.server_owner_verify_client_submitted_payment',
+        'grant execute on function public.server_owner_submit_client_payment',
+        'grant execute on function public.server_owner_reject_client_payment',
+        'grant execute on function public.server_owner_approve_client_payment',
+        'grant execute on function public.server_owner_client_payment_list',
+        'grant execute on function public.server_owner_client_payment_detail',
+        'grant execute on function public.server_owner_project_client_payment_totals',
+        'grant execute on function public.current_client_submit_payment',
+        'grant execute on function public.current_client_approved_payment_list',
+        'grant execute on function public.current_client_approved_payment_detail',
+        'to service_role',
+        'to authenticated',
+    ):
+        require(required in client_payment_grants_sql,
+                f'1145 client payment grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.client_payments',
+        'grant insert on app.client_payments',
+        'grant update on app.client_payments',
+        'grant delete on app.client_payments',
+        'grant execute on function public.server_owner_approve_client_payment',
+        'to anon',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        if forbidden == 'grant execute on function public.server_owner_approve_client_payment':
+            require(f'{forbidden}' in client_payment_grants_sql and 'to service_role' in client_payment_grants_sql,
+                    '1145 Owner approval grant is service-role only')
+        else:
+            require(forbidden not in client_payment_grants_sql,
+                    f'1145 client payment grants omit forbidden marker: {forbidden}')
+
+client_payment_all_sql = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (client_payment_schema_path, client_payment_functions_path, client_payment_grants_path)
+    if p.exists()
+)
+for forbidden in (
+    'create table app.payment_requests',
+    'create table app.payment_matches',
+    'create table app.project_expenses',
+    'create table app.transfers',
+    'create table app.account_transfers',
+    'create table app.currency_exchanges',
+    'create table app.refunds',
+    'create table app.account_balances',
+    'current_balance',
+    'payment_upload',
+    'transfer_evidence',
+    'flutter',
+    'edge function',
+    'accountant%access_allowed%true',
+    'public.current_account()',
+):
+    require(forbidden not in client_payment_all_sql,
+            f'Package 14.1 scope excludes forbidden marker: {forbidden}')
+
+if commands_path.exists():
+    commands_sql = commands_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'stage 14 package 14.1: client payment and ledger-posting foundation',
+        'app.client_payments',
+        'ctrl-client-payment-<currency_code>',
+        'current-client authenticated gateways',
+        'client-created payments use the current authenticated client identity',
+        'owner verification of a client-submitted payment may update only',
+        'client-safe approved-payment reads',
+        'payment requests',
+        'payment matching',
+        'flutter',
+        'edge functions',
+    ):
+        require(required in commands_sql,
+                f'docs/COMMANDS.md documents Package 14.1 marker: {required}')
+
+readme_sql = (ROOT / 'README.md').read_text(encoding='utf-8', errors='ignore').lower()
+for required in (
+    'stage 14 package 14.1',
+    'client payments',
+    'ctrl-client-payment-<currency_code>',
+    'payment requests',
+    'payment matching',
+    'flutter finance screens',
+    'edge functions',
+):
+    require(required in readme_sql, f'README documents Package 14.1 marker: {required}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
