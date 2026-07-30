@@ -4359,6 +4359,207 @@ for path in payment_request_test_paths:
             require(required in test_sql,
                     f'{path.name} covers Package 14.2 marker: {required}')
 
+payment_match_schema_path = ROOT / 'supabase/migrations/20260724105200_1149_payment_matches.sql'
+payment_match_functions_path = ROOT / 'supabase/migrations/20260724105300_1150_payment_match_functions.sql'
+payment_match_grants_path = ROOT / 'supabase/migrations/20260724105400_1151_payment_match_grants.sql'
+payment_match_test_paths = [
+    ROOT / 'supabase/tests/69_package_14_3_payment_matches_schema.test.sql',
+    ROOT / 'supabase/tests/70_package_14_3_payment_matches_security.test.sql',
+    ROOT / 'supabase/tests/71_package_14_3_payment_matches_operations.test.sql',
+]
+for path in (payment_match_schema_path, payment_match_functions_path, payment_match_grants_path, *payment_match_test_paths):
+    require(path.exists(), f'Package 14.3 artifact exists: {path.relative_to(ROOT)}')
+
+if payment_match_schema_path.exists():
+    payment_match_schema_sql = payment_match_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.payment_match_status as enum',
+        "'draft'",
+        "'approved'",
+        "'voided'",
+        'create table app.payment_matches',
+        'id uuid primary key default gen_random_uuid()',
+        'client_payment_id uuid not null',
+        'payment_request_id uuid not null',
+        'matched_amount numeric(20,6) not null',
+        'currency_code char(3) not null',
+        'matched_at timestamptz not null default now()',
+        "status app.payment_match_status not null default 'draft'",
+        'matched_by uuid not null',
+        'is_active boolean not null default true',
+        'payment_matches_pair_uk unique',
+        'payment_matches_amount_ck check',
+        'payment_matches_state_fields_ck check',
+        'payment_matches_request_approved_active_idx',
+        'payment_matches_payment_approved_active_idx',
+        "status in ('sent','viewed','partially_paid','overdue')",
+        'create or replace function app.payment_matches_trusted_mutation_guard',
+        'payment_match_owner_mutation',
+        'payment matches cannot be deleted',
+        'payment matches cannot be truncated',
+        'alter table app.payment_matches enable row level security',
+        'alter table app.payment_matches force row level security',
+        'revoke all on app.payment_matches from public, anon, authenticated, service_role',
+    ):
+        require(required in payment_match_schema_sql,
+                f'1149 payment match schema contains required marker: {required}')
+    payment_match_columns = [
+        'id', 'client_payment_id', 'payment_request_id', 'matched_amount',
+        'currency_code', 'matched_at', 'status', 'approved_at', 'approved_by',
+        'voided_at', 'voided_by', 'void_reason', 'matched_by', 'is_active',
+    ]
+    schema_body = re.search(r'create table app\.payment_matches\s*\((.*?)\n\);', payment_match_schema_sql, re.S)
+    require(schema_body is not None, '1149 app.payment_matches table body is inspectable')
+    if schema_body:
+        declared = []
+        for line in schema_body.group(1).splitlines():
+            match = re.match(r'\s*([a-z_]+)\s+(?:uuid|numeric|char|timestamptz|app\.payment_match_status|text|boolean)', line)
+            if match:
+                declared.append(match.group(1))
+        require(declared == payment_match_columns,
+                '1149 app.payment_matches has exactly the approved 14 columns')
+    for forbidden in (
+        'project_id uuid',
+        'client_id uuid',
+        'version_number',
+        'created_at',
+        'updated_at',
+        'financial_event_id',
+        'financial_transaction_id',
+        'ledger_entry_id',
+        'exchange_rate_id',
+        'document_id',
+        'notification_id',
+        "'submitted'",
+        "'rejected'",
+        "'cancelled'",
+        "'posted'",
+        "'reversed'",
+        "'archived'",
+        "'deleted'",
+    ):
+        require(forbidden not in payment_match_schema_sql,
+                f'1149 payment match schema omits forbidden marker: {forbidden}')
+
+if payment_match_functions_path.exists():
+    payment_match_functions_sql = payment_match_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.client_payment_economically_active',
+        'with recursive chain',
+        '(count(*) - 1) % 2',
+        'create or replace function app.lock_payment_economic_chain',
+        'create or replace function app.payment_request_amounts',
+        "pm.status = 'approved'",
+        'app.client_payment_economically_active(pm.client_payment_id)',
+        'create or replace function app.payment_request_calculated_status',
+        "return 'paid'",
+        "return 'overdue'",
+        "return 'partially_paid'",
+        'create or replace function app.sync_payment_request_status_from_matches',
+        'payment_match_status_sync',
+        'payment_request_balance_recalculated',
+        'payment_request_status_synchronized',
+        'create or replace function app.validate_payment_match_relationship',
+        'payment match requires same project, client and currency',
+        'client payment is not matchable',
+        'payment request is not matchable',
+        'create or replace function app.owner_create_payment_match',
+        'create or replace function app.owner_update_payment_match',
+        'only the match creator can update the draft',
+        'payment match compare-and-lock conflict',
+        'create or replace function app.owner_approve_payment_match',
+        'payment match requires different owner approval',
+        'payment match exceeds available amount',
+        'create or replace function app.owner_void_payment_match',
+        'void reason is required',
+        'create or replace function app.owner_payment_match_list',
+        'create or replace function app.owner_payment_match_detail',
+        'create or replace function app.owner_client_payment_availability',
+        'create or replace function app.owner_payment_request_balance',
+        'create or replace function public.server_owner_create_payment_match',
+        'create or replace function public.server_owner_update_payment_match',
+        'create or replace function public.server_owner_approve_payment_match',
+        'create or replace function public.server_owner_void_payment_match',
+        'create or replace function public.server_owner_payment_match_list',
+        'create or replace function public.server_owner_payment_match_detail',
+        'create or replace function public.server_owner_client_payment_availability',
+        'create or replace function public.server_owner_payment_request_balance',
+    ):
+        require(required in payment_match_functions_sql,
+                f'1150 payment match functions contain required marker: {required}')
+    for forbidden in (
+        'insert into app.financial_events',
+        'insert into app.financial_transactions',
+        'insert into app.ledger_entries',
+        'insert into app.exchange_rates',
+        'insert into app.notifications',
+        'create table app.account_balances',
+        'set_payment_match_status',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+        'public.current_account()',
+    ):
+        require(forbidden not in payment_match_functions_sql,
+                f'1150 payment match functions omit forbidden marker: {forbidden}')
+
+if payment_match_grants_path.exists():
+    payment_match_grants_sql = payment_match_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.payment_matches from public, anon, authenticated, service_role',
+        'revoke all on function app.client_payment_economically_active',
+        'revoke all on function app.payment_request_amounts',
+        'revoke all on function app.sync_payment_request_status_from_matches',
+        'revoke all on function app.validate_payment_match_relationship',
+        'grant execute on function public.server_owner_create_payment_match',
+        'grant execute on function public.server_owner_update_payment_match',
+        'grant execute on function public.server_owner_approve_payment_match',
+        'grant execute on function public.server_owner_void_payment_match',
+        'grant execute on function public.server_owner_payment_match_list',
+        'grant execute on function public.server_owner_payment_match_detail',
+        'grant execute on function public.server_owner_client_payment_availability',
+        'grant execute on function public.server_owner_payment_request_balance',
+        'to service_role',
+    ):
+        require(required in payment_match_grants_sql,
+                f'1151 payment match grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.payment_matches',
+        'grant insert on app.payment_matches',
+        'grant update on app.payment_matches',
+        'grant delete on app.payment_matches',
+        'to authenticated',
+        'to anon',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in payment_match_grants_sql,
+                f'1151 payment match grants omit forbidden marker: {forbidden}')
+
+if commands_path.exists():
+    commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()
+    for required in (
+        'stage 14 package 14.3: payment matching and request balances',
+        'app.payment_match_status',
+        'app.payment_matches',
+        'public.server_owner_create_payment_match',
+        'payment matching is allocation/reporting only',
+        'client payment posting is the ledger/account effect',
+    ):
+        require(required in commands_sql,
+                f'docs/COMMANDS.md documents Package 14.3 marker: {required}')
+
+readme_sql = (ROOT / 'README.md').read_text(encoding='utf-8', errors='ignore').lower()
+for required in (
+    'stage 14 package 14.3',
+    'payment matching foundation',
+    'app.payment_matches',
+    'allocation/reporting only',
+    'creates no financial events',
+):
+    require(required in readme_sql, f'README documents Package 14.3 marker: {required}')
+
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
         text = path.read_text(encoding='utf-8', errors='ignore')
