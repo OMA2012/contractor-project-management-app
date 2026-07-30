@@ -214,7 +214,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|has_pk|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|has_function|hasnt_function|has_sequence|has_sequence_privilege|has_table_privilege|has_function_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|col_is_unique|has_function|hasnt_function|has_sequence|has_sequence_privilege|has_table_privilege|has_function_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -4713,6 +4713,178 @@ if project_expense_grants_path.exists():
     ):
         require(forbidden not in project_expense_grants_sql,
                 f'1154 project expense grants omit forbidden marker: {forbidden}')
+
+account_transfer_schema_path = ROOT / 'supabase/migrations/20260724105800_1155_account_transfers.sql'
+account_transfer_functions_path = ROOT / 'supabase/migrations/20260724105900_1156_account_transfer_functions.sql'
+account_transfer_grants_path = ROOT / 'supabase/migrations/20260724110000_1157_account_transfer_grants.sql'
+account_transfer_test_paths = [
+    ROOT / 'supabase/tests/75_package_16_1_account_transfers_schema.test.sql',
+    ROOT / 'supabase/tests/76_package_16_1_account_transfers_security.test.sql',
+    ROOT / 'supabase/tests/77_package_16_1_account_transfers_operations.test.sql',
+]
+for path in (account_transfer_schema_path, account_transfer_functions_path, account_transfer_grants_path, *account_transfer_test_paths):
+    require(path.exists(), f'Package 16.1 artifact exists: {path.relative_to(ROOT)}')
+
+if account_transfer_schema_path.exists():
+    account_transfer_schema_sql = account_transfer_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.account_transfers',
+        'financial_event_id uuid not null',
+        'source_account_id uuid not null',
+        'destination_account_id uuid not null',
+        'amount numeric(20,6) not null',
+        'currency_code char(3) not null',
+        'transfer_date date not null',
+        'reference varchar(120)',
+        'notes text',
+        'account_transfers_event_uk unique',
+        'account_transfers_distinct_accounts_ck check',
+        'account_transfers_amount_ck check',
+        'account_transfers_trusted_mutation_guard',
+        "'account_transfer'",
+        'event_row.project_id is not null',
+        'event_row.client_id is not null',
+        'approved account transfers are immutable',
+        'alter table app.account_transfers force row level security',
+        'revoke all on app.account_transfers from public, anon, authenticated, service_role',
+    ):
+        require(required in account_transfer_schema_sql,
+                f'1155 account transfer schema contains required marker: {required}')
+    account_transfer_columns = [
+        'id', 'financial_event_id', 'source_account_id', 'destination_account_id',
+        'amount', 'currency_code', 'transfer_date', 'reference', 'notes',
+    ]
+    transfer_body = re.search(r'create table app\.account_transfers\s*\((.*?)\n\);', account_transfer_schema_sql, re.S)
+    require(transfer_body is not None, '1155 app.account_transfers table body is inspectable')
+    if transfer_body:
+        declared = []
+        for line in transfer_body.group(1).splitlines():
+            match = re.match(r'\s*([a-z_]+)\s+(?:uuid|varchar|numeric|char|date|text)', line)
+            if match:
+                declared.append(match.group(1))
+        require(declared == account_transfer_columns,
+                '1155 app.account_transfers has exactly the approved nine columns')
+    for forbidden in (
+        'transfer_number',
+        'status app.',
+        'approved_by',
+        'created_at',
+        'updated_at',
+        'version_number',
+        'project_id uuid',
+        'client_id uuid',
+        'source_amount',
+        'destination_amount',
+        'fee_amount',
+        'document_id',
+        'archived_at timestamptz',
+        'deleted_at',
+    ):
+        require(forbidden not in account_transfer_schema_sql,
+                f'1155 account transfer schema omits forbidden marker: {forbidden}')
+
+if account_transfer_functions_path.exists():
+    account_transfer_functions_sql = account_transfer_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.normalize_account_transfer_reference',
+        "upper(nullif(btrim(p_value), ''))",
+        'create or replace function app.account_transfer_duplicate_fingerprint',
+        'account_transfer|source=',
+        'event_number=',
+        'create or replace function app.owner_create_account_transfer',
+        'create or replace function app.owner_update_account_transfer',
+        'create or replace function app.owner_submit_account_transfer',
+        'create or replace function app.owner_reject_account_transfer',
+        'create or replace function app.owner_approve_account_transfer',
+        'create or replace function app.owner_account_transfer_list',
+        'create or replace function app.owner_account_transfer_detail',
+        'default_reporting_currency_code',
+        'valid contractor reporting currency is required',
+        'account transfer requires different owner approval',
+        'account_transfer_posting',
+        'account transfer destination debit',
+        'account transfer source credit',
+        'financial_transaction_reporting_snapshot',
+        'project_id,client_id,currency_code',
+        'null,null,transfer_row.currency_code',
+        'account_transfer_created',
+        'account_transfer_updated',
+        'account_transfer_submitted',
+        'account_transfer_rejected',
+        'account_transfer_approved',
+        'account_transfer_transaction_posted',
+        'create or replace function public.server_owner_create_account_transfer',
+        'create or replace function public.server_owner_update_account_transfer',
+        'create or replace function public.server_owner_submit_account_transfer',
+        'create or replace function public.server_owner_reject_account_transfer',
+        'create or replace function public.server_owner_approve_account_transfer',
+        'create or replace function public.server_owner_account_transfer_list',
+        'create or replace function public.server_owner_account_transfer_detail',
+    ):
+        require(required in account_transfer_functions_sql,
+                f'1156 account transfer functions contain required marker: {required}')
+    for preserved in (
+        'opening_balance_posting',
+        'financial_reversal_posting',
+        'financial_adjustment_posting',
+        'client_payment_posting',
+        'project_expense_posting',
+    ):
+        require(preserved in account_transfer_functions_sql,
+                f'1156 account transfer ledger guard preserves context: {preserved}')
+    for forbidden in (
+        'ensure_account_transfer_control',
+        'ctrl-account-transfer',
+        'ctrl-transfer',
+        'transfer_number',
+        'sufficient balance',
+        'insufficient balance',
+        'current_client_account_transfer',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+        'insert into app.notifications',
+        'storage.objects',
+        'edge function',
+        'public.current_account()',
+        'create table app.currency_exchanges',
+        'create table app.refunds',
+        'partial_reversal',
+    ):
+        require(forbidden not in account_transfer_functions_sql,
+                f'1156 account transfer functions omit forbidden marker: {forbidden}')
+
+if account_transfer_grants_path.exists():
+    account_transfer_grants_sql = account_transfer_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.account_transfers from public, anon, authenticated, service_role',
+        'revoke all on function app.owner_create_account_transfer',
+        'revoke all on function app.account_transfer_duplicate_fingerprint',
+        'grant execute on function public.server_owner_create_account_transfer',
+        'grant execute on function public.server_owner_update_account_transfer',
+        'grant execute on function public.server_owner_submit_account_transfer',
+        'grant execute on function public.server_owner_reject_account_transfer',
+        'grant execute on function public.server_owner_approve_account_transfer',
+        'grant execute on function public.server_owner_account_transfer_list',
+        'grant execute on function public.server_owner_account_transfer_detail',
+        'to service_role',
+    ):
+        require(required in account_transfer_grants_sql,
+                f'1157 account transfer grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.account_transfers',
+        'grant insert on app.account_transfers',
+        'grant update on app.account_transfers',
+        'grant delete on app.account_transfers',
+        'to authenticated',
+        'to anon',
+        'current_client',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in account_transfer_grants_sql,
+                f'1157 account transfer grants omit forbidden marker: {forbidden}')
 
 if commands_path.exists():
     commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()

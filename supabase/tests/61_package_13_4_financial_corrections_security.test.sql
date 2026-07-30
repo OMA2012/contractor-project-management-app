@@ -48,7 +48,7 @@ SELECT throws_ok($$ INSERT INTO app.financial_adjustments(financial_event_id,fin
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%client%reversal%' $$, 'Client reversal functions absent');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%accountant%adjustment%' $$, 'Accountant adjustment functions absent');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_reversal%' AND (SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_adjustment%', 'current_account unchanged for corrections');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','account_transfers','currency_exchanges','refunds','account_balances')), 'excluded finance workflow tables remain absent except approved payment, request, matching and expense packages');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','account_balances')), 'excluded finance workflow tables remain absent except approved payment, request, matching, expense and account transfer packages');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -35,7 +35,7 @@ SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE ro
 SELECT ok((SELECT pg_get_function_result('public.current_client_payment_request_list(integer,integer)'::regprocedure)) NOT ILIKE '%matched_by%' AND (SELECT pg_get_function_result('public.current_client_view_payment_request_detail(uuid,text,text)'::regprocedure)) NOT ILIKE '%void_reason%', 'Client request responses omit raw match internals');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%payment_match%', 'current_account is not modified');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema='public' AND routine_name ILIKE '%set%payment_match%status%' $$, 'no generic match status setter');
-SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('refunds','account_transfers','currency_exchanges','payment_uploads','payment_evidence') $$, 'excluded finance workflow tables remain absent except approved project expenses');
+SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('refunds','currency_exchanges','payment_uploads','payment_evidence') $$, 'excluded finance workflow tables remain absent except approved project expenses and account transfers');
 
 SELECT * FROM finish();
 ROLLBACK;

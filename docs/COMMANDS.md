@@ -1503,3 +1503,13 @@ Activity logs include safe identifiers and transitions only: request ID, request
 - Owner wrappers: `public.server_owner_create_project_expense`, `public.server_owner_update_project_expense`, `public.server_owner_submit_project_expense`, `public.server_owner_reject_project_expense`, `public.server_owner_approve_project_expense`, `public.server_owner_project_expense_list`, `public.server_owner_project_expense_detail`, `public.server_owner_project_expense_totals`.
 - Posting: different-Owner approval posts two lines only, debit `CTRL-PROJECT-EXPENSE-<currency_code>` and credit the paying financial asset ledger.
 - Exclusions: no Client or reserved-role access, uploads, notifications, document-link activation, allocations, transfers, refunds, payroll, budgets, tax processing, editable balances or partial reversals.
+
+## Stage 16 Package 16.1: Same-Currency Account Transfers
+
+- Schema: `app.account_transfers` has exactly `id`, `financial_event_id`, `source_account_id`, `destination_account_id`, `amount`, `currency_code`, `transfer_date`, `reference`, and `notes`.
+- Owner wrappers: `public.server_owner_create_account_transfer`, `public.server_owner_update_account_transfer`, `public.server_owner_submit_account_transfer`, `public.server_owner_reject_account_transfer`, `public.server_owner_approve_account_transfer`, `public.server_owner_account_transfer_list`, and `public.server_owner_account_transfer_detail`.
+- Scope: contractor-level only. Parent financial events and ledger entries keep Project and Client IDs `NULL`.
+- Posting: different-Owner approval posts exactly two lines, debit destination financial asset and credit source financial asset. No transfer, FX, fee, control or clearing account is created.
+- Balance effect: source decreases, destination increases, unrelated accounts remain unchanged, combined currency total remains unchanged, reporting-currency net effect is zero, and Project effect is none.
+- Balance policy: Package 16.1 permits negative source balances; account balances remain factual values derived from posted ledger entries.
+- Exclusions: no Client or reserved-role transfer access, currency exchange workflow, refunds, transfer evidence, document-link activation, notifications, scheduled/recurring transfers, external-bank integration, Flutter, Edge Functions, editable balances, transfer charges or partial reversals.
