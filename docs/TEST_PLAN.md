@@ -105,6 +105,14 @@ python3 scripts/static_validate.py
 
 `71_package_14_3_payment_matches_operations.test.sql` verifies Owner draft creation, creator-only compare-and-lock draft update, different-Owner approval, idempotent approval, controlled draft/approved voiding, pair uniqueness after void, capacity checks, Project/Client/currency eligibility, derived payment availability and request paid/remaining values, request status synchronization, partial-overdue precedence, Client-safe aggregate balances, reversal-chain parity, no ledger/financial side effects, immutable history and safe activity logs.
 
+### pgTAP Stage 16 Package 16.1 Account Transfer suites
+
+`75_package_16_1_account_transfers_schema.test.sql` verifies the exact nine-column `app.account_transfers` schema, required FKs, positive amount and distinct-account checks, subtype integrity, contractor-level null Project/Client design, same-currency/date validation, approved immutability, no transfer-number/status/approval/timestamp/version/Project/Client/exchange/fee/document/archive/delete/editable-balance columns, forced RLS and the narrow `account_transfer_posting` ledger context while preserving existing posting contexts.
+
+`76_package_16_1_account_transfers_security.test.sql` verifies service-role-only Owner/Admin transfer wrappers, direct-DML revocation from all runtime roles including `service_role`, private helper revocation, no broad RLS policy, no Client transfer gateway, no Project Manager/Accountant/Site Supervisor gateway, safe list return shape and no `public.current_account()` modification.
+
+`77_package_16_1_account_transfers_operations.test.sql` verifies Owner/Admin draft create/update/submit/reject/list/detail/different-Owner approve workflows, stale-version rejection, self-approval denial, duplicate protection, null-reference false-positive avoidance, saved contractor reporting-currency snapshot, transaction-date rate snapshot when needed, exactly two ledger lines, debit destination financial asset, credit source financial asset, no transfer control account, source decrease, destination increase, unrelated account unchanged, combined currency total preservation, reporting net zero, no Project-balance effect, idempotent approval retry, posted immutability, existing full-reversal compatibility, negative source balance allowance and safe activity logs.
+
 Run all database tests:
 
 ```bash
@@ -139,7 +147,7 @@ Package 12.1 adds tests 48-50:
 - `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
-Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, the 1155-1157 Package 16.1 markers, tests 75-77, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
 ## Stage 15 Package 15.1
 
 Run after applying migrations:

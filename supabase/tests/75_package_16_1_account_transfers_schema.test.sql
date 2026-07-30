@@ -1,0 +1,33 @@
+BEGIN;
+SELECT plan(27);
+
+SELECT has_table('app','account_transfers','account transfers table exists');
+SELECT columns_are('app','account_transfers',ARRAY['id','financial_event_id','source_account_id','destination_account_id','amount','currency_code','transfer_date','reference','notes'],'account transfers has exact nine columns');
+SELECT col_type_is('app','account_transfers','id','uuid','id is uuid');
+SELECT col_type_is('app','account_transfers','financial_event_id','uuid','financial event id is uuid');
+SELECT col_type_is('app','account_transfers','source_account_id','uuid','source account id is uuid');
+SELECT col_type_is('app','account_transfers','destination_account_id','uuid','destination account id is uuid');
+SELECT col_type_is('app','account_transfers','amount','numeric(20,6)','amount scale is fixed exact decimal');
+SELECT col_type_is('app','account_transfers','currency_code','character(3)','currency code is char(3)');
+SELECT col_type_is('app','account_transfers','transfer_date','date','transfer date is date');
+SELECT col_type_is('app','account_transfers','reference','character varying(120)','reference length exact');
+SELECT col_type_is('app','account_transfers','notes','text','notes is text');
+SELECT col_is_pk('app','account_transfers','id','id is primary key');
+SELECT col_has_default('app','account_transfers','id','id defaults gen_random_uuid');
+SELECT col_is_unique('app','account_transfers','financial_event_id','one transfer per financial event');
+SELECT fk_ok('app','account_transfers','financial_event_id','app','financial_events','id','financial event fk exact');
+SELECT fk_ok('app','account_transfers','source_account_id','app','financial_accounts','id','source account fk exact');
+SELECT fk_ok('app','account_transfers','destination_account_id','app','financial_accounts','id','destination account fk exact');
+SELECT fk_ok('app','account_transfers','currency_code','app','currencies','code','currency fk exact');
+SELECT ok((SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='account_transfers_distinct_accounts_ck') ILIKE '%source_account_id <> destination_account_id%','source and destination must differ');
+SELECT ok((SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='account_transfers_amount_ck') ILIKE '%amount >%' AND (SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='account_transfers_amount_ck') ILIKE '%0%','amount must be positive');
+SELECT ok((SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%ACCOUNT_TRANSFER%' AND (SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%project_id IS NOT NULL%' AND (SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%client_id IS NOT NULL%','subtype guard enforces account transfer and null Project/Client scope');
+SELECT ok((SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%NEW.currency_code IS DISTINCT FROM source_row.currency_code%' AND (SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%destination_row.currency_code%','subtype guard validates same source/destination currency');
+SELECT ok((SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%NEW.transfer_date IS DISTINCT FROM event_row.event_date%' AND (SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%transaction_row.transaction_date%','subtype guard validates transfer event transaction dates');
+SELECT ok((SELECT pg_get_functiondef('app.account_transfers_trusted_mutation_guard()'::regprocedure)) ILIKE '%Approved account transfers are immutable%','approved transfers immutable');
+SELECT ok((SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='app.account_transfers'::regclass),'account transfers force RLS');
+SELECT ok((SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) ILIKE '%account_transfer_posting%' AND (SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) ILIKE '%project_expense_posting%' AND (SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) ILIKE '%client_payment_posting%','ledger guard adds account transfer context and preserves existing contexts');
+SELECT is_empty($$ SELECT column_name FROM information_schema.columns WHERE table_schema='app' AND table_name='account_transfers' AND column_name IN ('transfer_number','status','approved_by','created_at','updated_at','version_number','project_id','client_id','source_amount','destination_amount','fee_amount','document_id','archived_at','deleted_at') $$,'forbidden transfer columns absent');
+
+SELECT * FROM finish();
+ROLLBACK;

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(71);
+SELECT plan(70);
 
 SELECT has_type('app', 'financial_event_type', 'financial event type enum exists');
 SELECT results_eq($$ SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='app' AND t.typname='financial_event_type' ORDER BY enumsortorder $$, $$ VALUES ('OPENING_BALANCE'::name),('CLIENT_PAYMENT'::name),('PROJECT_EXPENSE'::name),('ACCOUNT_TRANSFER'::name),('CURRENCY_EXCHANGE'::name),('REFUND'::name),('REVERSAL'::name),('ADJUSTMENT'::name) $$, 'financial event type values are exact');
@@ -77,7 +77,6 @@ SELECT hasnt_column('app','ledger_accounts','opening_balance','ledger account op
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_transaction%', 'current_account unchanged');
 SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'server_owner_create_client_payment'), 'Package 14.1 client payment workflow present');
 SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name='server_owner_create_project_expense'), 'project expense workflow added by Package 15.1');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%account_transfer%'), 'transfer workflow absent');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%currency_exchange%'), 'currency exchange workflow absent');
 
 SELECT * FROM finish();

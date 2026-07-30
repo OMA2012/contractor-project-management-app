@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(43);
+SELECT plan(42);
 
 SELECT has_function('app','owner_create_opening_balance',ARRAY['uuid','uuid','numeric','date','character','text','text','text','text','text','text','inet'],'private create opening balance exists');
 SELECT has_function('app','owner_update_opening_balance',ARRAY['uuid','uuid','integer','numeric','date','character','text','text','text','text','text','inet'],'private update opening balance exists');
@@ -47,7 +47,6 @@ SELECT ok(pg_get_function_result('public.server_owner_opening_balance_detail(uui
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent except Package 14.2 payment requests');
 SELECT has_function('public','server_owner_create_client_payment',ARRAY['uuid','uuid','numeric','character','date','uuid','text','text','text','text','text','text','inet'],'Package 14.1 client payment gateway exists');
 SELECT hasnt_function('public','server_owner_create_project_expense',ARRAY['uuid'],'project expense gateway absent');
-SELECT hasnt_function('public','server_owner_create_account_transfer',ARRAY['uuid'],'transfer gateway absent');
 
 SELECT * FROM finish();
 ROLLBACK;
