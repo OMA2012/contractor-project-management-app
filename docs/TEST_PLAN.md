@@ -140,3 +140,18 @@ Package 12.1 adds tests 48-50:
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
 Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+## Stage 15 Package 15.1
+
+Run after applying migrations:
+
+```bash
+supabase db reset --local
+supabase test db
+python scripts/static_validate.py
+cd supabase/functions && deno task test
+cd ../../app && dart format --set-exit-if-changed . && flutter analyze && flutter test
+git diff --check
+git status --short
+```
+
+Package 15.1 coverage is in pgTAP suites 72-74: schema/seeds/RLS, grants and forbidden access, Owner category workflow, draft/update/submit/reject/list/detail, different-Owner approval, two-line Project Expense ledger posting, duplicate protection and safe activity logs.

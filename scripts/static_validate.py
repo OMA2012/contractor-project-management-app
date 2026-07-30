@@ -214,7 +214,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|has_pk|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|has_function|hasnt_function|has_sequence|has_sequence_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|has_function|hasnt_function|has_sequence|has_sequence_privilege|has_table_privilege|has_function_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -246,14 +246,17 @@ for required in (
 for prohibited in (
     'create table app.project_expenses',
 ):
-    require(prohibited not in all_sql, f'prohibited Package 09.1 object absent: {prohibited}')
+    require(
+        prohibited in all_sql and '20260724105500_1152_expense_categories_and_project_expenses.sql' in migration_names,
+        f'Package 09.1-era prohibited object is now introduced only by approved Package 15.1: {prohibited}',
+    )
 
 roles_sql = (ROOT / 'supabase/migrations/20260721220500_0905_predefined_roles.sql').read_text(encoding='utf-8')
 for code in ('owner_admin', 'project_manager', 'accountant', 'site_supervisor', 'client'):
     require(code in roles_sql, f'approved role seeded: {code}')
 
 require('purchasing' not in all_sql, 'Purchasing Staff role absent')
-require('worker' not in all_sql, 'Worker account/role absent')
+require(not re.search(r"role_code\s*=\s*'worker'|'worker'\s*,\s*'worker|user_type\s*=\s*'worker'", all_sql), 'Worker account/role absent')
 require('supplier' not in all_sql, 'Supplier account/role absent')
 require('organization' not in all_sql and 'organisation' not in all_sql, 'multi-organisation schema absent')
 require('app.last_active_owner' in all_sql, 'concurrency-safe last-owner guard present')
@@ -3045,8 +3048,16 @@ for path in package_12_1_scope_files:
     if path.exists() and path.is_file():
         text = path.read_text(encoding='utf-8', errors='ignore').lower()
         for forbidden in package_12_1_global_exclusion_markers:
-            require(forbidden not in text,
-                    f'Package 12.1 global exclusion marker absent from {path.relative_to(ROOT)}: {forbidden}')
+            allowed_stage_15_expense_marker = (
+                forbidden in ('create table app.project_expenses', 'references app.project_expenses')
+                and path.name in {
+                    '20260724105500_1152_expense_categories_and_project_expenses.sql',
+                    '20260724105600_1153_project_expense_functions.sql',
+                    '20260724105700_1154_project_expense_grants.sql',
+                }
+            )
+            require(allowed_stage_15_expense_marker or forbidden not in text,
+                    f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
 financial_account_functions_path = ROOT / 'supabase/migrations/20260724103500_1132_financial_account_functions.sql'
@@ -4536,6 +4547,172 @@ if payment_match_grants_path.exists():
     ):
         require(forbidden not in payment_match_grants_sql,
                 f'1151 payment match grants omit forbidden marker: {forbidden}')
+
+project_expense_schema_path = ROOT / 'supabase/migrations/20260724105500_1152_expense_categories_and_project_expenses.sql'
+project_expense_functions_path = ROOT / 'supabase/migrations/20260724105600_1153_project_expense_functions.sql'
+project_expense_grants_path = ROOT / 'supabase/migrations/20260724105700_1154_project_expense_grants.sql'
+project_expense_test_paths = [
+    ROOT / 'supabase/tests/72_package_15_1_project_expenses_schema.test.sql',
+    ROOT / 'supabase/tests/73_package_15_1_project_expenses_security.test.sql',
+    ROOT / 'supabase/tests/74_package_15_1_project_expenses_operations.test.sql',
+]
+for path in (project_expense_schema_path, project_expense_functions_path, project_expense_grants_path, *project_expense_test_paths):
+    require(path.exists(), f'Package 15.1 artifact exists: {path.relative_to(ROOT)}')
+
+if project_expense_schema_path.exists():
+    project_expense_schema_sql = project_expense_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create sequence app.project_expense_number_seq',
+        'create table app.expense_categories',
+        'create table app.project_expenses',
+        'expense_number varchar(60) not null default',
+        "'exp-'",
+        'project_id uuid not null',
+        'expense_category_id uuid not null',
+        'paid_from_account_id uuid not null',
+        'vendor_reference varchar(120)',
+        'on conflict (code) do nothing',
+        'property_land_purchase',
+        'construction_materials',
+        'worker_wages',
+        'subcontractor_payments',
+        'equipment_rental',
+        'transportation',
+        'permits',
+        'utilities',
+        'professional_fees',
+        'maintenance',
+        'office_expenses',
+        'other',
+        'expense_categories_trusted_mutation_guard',
+        'project_expenses_trusted_mutation_guard',
+        "new.code is distinct from old.code",
+        "upper(nullif(btrim(new.vendor_reference), ''))",
+        'approved project expenses are immutable',
+        'alter table app.expense_categories force row level security',
+        'alter table app.project_expenses force row level security',
+        'revoke all on app.project_expenses from public, anon, authenticated, service_role',
+    ):
+        require(required in project_expense_schema_sql,
+                f'1152 project expense schema contains required marker: {required}')
+    project_expense_columns = [
+        'id', 'financial_event_id', 'project_id', 'expense_number',
+        'expense_category_id', 'amount', 'currency_code', 'paid_from_account_id',
+        'expense_date', 'vendor_name', 'vendor_reference', 'description',
+        'private_notes',
+    ]
+    schema_body = re.search(r'create table app\.project_expenses\s*\((.*?)\n\);', project_expense_schema_sql, re.S)
+    require(schema_body is not None, '1152 app.project_expenses table body is inspectable')
+    if schema_body:
+        declared = []
+        for line in schema_body.group(1).splitlines():
+            match = re.match(r'\s*([a-z_]+)\s+(?:uuid|varchar|numeric|char|date|text)', line)
+            if match:
+                declared.append(match.group(1))
+        require(declared == project_expense_columns,
+                '1152 app.project_expenses has exactly the approved 13 columns')
+    for forbidden in (
+        'client_id uuid not null',
+        'payment_request_id',
+        'phase_id',
+        'milestone_id',
+        'task_id',
+        'document_id',
+        'upload',
+        'attachment',
+        'tax',
+        'budget',
+        'payroll',
+        'partial_reversal',
+        'account_balance',
+        'project_expense_allocations',
+        'project_expense_uploads',
+    ):
+        require(forbidden not in project_expense_schema_sql,
+                f'1152 project expense schema omits forbidden marker: {forbidden}')
+
+if project_expense_functions_path.exists():
+    project_expense_functions_sql = project_expense_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.normalize_project_expense_vendor_reference',
+        'create or replace function app.project_expense_duplicate_fingerprint',
+        'expense_number=',
+        'create or replace function app.ensure_project_expense_control_ledger_account',
+        'ctrl-project-expense-',
+        "'debit'",
+        'create or replace function app.owner_create_expense_category',
+        'create or replace function app.owner_update_expense_category',
+        'create or replace function app.owner_create_project_expense',
+        'create or replace function app.owner_update_project_expense',
+        'create or replace function app.owner_submit_project_expense',
+        'create or replace function app.owner_reject_project_expense',
+        'create or replace function app.owner_approve_project_expense',
+        'project expense requires different owner approval',
+        'project_expense_posting',
+        'transaction-date exchange rate is required',
+        'project_expense_created',
+        'project_expense_updated',
+        'project_expense_submitted',
+        'project_expense_rejected',
+        'project_expense_approved',
+        'create or replace function public.server_owner_create_project_expense',
+        'create or replace function public.server_owner_update_project_expense',
+        'create or replace function public.server_owner_submit_project_expense',
+        'create or replace function public.server_owner_reject_project_expense',
+        'create or replace function public.server_owner_approve_project_expense',
+        'create or replace function public.server_owner_project_expense_totals',
+    ):
+        require(required in project_expense_functions_sql,
+                f'1153 project expense functions contain required marker: {required}')
+    for forbidden in (
+        'current_client_project_expense',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+        'insert into app.notifications',
+        'storage.objects',
+        'edge function',
+        'public.current_account()',
+        'create table app.account_balances',
+        'create table app.account_transfers',
+        'create table app.currency_exchanges',
+        'create table app.refunds',
+    ):
+        require(forbidden not in project_expense_functions_sql,
+                f'1153 project expense functions omit forbidden marker: {forbidden}')
+
+if project_expense_grants_path.exists():
+    project_expense_grants_sql = project_expense_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.expense_categories from public, anon, authenticated, service_role',
+        'revoke all on app.project_expenses from public, anon, authenticated, service_role',
+        'revoke all on sequence app.project_expense_number_seq from public, anon, authenticated, service_role',
+        'grant execute on function public.server_owner_create_project_expense',
+        'grant execute on function public.server_owner_update_project_expense',
+        'grant execute on function public.server_owner_submit_project_expense',
+        'grant execute on function public.server_owner_reject_project_expense',
+        'grant execute on function public.server_owner_approve_project_expense',
+        'grant execute on function public.server_owner_project_expense_list',
+        'grant execute on function public.server_owner_project_expense_detail',
+        'grant execute on function public.server_owner_project_expense_totals',
+        'to service_role',
+    ):
+        require(required in project_expense_grants_sql,
+                f'1154 project expense grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.project_expenses',
+        'grant insert on app.project_expenses',
+        'grant update on app.project_expenses',
+        'grant delete on app.project_expenses',
+        'to authenticated',
+        'to anon',
+        'current_client',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in project_expense_grants_sql,
+                f'1154 project expense grants omit forbidden marker: {forbidden}')
 
 if commands_path.exists():
     commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()

@@ -1,0 +1,30 @@
+BEGIN;
+SELECT plan(24);
+
+SELECT has_table('app','expense_categories','expense categories table exists');
+SELECT has_table('app','project_expenses','project expenses table exists');
+SELECT has_sequence('app','project_expense_number_seq','project expense sequence exists');
+SELECT columns_are('app','expense_categories',ARRAY['id','code','name','description','is_active','created_at','created_by','updated_at','updated_by','version_number'],'expense categories has exact columns');
+SELECT columns_are('app','project_expenses',ARRAY['id','financial_event_id','project_id','expense_number','expense_category_id','amount','currency_code','paid_from_account_id','expense_date','vendor_name','vendor_reference','description','private_notes'],'project expenses has exact columns');
+SELECT ok((SELECT pg_get_expr(adbin, adrelid) FROM pg_attrdef WHERE adrelid='app.project_expenses'::regclass AND adnum=(SELECT attnum FROM pg_attribute WHERE attrelid='app.project_expenses'::regclass AND attname='expense_number')) ILIKE '%project_expense_number_seq%' AND (SELECT pg_get_expr(adbin, adrelid) FROM pg_attrdef WHERE adrelid='app.project_expenses'::regclass AND adnum=(SELECT attnum FROM pg_attribute WHERE attrelid='app.project_expenses'::regclass AND attname='expense_number')) ILIKE '%EXP-%','expense number default is EXP global sequence');
+SELECT col_type_is('app','project_expenses','amount','numeric(20,6)','expense amount scale is fixed');
+SELECT col_not_null('app','project_expenses','project_id','one expense requires one Project');
+SELECT col_not_null('app','project_expenses','expense_category_id','expense requires category');
+SELECT col_not_null('app','project_expenses','paid_from_account_id','expense requires paying asset');
+SELECT has_index('app','project_expenses','project_expenses_vendor_reference_idx','vendor reference duplicate lookup index exists');
+SELECT is((SELECT count(*)::integer FROM app.expense_categories),12,'exactly 12 category seeds exist');
+SELECT ok((SELECT bool_and(created_by IS NULL AND updated_by IS NULL) FROM app.expense_categories),'seed categories may have null actors');
+SELECT is((SELECT count(*)::integer FROM app.expense_categories WHERE code IN ('PROPERTY_LAND_PURCHASE','CONSTRUCTION_MATERIALS','WORKER_WAGES','SUBCONTRACTOR_PAYMENTS','EQUIPMENT_RENTAL','TRANSPORTATION','PERMITS','UTILITIES','PROFESSIONAL_FEES','MAINTENANCE','OFFICE_EXPENSES','OTHER')),12,'approved category codes seeded');
+SELECT ok((SELECT pg_get_functiondef('app.expense_categories_trusted_mutation_guard()'::regprocedure)) ILIKE '%NEW.code IS DISTINCT FROM OLD.code%','category code is immutable');
+SELECT ok((SELECT pg_get_functiondef('app.expense_categories_trusted_mutation_guard()'::regprocedure)) ILIKE '%expense_category_owner_mutation%','runtime category operations require owner context');
+SELECT ok((SELECT pg_get_functiondef('app.project_expenses_trusted_mutation_guard()'::regprocedure)) ILIKE '%upper(NULLIF(btrim(NEW.vendor_reference)%','vendor reference is trimmed blank-to-null and uppercased');
+SELECT ok((SELECT pg_get_functiondef('app.project_expense_duplicate_fingerprint(uuid,char,date,numeric,text,text)'::regprocedure)) ILIKE '%expense_number=%','null-reference fingerprint includes immutable expense number');
+SELECT ok((SELECT pg_get_functiondef('app.ensure_project_expense_control_ledger_account(char)'::regprocedure)) ILIKE '%CTRL-PROJECT-EXPENSE-%','project expense control account code is deterministic');
+SELECT ok((SELECT pg_get_functiondef('app.ensure_project_expense_control_ledger_account(char)'::regprocedure)) ILIKE '%''DEBIT''%','project expense control normal side is debit');
+SELECT ok((SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) ILIKE '%project_expense_posting%','ledger guard admits project expense posting context only');
+SELECT ok((SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='app.expense_categories'::regclass),'expense categories force RLS');
+SELECT ok((SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='app.project_expenses'::regclass),'project expenses force RLS');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('project_expense_allocations','expense_uploads','expense_evidence')),'excluded expense side tables absent');
+
+SELECT * FROM finish();
+ROLLBACK;
