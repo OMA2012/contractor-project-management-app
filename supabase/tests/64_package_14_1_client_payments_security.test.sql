@@ -38,7 +38,7 @@ SELECT ok((SELECT pg_get_function_result('public.current_client_approved_payment
 
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%client_payment%', 'current_account is not modified for payments');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema='public' AND routine_name ILIKE '%accountant%payment%' $$, 'Accountant payment access is not activated');
-SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('project_expenses','account_transfers','currency_exchanges','refunds','payment_uploads','payment_evidence') $$, 'excluded finance workflow tables absent except Package 14.2 payment requests and Package 14.3 payment matches');
+SELECT is_empty($$ SELECT table_name FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('account_transfers','currency_exchanges','refunds','payment_uploads','payment_evidence') $$, 'excluded finance workflow tables absent except approved request, matching and expense packages');
 SELECT ok((SELECT pg_get_functiondef('app.owner_approve_client_payment(uuid,uuid,integer,text,text,text,inet)'::regprocedure)) NOT ILIKE '%create_progress_update_published_notification%', 'payment approval does not produce notifications');
 SELECT ok((SELECT pg_get_functiondef('app.owner_approve_client_payment(uuid,uuid,integer,text,text,text,inet)'::regprocedure)) NOT ILIKE '%document_links%', 'payment approval does not activate document links');
 SELECT ok((SELECT pg_get_function_arguments('public.current_client_submit_payment(uuid,numeric,char,date,text,text,text,text)'::regprocedure)) NOT ILIKE '%notes%', 'Client submission gateway does not accept contractor notes');

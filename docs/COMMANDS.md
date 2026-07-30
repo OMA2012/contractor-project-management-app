@@ -1497,3 +1497,9 @@ Activity actions added by this package:
 - `payment_request_cancelled`
 
 Activity logs include safe identifiers and transitions only: request ID, request number, Project ID, Client ID, currency, prior/new status, actor and version. They do not include description text, cancellation reason text, request bodies, Client personal details, secrets or unrelated financial data.
+## Stage 15 Package 15.1: Project Expenses
+
+- Schema: `app.expense_categories`, `app.project_expenses`, `app.project_expense_number_seq`.
+- Owner wrappers: `public.server_owner_create_project_expense`, `public.server_owner_update_project_expense`, `public.server_owner_submit_project_expense`, `public.server_owner_reject_project_expense`, `public.server_owner_approve_project_expense`, `public.server_owner_project_expense_list`, `public.server_owner_project_expense_detail`, `public.server_owner_project_expense_totals`.
+- Posting: different-Owner approval posts two lines only, debit `CTRL-PROJECT-EXPENSE-<currency_code>` and credit the paying financial asset ledger.
+- Exclusions: no Client or reserved-role access, uploads, notifications, document-link activation, allocations, transfers, refunds, payroll, budgets, tax processing, editable balances or partial reversals.
