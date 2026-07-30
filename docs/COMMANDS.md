@@ -1457,14 +1457,35 @@ Effective overdue status is calculated from the contractor-local date using `con
 
 Client list reads are read-only and never update `viewed_at`, status, activity logs or version. `public.current_client_view_payment_request_detail(...)` intentionally acknowledges a Client view: it locks the authorized request, records the first `viewed_at`, changes stored `SENT` to `VIEWED` only when not effectively overdue, and logs `payment_request_viewed` at most once.
 
-Client-safe request responses include request ID, request number, safe Project ID/reference, requested amount, currency, request date, due date, description, sent/viewed timestamps, stored status, effective status, and calculated zero-match values:
+Client-safe request responses include request ID, request number, safe Project ID/reference, requested amount, currency, request date, due date, description, sent/viewed timestamps, stored status, effective status, and derived balance values:
 
 ```text
-paid_amount = 0
-remaining_amount = requested_amount
+paid_amount = approved active qualifying payment matches
+remaining_amount = GREATEST(requested_amount - paid_amount, 0)
 ```
 
-These values are response fields only. Package 14.3 will replace the zero-match calculation with approved payment-match aggregation. Client responses do not expose `created_by`, `updated_by`, `cancelled_by`, `cancellation_reason`, unrelated Client IDs, activity metadata, internal security metadata, financial-event data, ledger data or document data.
+These values are response fields only and are not stored on `app.payment_requests`. Package 14.3 calculates them from approved, active matches whose linked Client Payment remains approved, posted and economically active under the full-reversal chain. Client responses do not expose `created_by`, `updated_by`, `cancelled_by`, `cancellation_reason`, raw match rows, match actors, void reasons, unrelated Client IDs, activity metadata, internal security metadata, financial-event data, ledger data or document data.
+
+### Stage 14 Package 14.3: Payment Matching and Request Balances
+
+`app.payment_match_status` contains exactly `DRAFT`, `APPROVED`, and `VOIDED`.
+
+`app.payment_matches` contains exactly `id`, `client_payment_id`, `payment_request_id`, `matched_amount`, `currency_code`, `matched_at`, `status`, `approved_at`, `approved_by`, `voided_at`, `voided_by`, `void_reason`, `matched_by`, and `is_active`.
+
+Owner/Admin service-role gateways:
+
+- `public.server_owner_create_payment_match(...)`
+- `public.server_owner_update_payment_match(...)`
+- `public.server_owner_approve_payment_match(...)`
+- `public.server_owner_void_payment_match(...)`
+- `public.server_owner_payment_match_list(...)`
+- `public.server_owner_payment_match_detail(...)`
+- `public.server_owner_client_payment_availability(...)`
+- `public.server_owner_payment_request_balance(...)`
+
+Matching allocates an already approved and posted Client Payment to a sent/later Payment Request in the same Project, Client and currency. Draft matches do not reserve capacity. Approval requires a different active Owner/Admin from `matched_by`, checks aggregate payment and request capacity under locks, synchronizes the request status, and creates no financial event, financial transaction, ledger entry, exchange-rate row, account movement or Project receipt total. Voiding preserves match history, clears availability only through derived aggregates, and never deletes the row.
+
+Client Payment posting is the ledger/account effect. Payment matching is allocation/reporting only.
 
 Activity actions added by this package:
 
