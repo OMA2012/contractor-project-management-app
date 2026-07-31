@@ -72,7 +72,7 @@ SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid = 'app.exchange_ra
 SELECT throws_ok($$ TRUNCATE app.ledger_accounts CASCADE $$, '23514', 'Ledger accounts cannot be truncated.', 'ledger truncate prevented');
 SELECT throws_ok($$ TRUNCATE app.exchange_rates CASCADE $$, '23514', 'Exchange rates cannot be truncated.', 'exchange rate truncate prevented');
 SELECT is_empty($$ SELECT id FROM app.ledger_accounts WHERE account_kind = 'CONTROL' $$, 'CONTROL accounts are supported but not seeded');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('account_balances','payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments')), 'excluded finance workflow tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('account_balances','payments','expenses','transfers','refunds','reversals','adjustments')), 'excluded finance workflow tables remain absent except approved currency exchanges');
 
 SELECT * FROM finish();
 ROLLBACK;

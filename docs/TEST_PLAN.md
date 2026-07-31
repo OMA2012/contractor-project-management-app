@@ -113,6 +113,14 @@ python3 scripts/static_validate.py
 
 `77_package_16_1_account_transfers_operations.test.sql` verifies Owner/Admin draft create/update/submit/reject/list/detail/different-Owner approve workflows, stale-version rejection, self-approval denial, duplicate protection, null-reference false-positive avoidance, saved contractor reporting-currency snapshot, transaction-date rate snapshot when needed, exactly two ledger lines, debit destination financial asset, credit source financial asset, no transfer control account, source decrease, destination increase, unrelated account unchanged, combined currency total preservation, reporting net zero, no Project-balance effect, idempotent approval retry, posted immutability, existing full-reversal compatibility, negative source balance allowance and safe activity logs.
 
+### pgTAP Stage 17 Package 17.1 Currency Exchange suites
+
+`78_package_17_1_currency_exchanges_schema.test.sql` verifies the exact 19-column `app.currency_exchanges` schema, approved FKs and checks, absence of forbidden subtype columns and exchange-number sequences, forced RLS, signed/derived ledger snapshot compatibility, and the narrow `currency_exchange_posting` ledger context while preserving previous posting contexts.
+
+`79_package_17_1_currency_exchanges_security.test.sql` verifies service-role-only Owner/Admin Currency Exchange wrappers, direct-DML revocation from all runtime roles including `service_role`, private helper revocation, no broad RLS policy, no Client or reserved-role gateway, safe list shape, no `public.current_account()` modification, and continued absence of uploads, notifications and refunds.
+
+`80_package_17_1_currency_exchanges_operations.test.sql` verifies contractor-level and optional Project-associated exchanges, saved reporting currency, canonical multiply/divide directions, server-derived destination amount, ROUND_HALF_UP signed rounding result, zero-fee normalization, source-account default fee, separate fee account validation, draft/update/submit/reject/approve, stale-version and self-approval denial, exact four-line and six-line postings, source/destination/fee account effects, reporting net zero, idempotent approval, immutability, full-reversal compatibility, negative-balance allowance and safe activity logging.
+
 Run all database tests:
 
 ```bash
@@ -147,7 +155,7 @@ Package 12.1 adds tests 48-50:
 - `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
-Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, the 1155-1157 Package 16.1 markers, tests 75-77, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, the 1155-1157 Package 16.1 markers, tests 75-77, the 1158-1160 Package 17.1 markers, tests 78-80, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
 ## Stage 15 Package 15.1
 
 Run after applying migrations:

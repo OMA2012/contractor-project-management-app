@@ -62,7 +62,7 @@ SELECT lives_ok($$ SELECT * FROM public.server_owner_archive_document_metadata('
 SELECT ok((SELECT status = 'ARCHIVED' AND archived_at IS NOT NULL AND archived_by IS NOT NULL FROM app.documents WHERE document_number = 'DOC-000001'), 'archive fields paired after archive');
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000005002', true);
 SELECT is_empty($$ SELECT * FROM public.current_client_document_list(50, 0) $$, 'archived document disappears from client metadata list');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('currency_exchanges','document_scans','document_thumbnails')), 'finance scanner thumbnail tables absent except approved payment, request, matching and expense packages');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('document_scans','document_thumbnails')), 'scanner thumbnail tables absent');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name ~ '(upload|download|signed|scanner|thumbnail|finance)' $$, 'upload download signed scanner thumbnail finance routines absent');
 
 SELECT * FROM finish();

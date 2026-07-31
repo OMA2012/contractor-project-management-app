@@ -85,7 +85,7 @@ SELECT throws_ok($$ SELECT * FROM public.server_owner_exchange_rate_list('000000
 SELECT throws_ok($$ SELECT * FROM public.server_owner_exchange_rate_list('00000000-0000-0000-0000-000000005603', NULL, NULL, 50, 0) $$, '42501', 'Privileged operation denied.', 'Accountant cannot list exchange rates');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_exchange_rate_list('00000000-0000-0000-0000-000000005604', NULL, NULL, 50, 0) $$, '42501', 'Privileged operation denied.', 'Project Manager cannot list exchange rates');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_exchange_rate_list('00000000-0000-0000-0000-000000005605', NULL, NULL, 50, 0) $$, '42501', 'Privileged operation denied.', 'Site Supervisor cannot list exchange rates');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('account_balances','payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments')), 'excluded finance workflow tables remain absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('account_balances','payments','expenses','transfers','refunds','reversals','adjustments')), 'excluded finance workflow tables remain absent except approved currency exchanges');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%ledger_account%' AND (SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%exchange_rate%', 'current_account not changed');
 
 SELECT * FROM finish();

@@ -49,7 +49,7 @@ SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid='app.financial_adj
 
 SELECT ok((SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) LIKE '%financial_reversal_posting%' AND (SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) LIKE '%financial_adjustment_posting%' AND (SELECT pg_get_functiondef('app.ledger_entries_trusted_insert_guard()'::regprocedure)) LIKE '%opening_balance_posting%', 'ledger posting guard allows only approved posting contexts');
 SELECT ok((SELECT pg_get_functiondef('app.financial_transactions_trusted_mutation_guard()'::regprocedure)) LIKE '%REVERSAL%' AND (SELECT pg_get_functiondef('app.financial_transactions_trusted_mutation_guard()'::regprocedure)) LIKE '%reverses_transaction_id%', 'transaction guard supports trusted reversal link');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','account_balances')), 'excluded workflow tables remain absent except approved payment, request, matching, expense and account transfer packages');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','refunds','account_balances')), 'excluded workflow tables remain absent except approved finance packages');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_reversal%' AND (SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_adjustment%', 'current_account unchanged');
 
 SELECT * FROM finish();

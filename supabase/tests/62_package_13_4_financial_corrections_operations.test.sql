@@ -108,7 +108,7 @@ SELECT throws_ok($$ SELECT * FROM public.server_owner_reversal_list('00000000-00
 SELECT throws_ok($$ SELECT * FROM public.server_owner_adjustment_list('00000000-0000-0000-0000-000000006204',50,0) $$, '42501', 'Privileged operation denied.', 'Accountant denied adjustment list');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_adjustment_list('00000000-0000-0000-0000-000000006205',50,0) $$, '42501', 'Privileged operation denied.', 'Project Manager denied adjustment list');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_adjustment_list('00000000-0000-0000-0000-000000006206',50,0) $$, '42501', 'Privileged operation denied.', 'Site Supervisor denied adjustment list');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','account_balances')), 'excluded workflows remain absent except approved payment, request, matching, expense and account transfer packages');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','refunds','account_balances')), 'excluded workflows remain absent except approved finance packages');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_adjustment%', 'current_account not changed');
 
 SELECT * FROM finish();

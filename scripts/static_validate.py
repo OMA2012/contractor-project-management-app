@@ -3056,8 +3056,16 @@ for path in package_12_1_scope_files:
                     '20260724105700_1154_project_expense_grants.sql',
                 }
             )
-            require(allowed_stage_15_expense_marker or forbidden not in text,
-                    f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense files from {path.relative_to(ROOT)}: {forbidden}')
+            allowed_stage_17_exchange_marker = (
+                forbidden in ('create table app.currency_exchanges', 'references app.currency_exchanges')
+                and path.name in {
+                    '20260724110100_1158_currency_exchanges.sql',
+                    '20260724110200_1159_currency_exchange_functions.sql',
+                    '20260724110300_1160_currency_exchange_grants.sql',
+                }
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or forbidden not in text,
+                    f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
 financial_account_functions_path = ROOT / 'supabase/migrations/20260724103500_1132_financial_account_functions.sql'
@@ -4901,13 +4909,198 @@ if commands_path.exists():
 
 readme_sql = (ROOT / 'README.md').read_text(encoding='utf-8', errors='ignore').lower()
 for required in (
-    'stage 14 package 14.3',
-    'payment matching foundation',
-    'app.payment_matches',
-    'allocation/reporting only',
-    'creates no financial events',
+    'stage 17 package 17.1',
+    'currency exchange foundation',
+    'app.currency_exchanges',
+    'ctrl-fx-clearing-<currency_code>',
+    'ctrl-fx-fee-<currency_code>',
+    'separate exchange numbering',
 ):
-    require(required in readme_sql, f'README documents Package 14.3 marker: {required}')
+    require(required in readme_sql, f'README documents Package 17.1 marker: {required}')
+
+currency_exchange_schema_path = ROOT / 'supabase/migrations/20260724110100_1158_currency_exchanges.sql'
+currency_exchange_functions_path = ROOT / 'supabase/migrations/20260724110200_1159_currency_exchange_functions.sql'
+currency_exchange_grants_path = ROOT / 'supabase/migrations/20260724110300_1160_currency_exchange_grants.sql'
+currency_exchange_test_paths = [
+    ROOT / 'supabase/tests/78_package_17_1_currency_exchanges_schema.test.sql',
+    ROOT / 'supabase/tests/79_package_17_1_currency_exchanges_security.test.sql',
+    ROOT / 'supabase/tests/80_package_17_1_currency_exchanges_operations.test.sql',
+]
+for path in (currency_exchange_schema_path, currency_exchange_functions_path, currency_exchange_grants_path, *currency_exchange_test_paths):
+    require(path.exists(), f'Package 17.1 artifact exists: {path.relative_to(ROOT)}')
+
+if currency_exchange_schema_path.exists():
+    currency_exchange_schema_sql = currency_exchange_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.currency_exchanges',
+        'source_amount numeric(20,6) not null',
+        'destination_amount numeric(20,6) not null',
+        'rate_value numeric(30,12) not null',
+        'fee_amount numeric(20,6) not null default 0',
+        'rounding_result numeric(20,6) not null default 0',
+        'currency_exchanges_distinct_accounts_ck check',
+        'currency_exchanges_distinct_currencies_ck check',
+        'currency_exchanges_fee_ck check',
+        'derived_from_currency_exchange',
+        'alter table app.currency_exchanges force row level security',
+        'revoke all on app.currency_exchanges from public, anon, authenticated, service_role',
+    ):
+        require(required in currency_exchange_schema_sql,
+                f'1158 currency exchange schema contains required marker: {required}')
+    currency_exchange_columns = [
+        'id', 'financial_event_id', 'source_account_id', 'destination_account_id',
+        'source_amount', 'source_currency_code', 'destination_amount', 'destination_currency_code',
+        'exchange_rate_id', 'rate_base_currency_code', 'rate_quote_currency_code', 'rate_value',
+        'rate_source', 'fee_amount', 'fee_currency_code', 'fee_account_id', 'exchange_date',
+        'rounding_result', 'reference',
+    ]
+    exchange_body = re.search(r'create table app\.currency_exchanges\s*\((.*?)\n\);', currency_exchange_schema_sql, re.S)
+    require(exchange_body is not None, '1158 app.currency_exchanges table body is inspectable')
+    if exchange_body:
+        declared = []
+        for line in exchange_body.group(1).splitlines():
+            match = re.match(r'\s*([a-z_]+)\s+(?:uuid|varchar|numeric|char|date|text)', line)
+            if match:
+                declared.append(match.group(1))
+        require(declared == currency_exchange_columns,
+                '1158 app.currency_exchanges has exactly the approved 19 columns')
+    for forbidden in (
+        'exchange_number',
+        'project_id uuid',
+        'client_id uuid',
+        'notes text',
+        'document_id',
+        'status app.',
+        'approved_by',
+        'created_at timestamptz',
+        'updated_at timestamptz',
+        'version_number',
+        'create sequence app.currency_exchange',
+    ):
+        require(forbidden not in currency_exchange_schema_sql,
+                f'1158 currency exchange schema omits forbidden marker: {forbidden}')
+
+if currency_exchange_functions_path.exists():
+    currency_exchange_functions_sql = currency_exchange_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.owner_create_currency_exchange',
+        'create or replace function app.owner_update_currency_exchange',
+        'create or replace function app.owner_submit_currency_exchange',
+        'create or replace function app.owner_reject_currency_exchange',
+        'create or replace function app.owner_approve_currency_exchange',
+        'create or replace function app.owner_currency_exchange_list',
+        'create or replace function app.owner_currency_exchange_detail',
+        'round_half_up_positive',
+        'ctrl-fx-clearing-',
+        'ctrl-fx-fee-',
+        'currency_exchange_posting',
+        'derived_from_currency_exchange',
+        'currency_exchange_created',
+        'currency_exchange_updated',
+        'currency_exchange_submitted',
+        'currency_exchange_rejected',
+        'currency_exchange_approved',
+        'currency_exchange_transaction_posted',
+        'create or replace function public.server_owner_create_currency_exchange',
+        'create or replace function public.server_owner_approve_currency_exchange',
+    ):
+        require(required in currency_exchange_functions_sql,
+                f'1159 currency exchange functions contain required marker: {required}')
+    for preserved in (
+        'opening_balance_posting',
+        'financial_reversal_posting',
+        'financial_adjustment_posting',
+        'client_payment_posting',
+        'project_expense_posting',
+        'account_transfer_posting',
+    ):
+        require(preserved in currency_exchange_functions_sql,
+                f'1159 currency exchange ledger guard preserves context: {preserved}')
+    for required in (
+        "account_kind='control'",
+        'financial_account_id=null',
+        "normal_side='debit'",
+    ):
+        require(required in currency_exchange_functions_sql,
+                f'1159 currency exchange control account upserts restore invariant: {required}')
+    update_exchange_body = re.search(
+        r'create or replace function app\.owner_update_currency_exchange\(.*?\nend \$function\$;',
+        currency_exchange_functions_sql,
+        re.S,
+    )
+    require(update_exchange_body is not None,
+            '1159 owner update currency exchange function body is inspectable')
+    if update_exchange_body is not None:
+        require('set transaction_date=p_exchange_date, description=normalized_reference'
+                in update_exchange_body.group(0),
+                '1159 owner update currency exchange preserves saved reporting currency')
+        require('reporting_currency_code=reporting_currency' not in update_exchange_body.group(0),
+                '1159 owner update currency exchange does not rewrite saved reporting currency')
+    for forbidden in (
+        'current_client_currency_exchange',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+        'insert into app.notifications',
+        'storage.objects',
+        'fetch(',
+        'http',
+        'public.current_account()',
+        'create table app.refunds',
+        'partial_reversal',
+        'max(event_number',
+        'exchange_number',
+        'sufficient balance',
+        'insufficient balance',
+    ):
+        require(forbidden not in currency_exchange_functions_sql,
+                f'1159 currency exchange functions omit forbidden marker: {forbidden}')
+
+if currency_exchange_grants_path.exists():
+    currency_exchange_grants_sql = currency_exchange_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.currency_exchanges from public, anon, authenticated, service_role',
+        'revoke all on function app.owner_create_currency_exchange',
+        'revoke all on function app.currency_exchange_duplicate_fingerprint',
+        'grant execute on function public.server_owner_create_currency_exchange',
+        'grant execute on function public.server_owner_update_currency_exchange',
+        'grant execute on function public.server_owner_submit_currency_exchange',
+        'grant execute on function public.server_owner_reject_currency_exchange',
+        'grant execute on function public.server_owner_approve_currency_exchange',
+        'grant execute on function public.server_owner_currency_exchange_list',
+        'grant execute on function public.server_owner_currency_exchange_detail',
+        'to service_role',
+    ):
+        require(required in currency_exchange_grants_sql,
+                f'1160 currency exchange grants contain required marker: {required}')
+    for forbidden in (
+        'grant select on app.currency_exchanges',
+        'grant insert on app.currency_exchanges',
+        'grant update on app.currency_exchanges',
+        'grant delete on app.currency_exchanges',
+        'to authenticated',
+        'to anon',
+        'current_client',
+        'current_accountant',
+        'current_project_manager',
+        'current_site_supervisor',
+    ):
+        require(forbidden not in currency_exchange_grants_sql,
+                f'1160 currency exchange grants omit forbidden marker: {forbidden}')
+
+if commands_path.exists():
+    commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()
+    for required in (
+        'stage 17 package 17.1: currency exchange foundation',
+        'app.currency_exchanges',
+        'round_half_up',
+        'ctrl-fx-clearing-<currency_code>',
+        'ctrl-fx-fee-<currency_code>',
+        'currency_exchange_posting',
+        'derived_from_currency_exchange',
+    ):
+        require(required in commands_sql,
+                f'docs/COMMANDS.md documents Package 17.1 marker: {required}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
