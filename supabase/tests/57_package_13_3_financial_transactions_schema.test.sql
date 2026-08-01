@@ -69,7 +69,7 @@ SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid='app.account_openi
 
 SELECT throws_ok($$ TRUNCATE app.ledger_entries $$, '23514', 'Ledger entries cannot be truncated.', 'ledger entry truncate prevented');
 SELECT throws_ok($$ TRUNCATE app.financial_events CASCADE $$, '23514', 'Financial events cannot be truncated.', 'financial event truncate prevented');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','currency_exchanges','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent except Package 14.2 payment requests');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('payments','expenses','transfers','refunds','reversals','adjustments','account_balances')), 'excluded workflow tables remain absent except approved later packages');
 SELECT hasnt_column('app','financial_accounts','current_balance','financial account current balance column absent');
 SELECT hasnt_column('app','financial_accounts','opening_balance','financial account opening balance column absent');
 SELECT hasnt_column('app','ledger_accounts','current_balance','ledger account current balance column absent');
@@ -77,7 +77,7 @@ SELECT hasnt_column('app','ledger_accounts','opening_balance','ledger account op
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT LIKE '%financial_transaction%', 'current_account unchanged');
 SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'server_owner_create_client_payment'), 'Package 14.1 client payment workflow present');
 SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name='server_owner_create_project_expense'), 'project expense workflow added by Package 15.1');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name LIKE '%currency_exchange%'), 'currency exchange workflow absent');
+SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name='server_owner_create_currency_exchange'), 'approved currency exchange workflow present');
 
 SELECT * FROM finish();
 ROLLBACK;

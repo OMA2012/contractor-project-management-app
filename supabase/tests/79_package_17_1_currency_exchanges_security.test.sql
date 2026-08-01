@@ -1,0 +1,31 @@
+BEGIN;
+SELECT plan(25);
+
+SELECT has_function('public','server_owner_create_currency_exchange',ARRAY['uuid','uuid','uuid','numeric','uuid','numeric','uuid','date','uuid','text','text','text','text','inet'],'Owner create exchange wrapper exists');
+SELECT has_function('public','server_owner_update_currency_exchange',ARRAY['uuid','uuid','integer','uuid','uuid','numeric','uuid','numeric','uuid','date','uuid','text','text','text','text','inet'],'Owner update exchange wrapper exists');
+SELECT has_function('public','server_owner_submit_currency_exchange',ARRAY['uuid','uuid','integer','text','text','text','inet'],'Owner submit exchange wrapper exists');
+SELECT has_function('public','server_owner_reject_currency_exchange',ARRAY['uuid','uuid','integer','text','text','text','text','inet'],'Owner reject exchange wrapper exists');
+SELECT has_function('public','server_owner_approve_currency_exchange',ARRAY['uuid','uuid','integer','text','text','text','inet'],'Owner approve exchange wrapper exists');
+SELECT has_function('public','server_owner_currency_exchange_list',ARRAY['uuid','integer','integer'],'Owner exchange list wrapper exists');
+SELECT has_function('public','server_owner_currency_exchange_detail',ARRAY['uuid','uuid'],'Owner exchange detail wrapper exists');
+SELECT hasnt_function('public','current_client_currency_exchange_list',ARRAY['integer','integer'],'no Client exchange list gateway');
+SELECT hasnt_function('public','current_client_currency_exchange_detail',ARRAY['uuid'],'no Client exchange detail gateway');
+SELECT hasnt_function('public','server_accountant_currency_exchange_list',ARRAY['uuid','integer','integer'],'no Accountant exchange gateway');
+SELECT hasnt_function('public','server_project_manager_currency_exchange_list',ARRAY['uuid','integer','integer'],'no Project Manager exchange gateway');
+SELECT hasnt_function('public','server_site_supervisor_currency_exchange_list',ARRAY['uuid','integer','integer'],'no Site Supervisor exchange gateway');
+SELECT ok(NOT has_table_privilege('anon','app.currency_exchanges','SELECT,INSERT,UPDATE,DELETE,TRUNCATE'),'anon has no direct exchange access');
+SELECT ok(NOT has_table_privilege('authenticated','app.currency_exchanges','SELECT,INSERT,UPDATE,DELETE,TRUNCATE'),'authenticated has no direct exchange access');
+SELECT ok(NOT has_table_privilege('service_role','app.currency_exchanges','SELECT,INSERT,UPDATE,DELETE,TRUNCATE'),'service role has no direct exchange table access');
+SELECT ok(NOT has_function_privilege('service_role','app.owner_create_currency_exchange(uuid,uuid,uuid,numeric,uuid,numeric,uuid,date,uuid,text,text,text,text,inet)','EXECUTE'),'service role cannot execute private create helper');
+SELECT ok(NOT has_function_privilege('service_role','app.currency_exchange_duplicate_fingerprint(uuid,uuid,date,character,character,numeric,numeric,character,character,numeric,numeric,character,uuid,text,text)','EXECUTE'),'service role cannot execute private duplicate helper');
+SELECT ok(has_function_privilege('service_role','public.server_owner_create_currency_exchange(uuid,uuid,uuid,numeric,uuid,numeric,uuid,date,uuid,text,text,text,text,inet)','EXECUTE'),'service role can execute Owner create wrapper');
+SELECT ok(has_function_privilege('service_role','public.server_owner_approve_currency_exchange(uuid,uuid,integer,text,text,text,inet)','EXECUTE'),'service role can execute Owner approve wrapper');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_create_currency_exchange(uuid,uuid,uuid,numeric,uuid,numeric,uuid,date,uuid,text,text,text,text,inet)','EXECUTE'),'authenticated cannot execute Owner create wrapper');
+SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname='app' AND tablename='currency_exchanges' $$,'no broad exchange RLS policies');
+SELECT ok(pg_get_function_result('public.server_owner_currency_exchange_list(uuid, integer, integer)'::regprocedure) NOT LIKE '%reference%','exchange list omits raw reference');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%currency_exchange%','current_account remains unrelated to currency exchange');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema='public' AND routine_name ILIKE '%currency_exchange%' AND routine_name NOT IN ('server_owner_create_currency_exchange','server_owner_update_currency_exchange','server_owner_submit_currency_exchange','server_owner_reject_currency_exchange','server_owner_approve_currency_exchange','server_owner_currency_exchange_list','server_owner_currency_exchange_detail') $$,'only approved public exchange wrappers exist');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name IN ('currency_exchange_uploads','currency_exchange_notifications','refunds')),'uploads notifications and refunds absent');
+
+SELECT * FROM finish();
+ROLLBACK;
