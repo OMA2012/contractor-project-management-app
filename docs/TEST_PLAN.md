@@ -164,6 +164,14 @@ Package 12.2 adds tests 81-83:
 Deno tests cover Edge Function authentication, strict CORS/origin handling through shared helpers, upload request validation, trusted magic-byte/SHA-256 completion behavior, response redaction, proxy-based document access, and copied signed-URL avoidance.
 
 Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, the 1155-1157 Package 16.1 markers, tests 75-77, the 1158-1160 Package 17.1 markers, tests 78-80, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
+
+Package 12.3 adds tests 84-86:
+
+- `84_package_12_3_document_scan_schema.test.sql` verifies scan enums, `app.document_scans`, final object-key state, service wrapper presence, unchanged `app.document_status`, preserved Package 12.1 document schema, and disabled finance document links.
+- `85_package_12_3_document_scan_security.test.sql` verifies forced RLS, direct scan DML denial, service-role-only scan/finalization wrappers, Owner/Admin authorization, exact hash/size binding, fail-closed error handling, quarantine behavior, no scanner secrets in database functions, and unchanged reserved-role/Client upload denial.
+- `86_package_12_3_document_scan_operations.test.sql` verifies `AWAITING_SCAN` to scan flow, forged CLEAN denial, clean scan non-public state, finalization with trusted metadata and exactly one link, idempotent finalization, Client access only after clean finalization, cross-Client/archive denial, malicious quarantine, scanner-error retry, reserved-role denial, safe activity logging, and disabled finance links.
+
+Deno tests for `_shared/document_scan_handler_test.ts` cover CLEAN, MALICIOUS, ERROR, network failure, malformed/unknown fail-closed handling through normalized results, caller-supplied scan fact rejection, hash mismatch fail-closed behavior, final object write, and secret non-exposure.
 ## Stage 15 Package 15.1
 
 Run after applying migrations:

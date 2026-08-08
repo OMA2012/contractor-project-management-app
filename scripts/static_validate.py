@@ -1773,12 +1773,17 @@ if functions_dir.exists():
         'document-upload-complete',
         'document-access',
     }
+    stage_12_3_functions = {
+        'document-scan-finalize',
+    }
     allowed_shared_files = {
         'auth.ts',
         'client_invitation_handler.ts',
         'client_invitation_handler_test.ts',
         'client_lifecycle_handler.ts',
         'client_lifecycle_handler_test.ts',
+        'document_scan_handler.ts',
+        'document_scan_handler_test.ts',
         'document_storage_handler.ts',
         'document_storage_handler_test.ts',
         'cors.ts',
@@ -1804,6 +1809,8 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] in stage_09_2c3d_functions and relative.name in {'index.ts', 'deno.json'}
             ) or (
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_2_functions and relative.name in {'index.ts', 'deno.json'}
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] in stage_12_3_functions and relative.name in {'index.ts', 'deno.json'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in allowed_shared_files:
@@ -3085,7 +3092,19 @@ for path in package_12_1_scope_files:
                     }
                 )
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or forbidden not in text,
+            allowed_stage_12_3_scan_marker = (
+                forbidden in ('document_upload', 'scanner', 'create table app.document_scans')
+                and (
+                    path.name in {
+                        '20260724110700_1164_document_scan_schema.sql',
+                        '20260724110800_1165_document_scan_functions.sql',
+                        '20260724110900_1166_document_scan_grants.sql',
+                        'document_scan_handler.ts',
+                        'document_scan_handler_test.ts',
+                    }
+                )
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
@@ -5275,6 +5294,100 @@ if commands_path.exists():
     ):
         require(required in commands_sql,
                 f'docs/COMMANDS.md documents Package 12.2 marker: {required}')
+
+document_scan_schema_path = ROOT / 'supabase/migrations/20260724110700_1164_document_scan_schema.sql'
+document_scan_functions_path = ROOT / 'supabase/migrations/20260724110800_1165_document_scan_functions.sql'
+document_scan_grants_path = ROOT / 'supabase/migrations/20260724110900_1166_document_scan_grants.sql'
+document_scan_test_paths = [
+    ROOT / 'supabase/tests/84_package_12_3_document_scan_schema.test.sql',
+    ROOT / 'supabase/tests/85_package_12_3_document_scan_security.test.sql',
+    ROOT / 'supabase/tests/86_package_12_3_document_scan_operations.test.sql',
+]
+document_scan_function_paths = [
+    ROOT / 'supabase/functions/document-scan-finalize/index.ts',
+    ROOT / 'supabase/functions/_shared/document_scan_handler.ts',
+    ROOT / 'supabase/functions/_shared/document_scan_handler_test.ts',
+]
+for path in (document_scan_schema_path, document_scan_functions_path, document_scan_grants_path, *document_scan_test_paths, *document_scan_function_paths):
+    require(path.exists(), f'Package 12.3 artifact exists: {path.relative_to(ROOT)}')
+
+if document_scan_schema_path.exists():
+    document_scan_schema_sql = document_scan_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        "add value if not exists 'scan_in_progress'",
+        "add value if not exists 'scan_clean'",
+        "add value if not exists 'quarantined'",
+        "add value if not exists 'scan_failed'",
+        "add value if not exists 'finalizing'",
+        "add value if not exists 'finalized'",
+        'create type app.document_scan_status',
+        'create table app.document_scans',
+        'alter table app.document_scans force row level security',
+        'revoke all on app.document_scans from public, anon, authenticated, service_role',
+        'objects/',
+    ):
+        require(required in document_scan_schema_sql,
+                f'1164 document scan schema contains required marker: {required}')
+
+if document_scan_functions_path.exists():
+    document_scan_functions_sql = document_scan_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.owner_start_document_scan',
+        'create or replace function app.owner_record_document_scan_result',
+        'create or replace function app.owner_prepare_clean_document_finalization',
+        'create or replace function app.owner_finalize_clean_document_upload',
+        'require_active_owner_admin',
+        'hash_mismatch',
+        'document_scan_started',
+        'document_scan_clean',
+        'document_scan_malicious',
+        'document_scan_failed',
+        'document_quarantined',
+        'document_finalized',
+        'reserved_document_id',
+    ):
+        require(required in document_scan_functions_sql,
+                f'1165 document scan functions contain required marker: {required}')
+    for forbidden in ('document_scanner_url', 'document_scanner_token', 'raw scanner'):
+        require(forbidden not in document_scan_functions_sql,
+                f'1165 document scan functions omit forbidden marker: {forbidden}')
+
+if document_scan_grants_path.exists():
+    document_scan_grants_sql = document_scan_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'grant execute on function public.server_owner_start_document_scan',
+        'grant execute on function public.server_owner_record_document_scan_result',
+        'grant execute on function public.server_owner_prepare_clean_document_finalization',
+        'grant execute on function public.server_owner_finalize_clean_document_upload',
+        'to service_role',
+    ):
+        require(required in document_scan_grants_sql,
+                f'1166 document scan grants contain required marker: {required}')
+    for forbidden in ('to authenticated', 'to anon', 'grant select on app.document_scans', 'grant insert on app.document_scans', 'grant update on app.document_scans'):
+        require(forbidden not in document_scan_grants_sql,
+                f'1166 document scan grants omit forbidden marker: {forbidden}')
+
+document_scan_handler_path = ROOT / 'supabase/functions/_shared/document_scan_handler.ts'
+if document_scan_handler_path.exists():
+    document_scan_handler_sql = document_scan_handler_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'document_scanner_url',
+        'document_scanner_token',
+        'https:',
+        'authorization',
+        'bearer',
+        'scanner_timeout_ms',
+        'server_owner_start_document_scan',
+        'server_owner_record_document_scan_result',
+        'server_owner_prepare_clean_document_finalization',
+        'server_owner_finalize_clean_document_upload',
+        'rejectunknownfields(body, ["upload_id"])',
+    ):
+        require(required in document_scan_handler_sql,
+                f'document scan handler contains required marker: {required}')
+    for forbidden in ('mock_scanner', 'always_clean', 'signedurl', 'createsigned'):
+        require(forbidden not in document_scan_handler_sql,
+                f'document scan handler omits forbidden marker: {forbidden}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':
