@@ -43,7 +43,7 @@ SELECT ok(EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='app' AND tablename=
 SELECT ok((SELECT pg_get_indexdef(indexrelid) FROM pg_index WHERE indexrelid='app.document_scans_one_started_attempt_idx'::regclass) ILIKE '%WHERE (status = ''STARTED''%', 'one active scan attempt index is partial on STARTED');
 SELECT has_function('app','document_scans_guard_history',ARRAY[]::name[],'scan history guard trigger function exists');
 SELECT ok(EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='document_scans_guard_history_trg'), 'scan history guard trigger exists');
-SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname='document_links_finance_targets_disabled_ck'), 'finance document links remain disabled');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='document_links_finance_targets_disabled_ck'), 'finance document links enabled by Package 12.4');
 
 SELECT * FROM finish();
 ROLLBACK;

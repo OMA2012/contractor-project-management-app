@@ -127,6 +127,12 @@ async function authorizeUpload(
   auth: AuthenticatedContext,
   requestId: string,
 ): Promise<Record<string, unknown>> {
+  if (
+    body.client_payment_id !== undefined &&
+    body.document_type_code === undefined
+  ) {
+    return await authorizeClientTransferEvidenceUpload(body, auth, requestId);
+  }
   rejectUnknownFields(body, [
     "original_file_name",
     "mime_type",
@@ -136,6 +142,10 @@ async function authorizeUpload(
     "project_id",
     "task_id",
     "progress_update_id",
+    "client_payment_id",
+    "payment_request_id",
+    "project_expense_id",
+    "currency_exchange_id",
   ]);
   const originalFileName = validateFileName(body.original_file_name);
   const mimeType = validateDeclaredMime(originalFileName, body.mime_type);
@@ -159,7 +169,77 @@ async function authorizeUpload(
       "Progress update ID",
     ),
     p_request_identifier: requestId,
+    p_client_payment_id: optionalUuid(
+      body.client_payment_id,
+      "Client payment ID",
+    ),
+    p_payment_request_id: optionalUuid(
+      body.payment_request_id,
+      "Payment request ID",
+    ),
+    p_project_expense_id: optionalUuid(
+      body.project_expense_id,
+      "Project expense ID",
+    ),
+    p_currency_exchange_id: optionalUuid(
+      body.currency_exchange_id,
+      "Currency exchange ID",
+    ),
   });
+  const row = firstRow(reserve.data);
+  const bucket = stringField(row, "storage_bucket");
+  const objectKey = stringField(row, "storage_object_key");
+  if (bucket !== BUCKET || !objectKey.startsWith("temporary/")) {
+    throw new SafeError(
+      500,
+      "internal_error",
+      "Database response was invalid.",
+    );
+  }
+  const signed = await serviceClient(auth).storage.from(bucket)
+    .createSignedUploadUrl(objectKey);
+  if (signed.error || !signed.data?.signedUrl) {
+    throw new SafeError(503, "internal_error", "Upload authorization failed.");
+  }
+  return {
+    upload_id: stringField(row, "upload_id"),
+    expires_at: stringField(row, "expires_at"),
+    upload_url: signed.data.signedUrl,
+    upload_token: signed.data.token ?? null,
+    method: "PUT",
+    max_file_size_bytes: MAX_BYTES,
+    allowed_mime_types: Array.from(new Set(ALLOWED.values())),
+  };
+}
+
+async function authorizeClientTransferEvidenceUpload(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+  requestId: string,
+): Promise<Record<string, unknown>> {
+  rejectUnknownFields(body, [
+    "original_file_name",
+    "mime_type",
+    "client_payment_id",
+  ]);
+  const originalFileName = validateFileName(body.original_file_name);
+  const mimeType = validateDeclaredMime(originalFileName, body.mime_type);
+  const token = randomObjectToken();
+  const reserve = await rpc(
+    auth,
+    "current_client_reserve_transfer_evidence_upload",
+    {
+      p_verified_client_auth_subject: auth.actorAuthSubject,
+      p_storage_object_token: token,
+      p_original_file_name: originalFileName,
+      p_declared_mime_type: mimeType,
+      p_client_payment_id: uuidValue(
+        body.client_payment_id,
+        "Client payment ID",
+      ),
+      p_request_identifier: requestId,
+    },
+  );
   const row = firstRow(reserve.data);
   const bucket = stringField(row, "storage_bucket");
   const objectKey = stringField(row, "storage_object_key");
@@ -193,7 +273,8 @@ async function completeUpload(
 ): Promise<Record<string, unknown>> {
   rejectUnknownFields(body, ["upload_id"]);
   const uploadId = uuidValue(body.upload_id, "Upload ID");
-  const lookup = await rpc(
+  let isClientEvidence = false;
+  let lookup = await rpcAllowUnauthorized(
     auth,
     "server_owner_document_upload_storage_context",
     {
@@ -201,6 +282,17 @@ async function completeUpload(
       p_upload_id: uploadId,
     },
   );
+  if (lookup.error) {
+    lookup = await rpc(
+      auth,
+      "current_client_transfer_evidence_upload_storage_context",
+      {
+        p_verified_client_auth_subject: auth.actorAuthSubject,
+        p_upload_id: uploadId,
+      },
+    );
+    isClientEvidence = true;
+  }
   const uploadRow = firstRow(lookup.data);
   const bucket = stringField(uploadRow, "storage_bucket");
   const objectKey = stringField(uploadRow, "storage_object_key");
@@ -217,14 +309,29 @@ async function completeUpload(
     throw validationFailed("Uploaded object failed validation.");
   }
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-  const complete = await rpc(auth, "server_owner_complete_document_upload", {
-    p_verified_owner_auth_subject: auth.actorAuthSubject,
-    p_upload_id: uploadId,
-    p_verified_mime_type: verifiedMime,
-    p_verified_file_size_bytes: bytes.byteLength,
-    p_verified_sha256_hash: byteaHex(digest),
-    p_request_identifier: requestId,
-  });
+  const complete = await rpc(
+    auth,
+    isClientEvidence
+      ? "current_client_complete_transfer_evidence_upload"
+      : "server_owner_complete_document_upload",
+    isClientEvidence
+      ? {
+        p_verified_client_auth_subject: auth.actorAuthSubject,
+        p_upload_id: uploadId,
+        p_verified_mime_type: verifiedMime,
+        p_verified_file_size_bytes: bytes.byteLength,
+        p_verified_sha256_hash: byteaHex(digest),
+        p_request_identifier: requestId,
+      }
+      : {
+        p_verified_owner_auth_subject: auth.actorAuthSubject,
+        p_upload_id: uploadId,
+        p_verified_mime_type: verifiedMime,
+        p_verified_file_size_bytes: bytes.byteLength,
+        p_verified_sha256_hash: byteaHex(digest),
+        p_request_identifier: requestId,
+      },
+  );
   const row = firstRow(complete.data);
   return {
     upload_id: stringField(row, "upload_id"),
@@ -355,6 +462,22 @@ async function rpc(
   const result = await serviceClient(auth).rpc(name, args);
   if (!result.error) return result;
   if (allowFailedStatus && result.error.code === "23514") return result;
+  throw mapDatabaseError(result.error);
+}
+
+async function rpcAllowUnauthorized(
+  auth: AuthenticatedContext,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<RpcResult> {
+  const result = await serviceClient(auth).rpc(name, args);
+  if (!result.error) return result;
+  if (
+    typeof result.error.code === "string" &&
+    AUTHZ_ERROR_CODES.has(result.error.code)
+  ) {
+    return result;
+  }
   throw mapDatabaseError(result.error);
 }
 

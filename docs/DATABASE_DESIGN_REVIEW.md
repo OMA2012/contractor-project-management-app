@@ -38,3 +38,11 @@ The data dictionary says the user/role pair is unique, but the same requirements
 - staff profile read view;
 - clients, client logins, projects and assignments;
 - frontend authentication and routing.
+
+## Stage 12 Package 12.4 Design Notes
+
+Package 12.4 follows the already approved Package 12.1 document model by activating the reserved finance target columns instead of introducing a second document-link table. Finance document links use one exact target per document or upload reservation and retain the existing scan-before-publication workflow from Package 12.3.
+
+The Client upload surface is intentionally narrower than the Owner/Admin surface and is mediated by the Edge storage handler. A Client may submit only `BANK_TRANSFER_EVIDENCE` for a Client Payment that was submitted by that same authenticated Client and is still in the submitted financial state. The Client cannot choose document type, visibility, alternate finance targets, storage key, trusted hash facts, scanner state or finalization behavior.
+
+Private Client transfer evidence is authorized for direct access by its submitting Client after clean finalization, but it is not part of the generic client-visible document list. Project Expense and Currency Exchange targets remain Owner/Admin document targets only for Client visibility purposes.

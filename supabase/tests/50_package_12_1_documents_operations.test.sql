@@ -48,7 +48,7 @@ SELECT throws_ok($$ SELECT * FROM public.server_owner_create_document_metadata('
 
 SELECT lives_ok($$ SELECT * FROM public.server_owner_link_document('00000000-0000-0000-0000-000000005001', (SELECT id FROM app.documents WHERE document_number = 'DOC-000001'), (SELECT id FROM app.clients WHERE display_name = 'Document Client A'), NULL, NULL, NULL, NULL, NULL, NULL, NULL) $$, 'owner links document to existing client');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_link_document('00000000-0000-0000-0000-000000005001', (SELECT id FROM app.documents WHERE document_number = 'DOC-000001'), NULL, NULL, NULL, NULL, gen_random_uuid(), NULL, NULL, NULL) $$, '23514', 'Finance document link targets are not enabled.', 'finance target link rejected by function');
-SELECT throws_ok($$ INSERT INTO app.document_links (document_id, client_payment_id, created_by) VALUES ((SELECT id FROM app.documents WHERE document_number = 'DOC-000001'), gen_random_uuid(), (SELECT id FROM app.users WHERE auth_subject = '00000000-0000-0000-0000-000000005001')) $$, '23514', 'new row for relation "document_links" violates check constraint "document_links_finance_targets_disabled_ck"', 'finance target link rejected by constraint');
+SELECT throws_ok($$ INSERT INTO app.document_links (document_id, client_payment_id, created_by) VALUES ((SELECT id FROM app.documents WHERE document_number = 'DOC-000001'), gen_random_uuid(), (SELECT id FROM app.users WHERE auth_subject = '00000000-0000-0000-0000-000000005001')) $$, '23503', NULL, 'finance target link now requires an existing finance record');
 SELECT throws_ok($$ INSERT INTO app.document_links (document_id, client_id, project_id, created_by) VALUES ((SELECT id FROM app.documents WHERE document_number = 'DOC-000001'), (SELECT id FROM app.clients WHERE display_name = 'Document Client A'), gen_random_uuid(), (SELECT id FROM app.users WHERE auth_subject = '00000000-0000-0000-0000-000000005001')) $$, '23514', 'new row for relation "document_links" violates check constraint "document_links_exactly_one_target_ck"', 'multi-target document link rejected');
 SELECT is((SELECT count(*)::integer FROM app.document_links), 1, 'only valid document link persisted');
 
@@ -64,7 +64,7 @@ SELECT ok((SELECT status = 'ARCHIVED' AND archived_at IS NOT NULL AND archived_b
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000005002', true);
 SELECT is_empty($$ SELECT * FROM public.current_client_document_list(50, 0) $$, 'archived document disappears from client metadata list');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('document_thumbnails')), 'thumbnail tables absent');
-SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name ~ '(thumbnail|finance|current_project_manager_document|current_accountant_document|current_site_supervisor_document)' $$, 'thumbnail finance and reserved-role document routines absent');
+SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name ~ '(thumbnail|current_project_manager_document|current_accountant_document|current_site_supervisor_document)' $$, 'thumbnail and reserved-role document routines absent');
 
 SELECT * FROM finish();
 ROLLBACK;

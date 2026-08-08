@@ -11,8 +11,9 @@ SELECT has_table('app', 'document_uploads', 'document upload reservation table e
 SELECT columns_are('app', 'document_uploads', ARRAY[
   'id','reserved_document_id','storage_bucket','storage_object_key','original_file_name','declared_mime_type','verified_mime_type','verified_file_size_bytes','verified_sha256_hash',
   'document_type_code','requested_client_visible','client_id','project_id','task_id','progress_update_id','status','authorized_at','authorized_by','expires_at','uploaded_at','validated_at',
+  'client_payment_id','payment_request_id','project_expense_id','currency_exchange_id',
   'awaiting_scan_at','failed_at','expired_at','invalidated_at','failure_code','finalized_document_id','final_storage_object_key','scan_started_at','scan_completed_at','quarantined_at','finalizing_at','finalized_at'
-], 'document uploads preserve Package 12.2 columns and add Package 12.3 operational columns');
+], 'document uploads preserve Package 12.2 columns and add Package 12.3/12.4 operational columns');
 SELECT col_type_is('app','document_uploads','storage_bucket','character varying(100)','bucket type exact');
 SELECT col_type_is('app','document_uploads','storage_object_key','text','object key type exact');
 SELECT col_type_is('app','document_uploads','verified_file_size_bytes','bigint','verified size type exact');
@@ -35,14 +36,14 @@ SELECT fk_ok('app','document_uploads','authorized_by','app','users','id','upload
 SELECT fk_ok('app','document_uploads','finalized_document_id','app','documents','id','future finalized document FK exists');
 SELECT results_eq($$ SELECT id::text, name, public, file_size_limit FROM storage.buckets WHERE id='documents-private' $$, $$ VALUES ('documents-private'::text,'documents-private'::text,false,26214400::bigint) $$, 'documents-private bucket is private with 25 MiB limit');
 SELECT results_eq($$ SELECT unnest(allowed_mime_types) FROM storage.buckets WHERE id='documents-private' ORDER BY 1 $$, $$ VALUES ('application/pdf'::text),('image/jpeg'::text),('image/png'::text),('image/webp'::text) $$, 'bucket MIME allowlist exact');
-SELECT has_function('public','server_owner_reserve_document_upload',ARRAY['uuid','text','text','text','character varying','boolean','uuid','uuid','uuid','uuid','text'],'reserve upload RPC exists');
+SELECT has_function('public','server_owner_reserve_document_upload',ARRAY['uuid','text','text','text','character varying','boolean','uuid','uuid','uuid','uuid','text','uuid','uuid','uuid','uuid'],'reserve upload RPC exists with Package 12.4 finance targets');
 SELECT has_function('public','server_owner_complete_document_upload',ARRAY['uuid','uuid','text','bigint','bytea','text'],'complete upload RPC exists');
 SELECT has_function('public','server_authorize_document_access',ARRAY['uuid','uuid','text','text'],'document access authorization RPC exists');
 SELECT has_function('public','server_owner_invalidate_expired_document_upload',ARRAY['uuid','uuid','text'],'orphan invalidation RPC exists');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%document_upload%', 'current_account unchanged for document storage');
 SELECT columns_are('app','documents',ARRAY['id','document_number','storage_bucket','storage_object_key','original_file_name','mime_type','file_size_bytes','sha256_hash','document_type_code','status','client_visible','notes','uploaded_at','uploaded_by','archived_at','archived_by'], 'Package 12.1 documents schema preserved exactly');
 SELECT ok(EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name='document_scans') AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='app' AND table_name='document_thumbnails'), 'Package 12.3 scanner table exists while thumbnails remain absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name ILIKE '%current_client%upload%'), 'Client upload gateway absent');
+SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name='current_client_reserve_transfer_evidence_upload'), 'Package 12.4 narrow Client upload gateway present');
 
 SELECT * FROM finish();
 ROLLBACK;

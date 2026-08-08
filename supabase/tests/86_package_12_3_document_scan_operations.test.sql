@@ -75,7 +75,7 @@ SELECT results_eq($$ SELECT status::text, failure_code FROM app.document_uploads
 SELECT lives_ok($$ SELECT * FROM public.server_owner_start_document_scan('00000000-0000-0000-0000-000000008601',(SELECT id FROM app.document_uploads WHERE original_file_name='error.pdf'),'req') $$, 'scan failed upload can retry');
 SELECT throws_ok($$ SELECT * FROM public.server_owner_reserve_document_upload('00000000-0000-0000-0000-000000008604','DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD','pm.pdf','application/pdf','GENERAL',true,(SELECT id FROM app.clients WHERE display_name='Client A 86'),NULL,NULL,NULL,'req') $$, '42501', 'Privileged operation denied.', 'reserved-role upload still denied');
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE action LIKE 'document_%' AND (metadata::text ILIKE '%objects/%' OR metadata::text ILIKE '%temporary/%' OR metadata::text ILIKE '%signed%' OR metadata::text ILIKE '%token%')), 'scan activity logs omit sensitive paths and tokens');
-SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname='document_links_finance_targets_disabled_ck'), 'finance links still disabled');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='document_links_finance_targets_disabled_ck'), 'finance links are forward-enabled by Package 12.4');
 
 SELECT * FROM finish();
 ROLLBACK;

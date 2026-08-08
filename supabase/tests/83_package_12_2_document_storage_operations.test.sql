@@ -88,7 +88,7 @@ SELECT is_empty($$ SELECT * FROM public.current_client_document_list(50,0) WHERE
 SELECT throws_ok($$ SELECT * FROM public.server_authorize_document_access('00000000-0000-0000-0000-000000008302','20000000-0000-0000-0000-000000008301','download','req') $$, '42501', 'Document access denied.', 'multi-Client malicious link cannot broaden Client access');
 SELECT throws_ok($$ UPDATE app.document_uploads SET storage_object_key='temporary/caller/path' $$, '23514', NULL, 'direct document_uploads mutation cannot create caller-selected path');
 SELECT ok(NOT EXISTS (SELECT 1 FROM app.activity_logs WHERE action LIKE 'document_%' AND (metadata::text ILIKE '%objects/%' OR metadata::text ILIKE '%temporary/%' OR metadata::text ILIKE '%signed%')), 'document activity logs omit object paths and signed URLs');
-SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname='document_links_finance_targets_disabled_ck'), 'finance document links remain disabled');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='document_links_finance_targets_disabled_ck'), 'finance document links enabled by Package 12.4');
 
 SELECT * FROM finish();
 ROLLBACK;

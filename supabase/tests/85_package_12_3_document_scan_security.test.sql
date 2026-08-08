@@ -14,7 +14,7 @@ SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_start_
 SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_record_document_scan_result(uuid,uuid,app.document_scan_status,bytea,bigint,text,text,text,text,text)','EXECUTE'), 'authenticated cannot forge scan result');
 SELECT ok(NOT has_function_privilege('anon','public.server_owner_finalize_clean_document_upload(uuid,uuid,bytea,bigint,text)','EXECUTE'), 'anon cannot finalize documents');
 SELECT ok((SELECT pg_get_functiondef('app.owner_start_document_scan(uuid,uuid,text)'::regprocedure)) ILIKE '%require_active_owner_admin%', 'scan request requires active Owner/Admin');
-SELECT ok((SELECT pg_get_functiondef('app.owner_start_document_scan(uuid,uuid,text)'::regprocedure)) ILIKE '%authorized_by <> actor_row.actor_user_id%', 'scan tied to authorized uploader');
+SELECT ok((SELECT pg_get_functiondef('app.owner_start_document_scan(uuid,uuid,text)'::regprocedure)) NOT ILIKE '%authorized_by <> actor_row.actor_user_id%', 'Package 12.4 allows Owner/Admin scan processing for Client evidence uploads');
 SELECT ok((SELECT pg_get_functiondef('app.owner_record_document_scan_result(uuid,uuid,app.document_scan_status,bytea,bigint,text,text,text,text,text)'::regprocedure)) ILIKE '%hash_mismatch%', 'scan result binds exact hash and size');
 SELECT ok((SELECT pg_get_functiondef('app.owner_record_document_scan_result(uuid,uuid,app.document_scan_status,bytea,bigint,text,text,text,text,text)'::regprocedure)) ILIKE '%SCAN_FAILED%', 'scanner errors fail closed');
 SELECT ok((SELECT pg_get_functiondef('app.owner_record_document_scan_result(uuid,uuid,app.document_scan_status,bytea,bigint,text,text,text,text,text)'::regprocedure)) ILIKE '%QUARANTINED%', 'malicious result quarantines');
@@ -24,7 +24,7 @@ SELECT ok((SELECT pg_get_functiondef('app.owner_record_document_scan_result(uuid
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%project_manager%access_allowed%true%', 'Project Manager remains default-denied');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%accountant%access_allowed%true%', 'Accountant remains default-denied');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%site_supervisor%access_allowed%true%', 'Site Supervisor remains default-denied');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name ILIKE '%current_client%upload%'), 'Client upload gateway remains absent');
+SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name='current_client_reserve_transfer_evidence_upload'), 'Package 12.4 adds only the narrow Client evidence upload gateway');
 
 SELECT * FROM finish();
 ROLLBACK;
