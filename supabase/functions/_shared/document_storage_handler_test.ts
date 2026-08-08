@@ -57,14 +57,17 @@ function request(
 
 function mockAuth(options: {
   calls: string[];
+  rpcArgs?: Record<string, unknown>[];
   rpcError?: { code?: string; message?: string };
+  ownerStorageError?: { code?: string; message?: string };
   downloadText?: string;
 }) {
   return (_req: Request, _env: AppEnv): Promise<AuthenticatedContext> => {
     options.calls.push("authenticate");
     const serviceClient = {
-      rpc: (name: string) => {
+      rpc: (name: string, args: Record<string, unknown>) => {
         options.calls.push(`rpc:${name}`);
+        options.rpcArgs?.push({ name, ...args });
         if (options.rpcError) {
           return Promise.resolve({ data: null, error: options.rpcError });
         }
@@ -81,7 +84,26 @@ function mockAuth(options: {
             error: null,
           });
         }
+        if (name === "current_client_reserve_transfer_evidence_upload") {
+          return Promise.resolve({
+            data: [{
+              upload_id: uploadId,
+              reserved_document_id: documentId,
+              storage_bucket: "documents-private",
+              storage_object_key:
+                `temporary/${uploadId}/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB`,
+              expires_at: "2026-08-08T00:05:00Z",
+            }],
+            error: null,
+          });
+        }
         if (name === "server_owner_document_upload_storage_context") {
+          if (options.ownerStorageError) {
+            return Promise.resolve({
+              data: null,
+              error: options.ownerStorageError,
+            });
+          }
           return Promise.resolve({
             data: [{
               upload_id: uploadId,
@@ -94,7 +116,34 @@ function mockAuth(options: {
             error: null,
           });
         }
+        if (
+          name === "current_client_transfer_evidence_upload_storage_context"
+        ) {
+          return Promise.resolve({
+            data: [{
+              upload_id: uploadId,
+              status: "AUTHORIZED",
+              storage_bucket: "documents-private",
+              storage_object_key:
+                `temporary/${uploadId}/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB`,
+              expires_at: "2026-08-08T00:05:00Z",
+            }],
+            error: null,
+          });
+        }
         if (name === "server_owner_complete_document_upload") {
+          return Promise.resolve({
+            data: [{
+              upload_id: uploadId,
+              status: "AWAITING_SCAN",
+              reserved_document_id: documentId,
+              verified_mime_type: "application/pdf",
+              verified_file_size_bytes: 8,
+            }],
+            error: null,
+          });
+        }
+        if (name === "current_client_complete_transfer_evidence_upload") {
           return Promise.resolve({
             data: [{
               upload_id: uploadId,
@@ -184,6 +233,46 @@ Deno.test("document upload authorization validates origin, file type, and return
   assert(calls.some((call) => call.startsWith("signed:temporary/")));
 });
 
+Deno.test("client transfer evidence authorization uses the narrow RPC and fixed payload", async () => {
+  const calls: string[] = [];
+  const rpcArgs: Record<string, unknown>[] = [];
+  const handler = createDocumentStorageHandler("document-upload-authorize", {
+    loadEnv: env,
+    authenticate: mockAuth({ calls, rpcArgs }),
+  });
+  const response = await handler(request({
+    original_file_name: "transfer.pdf",
+    mime_type: "application/pdf",
+    client_payment_id: "30000000-0000-4000-8000-000000000011",
+  }));
+  assertEquals(response.status, 200);
+  assert(calls.includes("rpc:current_client_reserve_transfer_evidence_upload"));
+  assert(!calls.includes("rpc:server_owner_reserve_document_upload"));
+  const body = await response.json();
+  assertEquals(body.data.upload_id, uploadId);
+  assert(!JSON.stringify(body).includes("BANK_TRANSFER_EVIDENCE"));
+  const reserveArgs = rpcArgs.find((args) =>
+    args.name === "current_client_reserve_transfer_evidence_upload"
+  );
+  assertEquals(reserveArgs?.p_verified_client_auth_subject, actor);
+});
+
+Deno.test("client transfer evidence authorization rejects generic finance fields", async () => {
+  const calls: string[] = [];
+  const handler = createDocumentStorageHandler("document-upload-authorize", {
+    loadEnv: env,
+    authenticate: mockAuth({ calls }),
+  });
+  const response = await handler(request({
+    original_file_name: "transfer.pdf",
+    mime_type: "application/pdf",
+    client_payment_id: "30000000-0000-4000-8000-000000000011",
+    client_visible: true,
+  }));
+  assertEquals(response.status, 422);
+  assertEquals(calls, ["authenticate"]);
+});
+
 Deno.test("document upload authorization rejects dangerous double extensions before storage", async () => {
   const calls: string[] = [];
   const handler = createDocumentStorageHandler("document-upload-authorize", {
@@ -253,6 +342,41 @@ Deno.test("document upload completion rejects malformed signatures and removes t
   const response = await handler(request({ upload_id: uploadId }));
   assertEquals(response.status, 422);
   assert(calls.some((call) => call.startsWith("remove:temporary/")));
+});
+
+Deno.test("client transfer evidence completion falls back only to the dedicated reservation", async () => {
+  const calls: string[] = [];
+  const rpcArgs: Record<string, unknown>[] = [];
+  const handler = createDocumentStorageHandler("document-upload-complete", {
+    loadEnv: env,
+    authenticate: mockAuth({
+      calls,
+      rpcArgs,
+      ownerStorageError: { code: "42501" },
+    }),
+  });
+  const response = await handler(request({ upload_id: uploadId }));
+  assertEquals(response.status, 200);
+  const body = await response.json();
+  assertEquals(body.data.status, "AWAITING_SCAN");
+  assert(calls.includes("rpc:server_owner_document_upload_storage_context"));
+  assert(
+    calls.includes(
+      "rpc:current_client_transfer_evidence_upload_storage_context",
+    ),
+  );
+  assert(
+    calls.includes("rpc:current_client_complete_transfer_evidence_upload"),
+  );
+  assert(!calls.includes("rpc:server_owner_complete_document_upload"));
+  const clientContextArgs = rpcArgs.find((args) =>
+    args.name === "current_client_transfer_evidence_upload_storage_context"
+  );
+  const completeArgs = rpcArgs.find((args) =>
+    args.name === "current_client_complete_transfer_evidence_upload"
+  );
+  assertEquals(clientContextArgs?.p_verified_client_auth_subject, actor);
+  assertEquals(completeArgs?.p_verified_client_auth_subject, actor);
 });
 
 Deno.test("document access proxies bytes instead of returning a reusable signed URL", async () => {

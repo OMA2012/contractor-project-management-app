@@ -49,3 +49,11 @@ Package 12.3 implements the ClamAV-compatible HTTPS scan, quarantine and final p
 The workflow preserves `app.document_status` as `ACTIVE`/`ARCHIVED`, keeps scanner/result/finalization database wrappers service-role-only, lets an authenticated active Owner/Admin request processing by upload id only, records trusted scan attempts, logically quarantines malicious uploads, fails closed on scanner errors, and creates the finalized object plus exactly one `app.documents`/`app.document_links` pair only after clean scan and final object verification.
 
 No production scanner endpoint or credential is committed. Production operation fails closed until `DOCUMENT_SCANNER_URL` and `DOCUMENT_SCANNER_TOKEN` are configured for a real ClamAV-compatible HTTPS adapter.
+
+## Stage 12 Package 12.4 Update
+
+Package 12.4 activates financial document links and Client transfer evidence. It adds migrations 1167-1169, pgTAP tests 87-89, shared document-storage handler updates, Edge handler tests, static-validation updates and documentation notes.
+
+Owner/Admin document uploads can now reserve and finalize approved finance targets. Clients can only reserve and complete bank transfer evidence for their own submitted Client Payment through the Edge-mediated upload path; database wrappers that return storage keys or accept trusted hash facts are service-role-only. Evidence remains non-public, scanner-gated, and does not create postings, matches, notifications or generic client-visible document rows.
+
+No deploy, migration apply outside the local reset, commit, push or staging action is performed by this package implementation.

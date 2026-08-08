@@ -172,6 +172,16 @@ Package 12.3 adds tests 84-86:
 - `86_package_12_3_document_scan_operations.test.sql` verifies `AWAITING_SCAN` to scan flow, forged CLEAN denial, clean scan non-public state, finalization with trusted metadata and exactly one link, idempotent finalization, Client access only after clean finalization, cross-Client/archive denial, malicious quarantine, scanner-error retry, reserved-role denial, safe activity logging, and disabled finance links.
 
 Deno tests for `_shared/document_scan_handler_test.ts` cover CLEAN, MALICIOUS, ERROR, network failure, malformed/unknown fail-closed handling through normalized results, caller-supplied scan fact rejection, hash mismatch fail-closed behavior, final object write, and secret non-exposure.
+
+## Stage 12 Package 12.4 Tests
+
+Package 12.4 adds tests 87-89:
+
+- `87_package_12_4_financial_document_links_schema.test.sql` verifies activated finance target foreign keys, finance document type seeds, upload reservation target expansion, exact one-target checks, indexes, and preserved Package 12 document metadata boundaries.
+- `88_package_12_4_financial_document_links_security.test.sql` verifies service-role-only Owner finance document gateways, service-role-only storage-key/trusted-hash Client evidence wrappers, private helper revocation, direct-DML denial, Client generic upload denial, and no scanner/finalizer grant to Clients.
+- `89_package_12_4_financial_document_links_operations.test.sql` verifies Owner/Admin finance-target reservation/finalization, narrow Client transfer-evidence reservation and completion to `AWAITING_SCAN`, clean scan finalization preserving the Client uploader, private Client evidence access authorization, rejection of invalid/cross-client/non-submitted evidence, hard-delete retention and no ledger side effects.
+
+Deno tests for `_shared/document_storage_handler_test.ts` cover the fixed Client transfer-evidence authorization payload, rejection of generic finance fields on the Client path, and completion fallback only through the dedicated Client evidence reservation.
 ## Stage 15 Package 15.1
 
 Run after applying migrations:

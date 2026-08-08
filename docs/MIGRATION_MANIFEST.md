@@ -91,3 +91,13 @@ Package 12.2 deliberately does not add scanner integration, notifications, sched
 | 1166 | `20260724110900_1166_document_scan_grants.sql` | Grants scanner/finalization wrappers only to `service_role` and keeps direct scan table/private function access revoked | 1165 | No anon/authenticated direct scanner/result/finalization DML grants |
 
 Package 12.3 uses the Edge Function `document-scan-finalize` and shared handler `_shared/document_scan_handler.ts`. Production scanner integration is a backend-only ClamAV-compatible HTTPS contract configured with `DOCUMENT_SCANNER_URL` and `DOCUMENT_SCANNER_TOKEN`; no endpoint or credential is committed.
+
+## Stage 12 Package 12.4 Addendum
+
+| Number | File | Purpose | Dependencies | Notes |
+| --- | --- | --- | --- | --- |
+| 1167 | `20260724111000_1167_financial_document_link_schema.sql` | Activates approved finance document link targets for Client Payments, Payment Requests, Project Expenses and Currency Exchanges; adds matching upload reservation targets and finance document type seeds | Packages 12.1-12.3, 14.1, 14.2, 15.1, 17.1 | Finance links remain metadata links; no ledger, matching, posting or notification behavior is introduced |
+| 1168 | `20260724111100_1168_financial_document_link_functions.sql` | Extends Owner/Admin document reservation/finalization/access functions for finance targets and adds the narrow current-Client transfer-evidence upload path | 1167 plus existing Owner/Admin, Client, scan and activity-log helpers | Client uploads are limited to their own submitted Client Payment transfer evidence and stop at scan-awaiting state |
+| 1169 | `20260724111200_1169_financial_document_link_grants.sql` | Grants only the updated service-role Owner gateways and Edge-mediated Client transfer-evidence gateways | 1168 | No direct table/storage access, no direct Client storage-key/trusted-hash RPC grant, no Client generic upload grant and no Client scanner/finalization grant |
+
+Package 12.4 activates the financial document link columns originally reserved in Package 12.1. Owner/Admin document workflows may target finance records after scan/finalization, while Clients receive only a dedicated bank-transfer-evidence Edge path for their own submitted Client Payment. Client transfer evidence is private by default, accessible to that Client for direct document access authorization, and not added to the generic client-visible document list.

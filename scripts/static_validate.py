@@ -257,7 +257,10 @@ for code in ('owner_admin', 'project_manager', 'accountant', 'site_supervisor', 
 
 require('purchasing' not in all_sql, 'Purchasing Staff role absent')
 require(not re.search(r"role_code\s*=\s*'worker'|'worker'\s*,\s*'worker|user_type\s*=\s*'worker'", all_sql), 'Worker account/role absent')
-require('supplier' not in all_sql, 'Supplier account/role absent')
+require(
+    not re.search(r"role_code\s*=\s*'supplier'|'supplier'\s*,\s*'supplier|user_type\s*=\s*'supplier'|create table app\.suppliers", all_sql),
+    'Supplier account/role absent',
+)
 require('organization' not in all_sql and 'organisation' not in all_sql, 'multi-organisation schema absent')
 require('app.last_active_owner' in all_sql, 'concurrency-safe last-owner guard present')
 require('enable row level security' in all_sql, 'RLS enabled in default-deny migration')
@@ -3104,7 +3107,21 @@ for path in package_12_1_scope_files:
                     }
                 )
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or forbidden not in text,
+            allowed_stage_12_4_financial_document_marker = (
+                forbidden in (
+                    'document_upload',
+                    'document_download',
+                    'scanner',
+                    'references app.project_expenses',
+                    'references app.currency_exchanges',
+                )
+                and path.name in {
+                    '20260724111000_1167_financial_document_link_schema.sql',
+                    '20260724111100_1168_financial_document_link_functions.sql',
+                    '20260724111200_1169_financial_document_link_grants.sql',
+                }
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'

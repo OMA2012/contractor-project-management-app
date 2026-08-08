@@ -6,11 +6,11 @@ SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid='app.document_uplo
 SELECT ok(NOT has_table_privilege('anon','app.document_uploads','SELECT,INSERT,UPDATE,DELETE'), 'anon has no document_uploads access');
 SELECT ok(NOT has_table_privilege('authenticated','app.document_uploads','SELECT,INSERT,UPDATE,DELETE'), 'authenticated has no document_uploads access');
 SELECT ok(NOT has_table_privilege('service_role','app.document_uploads','SELECT,INSERT,UPDATE,DELETE'), 'service_role has no direct document_uploads access');
-SELECT ok(has_function_privilege('service_role','public.server_owner_reserve_document_upload(uuid,text,text,text,character varying,boolean,uuid,uuid,uuid,uuid,text)','EXECUTE'), 'service role can reserve through gateway');
+SELECT ok(has_function_privilege('service_role','public.server_owner_reserve_document_upload(uuid,text,text,text,character varying,boolean,uuid,uuid,uuid,uuid,text,uuid,uuid,uuid,uuid)','EXECUTE'), 'service role can reserve through gateway');
 SELECT ok(has_function_privilege('service_role','public.server_owner_complete_document_upload(uuid,uuid,text,bigint,bytea,text)','EXECUTE'), 'service role can complete through gateway');
 SELECT ok(has_function_privilege('service_role','public.server_authorize_document_access(uuid,uuid,text,text)','EXECUTE'), 'service role can authorize access through gateway');
 SELECT ok(has_function_privilege('service_role','public.server_owner_invalidate_expired_document_upload(uuid,uuid,text)','EXECUTE'), 'service role can invalidate orphan upload through gateway');
-SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_reserve_document_upload(uuid,text,text,text,character varying,boolean,uuid,uuid,uuid,uuid,text)','EXECUTE'), 'authenticated cannot reserve through server gateway');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_reserve_document_upload(uuid,text,text,text,character varying,boolean,uuid,uuid,uuid,uuid,text,uuid,uuid,uuid,uuid)','EXECUTE'), 'authenticated cannot reserve through server gateway');
 SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_complete_document_upload(uuid,uuid,text,bigint,bytea,text)','EXECUTE'), 'authenticated cannot complete through server gateway');
 SELECT ok(NOT has_function_privilege('authenticated','public.server_authorize_document_access(uuid,uuid,text,text)','EXECUTE'), 'authenticated cannot execute server access gateway directly');
 SELECT ok(NOT has_function_privilege('anon','public.server_authorize_document_access(uuid,uuid,text,text)','EXECUTE'), 'anon cannot execute server access gateway');
@@ -19,7 +19,7 @@ SELECT throws_ok($$ SELECT * FROM public.server_owner_create_document_metadata('
 SELECT is_empty($$ SELECT policyname FROM pg_policies WHERE schemaname='storage' AND tablename='objects' AND (roles::text ILIKE '%authenticated%' OR roles::text ILIKE '%anon%') $$, 'no broad anon/authenticated storage.objects policy exists');
 SELECT ok((SELECT public=false FROM storage.buckets WHERE id='documents-private'), 'private bucket is not public');
 SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name IN ('current_project_manager_document_upload','current_accountant_document_upload','current_site_supervisor_document_upload')), 'reserved-role upload gateways absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='public' AND routine_name ILIKE '%document%finance%'), 'document finance activation absent');
+SELECT ok(EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema='app' AND routine_name='document_finance_target_scope'), 'Package 12.4 document finance activation present');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%project_manager%access_allowed%true%', 'Project Manager remains default-denied');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%accountant%access_allowed%true%', 'Accountant remains default-denied');
 SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%site_supervisor%access_allowed%true%', 'Site Supervisor remains default-denied');
