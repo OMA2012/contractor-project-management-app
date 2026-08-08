@@ -6,8 +6,8 @@
   "tasks": {
     "fmt": "deno fmt --check .",
     "lint": "deno lint .",
-    "check": "deno check _shared/*.ts _shared/*_test.ts create-client-invitation/index.ts resend-client-invitation/index.ts revoke-client-invitation/index.ts accept-client-invitation/index.ts suspend-client-account/index.ts reactivate-client-account/index.ts disable-client-account/index.ts",
-    "test": "deno test --allow-env --allow-net=127.0.0.1,localhost _shared create-client-invitation resend-client-invitation revoke-client-invitation accept-client-invitation suspend-client-account reactivate-client-account disable-client-account",
-    "cache:frozen": "deno cache --frozen --lock=deno.lock _shared/*.ts create-client-invitation/index.ts resend-client-invitation/index.ts revoke-client-invitation/index.ts accept-client-invitation/index.ts suspend-client-account/index.ts reactivate-client-account/index.ts disable-client-account/index.ts"
+    "check": "deno check _shared/*.ts _shared/*_test.ts create-client-invitation/index.ts resend-client-invitation/index.ts revoke-client-invitation/index.ts accept-client-invitation/index.ts suspend-client-account/index.ts reactivate-client-account/index.ts disable-client-account/index.ts document-upload-authorize/index.ts document-upload-complete/index.ts document-access/index.ts",
+    "test": "deno test --allow-env --allow-net=127.0.0.1,localhost _shared create-client-invitation resend-client-invitation revoke-client-invitation accept-client-invitation suspend-client-account reactivate-client-account disable-client-account document-upload-authorize document-upload-complete document-access",
+    "cache:frozen": "deno cache --frozen --lock=deno.lock _shared/*.ts create-client-invitation/index.ts resend-client-invitation/index.ts revoke-client-invitation/index.ts accept-client-invitation/index.ts suspend-client-account/index.ts reactivate-client-account/index.ts disable-client-account/index.ts document-upload-authorize/index.ts document-upload-complete/index.ts document-access/index.ts"
   }
 }

@@ -16,9 +16,9 @@ SELECT has_function('public', 'server_owner_archive_document_metadata', ARRAY['u
 SELECT has_function('public', 'server_owner_link_document', ARRAY['uuid','uuid','uuid','uuid','uuid','uuid','uuid','uuid','uuid','uuid'], 'owner link document rpc exists');
 SELECT ok(has_function_privilege('authenticated', 'public.current_client_document_list(integer, integer)', 'EXECUTE'), 'authenticated can execute client list');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.server_owner_create_document_metadata(uuid, text, text, text, text, bigint, bytea, character varying, boolean, text)', 'EXECUTE'), 'authenticated cannot execute owner create');
-SELECT ok(has_function_privilege('service_role', 'public.server_owner_create_document_metadata(uuid, text, text, text, text, bigint, bytea, character varying, boolean, text)', 'EXECUTE'), 'service role can execute owner create');
+SELECT ok(NOT has_function_privilege('service_role', 'public.server_owner_create_document_metadata(uuid, text, text, text, text, bigint, bytea, character varying, boolean, text)', 'EXECUTE'), 'service role cannot execute legacy owner create after secure upload foundation');
 SELECT is_empty($$ SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('current_project_manager_document_list','current_accountant_document_list','current_site_supervisor_document_list') $$, 'reserved role document gateways absent');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('storage_buckets','document_scans','document_thumbnails')), 'storage scanner thumbnail objects absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name IN ('document_scans','document_thumbnails')), 'scanner thumbnail objects absent');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -155,6 +155,14 @@ Package 12.1 adds tests 48-50:
 - `49_package_12_1_documents_security.test.sql` verifies forced RLS, direct table default-deny behavior, approved RPC presence/grants, and absence of reserved-role document gateways.
 - `50_package_12_1_documents_operations.test.sql` verifies Owner/Admin metadata creation, `DOC-000001`/`DOC-000002` numbering, immutable document numbers, constraint failures, finance-link rejection, client-visible metadata reads, cross-client denial, and archive hiding.
 
+Package 12.2 adds tests 81-83:
+
+- `81_package_12_2_document_storage_schema.test.sql` verifies the exact upload reservation schema, private `documents-private` bucket configuration, allowed MIME list, 25 MiB limit, function presence, preserved Package 12.1 document schema, unchanged `public.current_account()`, and absent scanner/thumbnail/Client upload objects.
+- `82_package_12_2_document_storage_security.test.sql` verifies forced RLS, no direct table or broad Storage policies, service-role-only gateways, old metadata creation bypass restriction, Client-safe response boundaries, reserved-role denial, archive-aware access logic, and no signed URL exposure in database authorization.
+- `83_package_12_2_document_storage_operations.test.sql` verifies Owner reservation, Client/reserved-role upload denial, opaque temporary keys, allowed and rejected extensions/MIME combinations, dangerous double-extension/path traversal denial, size/hash validation, expiration, idempotent completion to `AWAITING_SCAN`, no pre-scan `app.documents` publication, access authorization for finalized documents, Client isolation, orphan invalidation, safe activity logging, and finance-link disablement.
+
+Deno tests cover Edge Function authentication, strict CORS/origin handling through shared helpers, upload request validation, trusted magic-byte/SHA-256 completion behavior, response redaction, proxy-based document access, and copied signed-URL avoidance.
+
 Static validation now also checks the 1128-1130 migration markers, tests 48-50, the 1134-1136 Package 13.2 markers, tests 54-56, the 1137-1139 Package 13.3 markers, tests 57-59, the 1140-1142 Package 13.4 markers, tests 60-62, the 1143-1145 Package 14.1 markers, tests 63-65, the 1146-1148 Package 14.2 markers, tests 66-68, the 1155-1157 Package 16.1 markers, tests 75-77, the 1158-1160 Package 17.1 markers, tests 78-80, finance dependency safety, and excluded upload/download/Storage/signed URL/scanner/thumbnail/Flutter/Edge Function/notification/reserved-role behavior.
 ## Stage 15 Package 15.1
 
