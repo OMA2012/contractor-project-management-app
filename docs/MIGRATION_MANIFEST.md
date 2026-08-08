@@ -81,3 +81,13 @@ Package 12.1 preserves all eight approved `document_links` target columns. Only 
 | 1163 | `20260724110600_1163_document_storage_grants.sql` | Grants only narrow service-role server gateways and revokes legacy bypass access | 1162 | No anon/authenticated direct storage/database mutation grants |
 
 Package 12.2 deliberately does not add scanner integration, notifications, scheduled cleanup, Flutter document UI, Client uploads, DOCX/XLSX, public sharing, document versioning, bulk download, reserved-role activation or document-finance link activation.
+
+## Stage 12 Package 12.3 Addendum
+
+| Number | File | Purpose | Dependencies | Notes |
+| --- | --- | --- | --- | --- |
+| 1164 | `20260724110700_1164_document_scan_schema.sql` | Adds Package 12.3 upload scan/finalization states, `app.document_scan_status`, append-preserving `app.document_scans`, final object-key state, constraints, indexes, forced RLS and direct-access revokes | 1161-1163, Package 12.1 document metadata | Scanner state is separate from `app.document_status`, which remains exactly `ACTIVE`/`ARCHIVED` |
+| 1165 | `20260724110800_1165_document_scan_functions.sql` | Adds Owner/Admin scan start, trusted scan result recording, clean finalization prepare, and final publication functions plus service wrappers | 1164, Owner/Admin identity gates, activity logs | Scanner facts bind to upload id, temporary object key, SHA-256 and size; finalization uses `reserved_document_id` |
+| 1166 | `20260724110900_1166_document_scan_grants.sql` | Grants scanner/finalization wrappers only to `service_role` and keeps direct scan table/private function access revoked | 1165 | No anon/authenticated direct scanner/result/finalization DML grants |
+
+Package 12.3 uses the Edge Function `document-scan-finalize` and shared handler `_shared/document_scan_handler.ts`. Production scanner integration is a backend-only ClamAV-compatible HTTPS contract configured with `DOCUMENT_SCANNER_URL` and `DOCUMENT_SCANNER_TOKEN`; no endpoint or credential is committed.

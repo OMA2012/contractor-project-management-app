@@ -41,3 +41,11 @@ Verification results for this package are recorded from the current run output w
 Package 12.2 implements the private Storage and secure file-access foundation. It adds the `documents-private` bucket, temporary upload reservations, Owner/Admin upload authorization and completion gates, trusted file validation metadata, `AWAITING_SCAN` stop-state behavior, secure finalized-document access authorization, orphan invalidation foundation, Edge Functions and tests.
 
 Package 12.2 is not the complete Stage 12 module. ClamAV-compatible scan/quarantine/final publication, document-finance link activation, approved Client transfer-evidence upload, notifications, background cleanup scheduling/reconciliation, photograph processing/thumbnails, galleries, responsive Flutter document/photo UI, and staff-role workflows remain deferred to their approved packages.
+
+## Stage 12 Package 12.3 Update
+
+Package 12.3 implements the ClamAV-compatible HTTPS scan, quarantine and final publication gate. It adds migrations 1164-1166, pgTAP tests 84-86, the `document-scan-finalize` Edge Function, scanner adapter tests, static-validation coverage, and documentation updates.
+
+The workflow preserves `app.document_status` as `ACTIVE`/`ARCHIVED`, keeps scanner/result/finalization database wrappers service-role-only, lets an authenticated active Owner/Admin request processing by upload id only, records trusted scan attempts, logically quarantines malicious uploads, fails closed on scanner errors, and creates the finalized object plus exactly one `app.documents`/`app.document_links` pair only after clean scan and final object verification.
+
+No production scanner endpoint or credential is committed. Production operation fails closed until `DOCUMENT_SCANNER_URL` and `DOCUMENT_SCANNER_TOKEN` are configured for a real ClamAV-compatible HTTPS adapter.

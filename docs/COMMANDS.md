@@ -1102,6 +1102,56 @@ Physical deletion is permitted only for expired, failed, confirmed orphan, or fu
 
 Package 12.2 is not the complete Stage 12 module. Remaining approved Stage 12 work includes ClamAV-compatible scan/quarantine/final publication, document-finance link activation, approved Client transfer-evidence upload, notifications, background cleanup scheduling/reconciliation, photograph processing/thumbnails, photograph galleries, responsive Flutter document/photo interfaces, and deferred staff-role workflows when those roles are activated.
 
+## Stage 12 Package 12.3: ClamAV-Compatible Scan, Quarantine and Final Publication Gate
+
+Package 12.3 adds the scanner/finalization gate after `AWAITING_SCAN`. It preserves `app.document_status` exactly as `ACTIVE` and `ARCHIVED`, and keeps operational scan state in `app.document_uploads` plus append-preserving `app.document_scans` attempts.
+
+Operational upload states added by Package 12.3:
+
+```text
+SCAN_IN_PROGRESS
+SCAN_CLEAN
+QUARANTINED
+SCAN_FAILED
+FINALIZING
+FINALIZED
+```
+
+The approved transition path is:
+
+```text
+AWAITING_SCAN -> SCAN_IN_PROGRESS
+SCAN_IN_PROGRESS -> SCAN_CLEAN
+SCAN_IN_PROGRESS -> QUARANTINED
+SCAN_IN_PROGRESS -> SCAN_FAILED
+SCAN_FAILED -> SCAN_IN_PROGRESS
+SCAN_CLEAN -> FINALIZING
+FINALIZING -> FINALIZED
+```
+
+The `document-scan-finalize` Edge Function lets an authenticated active Owner/Admin request processing by `upload_id` only. The caller cannot provide scan result, scanner metadata, bucket/key, SHA-256, file size, MIME type, final document id, final object key, document link target, or `client_visible`; those values are loaded from trusted Package 12.2 database state or normalized scanner output.
+
+Production scanner configuration is backend-only:
+
+```text
+DOCUMENT_SCANNER_URL
+DOCUMENT_SCANNER_TOKEN
+```
+
+The scanner adapter is ClamAV-compatible HTTPS only. Raw clamd TCP/socket communication is not implemented in the Edge Function. Missing configuration, network failure, timeout, malformed response and unknown result all fail closed to `SCAN_FAILED` and do not publish a document. Tests may inject a fake scanner adapter, but there is no runtime environment variable, request parameter or production code path for an always-clean scanner.
+
+For `MALICIOUS`, Package 12.3 sets the upload to `QUARANTINED`, records bounded scan evidence, creates no `app.documents`, creates no `app.document_links`, creates no final object, exposes no normal access path, and does not invent a retention period or scheduled cleanup.
+
+For `CLEAN`, the system writes the final object under:
+
+```text
+objects/<reserved_document_id>/<opaque-token>
+```
+
+The final key is generated once by trusted backend/database logic and stored for idempotent retries. Final database publication happens only after the final object exists and its size and SHA-256 match the clean-scanned bytes. The finalized `app.documents` row uses `reserved_document_id`, trusted Package 12.2 metadata, the final object key, trusted SHA-256, the authorized uploader, and the authorized requested Client visibility. Exactly one enabled non-finance `app.document_links` row is created.
+
+No scanner credentials, raw scanner output, file contents, signed URLs, upload tokens, Storage service keys, authorization headers, private notes, or sensitive object paths may be logged or returned.
+
 ## Stage 13 Package 13.1: Financial Account Foundation
 
 Package 13.1 adds only the financial-account database foundation. It does not add opening balances, exchange rates, financial events, financial transactions, ledger accounts, ledger entries, balances, posting, payments, expenses, transfers, currency exchanges, refunds, reversals, adjustments, finance notifications, Flutter, Edge Functions, documents, Accountant activation, or changes to `public.current_account()`.

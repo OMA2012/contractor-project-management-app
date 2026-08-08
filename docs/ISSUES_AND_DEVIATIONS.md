@@ -23,3 +23,10 @@
 2. **Legacy metadata creation is forward-restricted.** The old service-role metadata creation wrapper can no longer create an `ACTIVE` document from caller-selected bucket, object key, MIME, size, hash and uploader facts. Existing list/archive behavior remains available.
 3. **No Client upload in first release.** Client-safe finalized document access is implemented, but Client upload/transfer-evidence submission remains deferred until the approved workflow package.
 4. **Backend proxying is preferred for Client access.** The access gateway streams authorized finalized objects instead of returning raw reusable Storage signed URLs to Clients.
+
+## Stage 12 Package 12.3
+
+1. **Production scanner endpoint remains deployment configuration.** Package 12.3 defines the backend-only ClamAV-compatible HTTPS adapter contract using `DOCUMENT_SCANNER_URL` and `DOCUMENT_SCANNER_TOKEN`, but no endpoint or credential is committed.
+2. **Scanner failures fail closed.** Missing scanner configuration, network failure, timeout, malformed response and unknown result all record an error/failed scan state and never create `app.documents`.
+3. **Quarantine is logical private quarantine.** Malicious uploads move to `QUARANTINED`, retain bounded scan evidence, and do not publish. Package 12.3 does not invent a retention duration and does not add scheduled cleanup.
+4. **Final object token uses stored cryptographic UUID-derived opacity.** The final key is generated once by trusted database logic under `objects/<reserved_document_id>/<opaque-token>` and reused on retry.

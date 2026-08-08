@@ -58,7 +58,7 @@ SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'app.document
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'document_links_exactly_one_target_ck'), 'exactly one of eight targets constrained');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'document_links_finance_targets_disabled_ck'), 'finance targets constrained null');
 SELECT ok(EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'app' AND table_name = 'document_uploads'), 'Package 12.2 upload reservation table exists after metadata-only boundary');
-SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name ~ '(scanner|thumbnail|finance|current_project_manager_document|current_accountant_document|current_site_supervisor_document)'), 'scanner thumbnail finance and reserved-role document functions absent');
+SELECT ok(NOT EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema IN ('app','public') AND routine_name ~ '(thumbnail|finance|current_project_manager_document|current_accountant_document|current_site_supervisor_document)'), 'thumbnail finance and reserved-role document functions absent');
 
 SELECT * FROM finish();
 ROLLBACK;
