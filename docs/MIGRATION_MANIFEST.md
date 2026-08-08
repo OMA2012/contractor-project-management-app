@@ -71,3 +71,13 @@ Package 17.1 adds Currency Exchanges. The exact subtype has no Project, Client, 
 | 1130 | `20260724103300_1130_document_grants.sql` | Revokes direct table access and grants only service owner RPCs plus authenticated client read RPC | 1129 | Forward-fix grants in a new migration | Test 49 |
 
 Package 12.1 preserves all eight approved `document_links` target columns. Only client, project, task and progress-update targets are enabled. Finance target columns remain nullable but constrained to `NULL` until later forward migrations add their tables and foreign keys.
+
+## Stage 12 Package 12.2 Addendum
+
+| Number | File | Purpose | Dependencies | Notes |
+| --- | --- | --- | --- | --- |
+| 1161 | `20260724110400_1161_document_storage_upload_reservations.sql` | Creates private `documents-private` bucket, `app.document_upload_status`, `app.document_uploads`, constraints, indexes, forced RLS and direct-access revokes | Package 12.1 documents, Supabase Storage schema | Temporary uploads only; no finalized `app.documents` publication |
+| 1162 | `20260724110500_1162_secure_document_storage_functions.sql` | Adds Owner/Admin upload reservation/completion, access authorization, orphan invalidation, safe logging, and forward-restricts legacy active metadata creation | 1161, Owner/Admin and Client identity gateways, activity logs | Completion stops at `AWAITING_SCAN`; scanner/finalization deferred |
+| 1163 | `20260724110600_1163_document_storage_grants.sql` | Grants only narrow service-role server gateways and revokes legacy bypass access | 1162 | No anon/authenticated direct storage/database mutation grants |
+
+Package 12.2 deliberately does not add scanner integration, notifications, scheduled cleanup, Flutter document UI, Client uploads, DOCX/XLSX, public sharing, document versioning, bulk download, reserved-role activation or document-finance link activation.

@@ -16,3 +16,10 @@
 1. **Finance links are schema-present but disabled.** The approved `document_links` finance target columns are present, nullable, and constrained to remain `NULL`. Foreign keys and enabled behavior are deferred until `client_payments`, `payment_requests`, `project_expenses`, and `currency_exchanges` exist.
 2. **Metadata-only storage fields.** `storage_bucket` and `storage_object_key` are metadata fields only. No Storage bucket, upload, download, signed URL, scanner, thumbnail, Edge Function, Flutter UI, notification integration, finance implementation, or reserved-role activation is included.
 3. **Unfinalized file policy values remain unresolved.** MIME allowlist, maximum file size, retention period, quarantine period, and scanner policy are not invented in Package 12.1.
+
+## Stage 12 Package 12.2
+
+1. **Publication is intentionally blocked at `AWAITING_SCAN`.** Package 12.2 validates private uploads but does not insert newly uploaded files into `app.documents` because the approved ClamAV-compatible scan/quarantine/final publication gate is deferred to the next Stage 12 package.
+2. **Legacy metadata creation is forward-restricted.** The old service-role metadata creation wrapper can no longer create an `ACTIVE` document from caller-selected bucket, object key, MIME, size, hash and uploader facts. Existing list/archive behavior remains available.
+3. **No Client upload in first release.** Client-safe finalized document access is implemented, but Client upload/transfer-evidence submission remains deferred until the approved workflow package.
+4. **Backend proxying is preferred for Client access.** The access gateway streams authorized finalized objects instead of returning raw reusable Storage signed URLs to Clients.

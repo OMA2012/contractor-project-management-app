@@ -1768,12 +1768,19 @@ if functions_dir.exists():
         'reactivate-client-account',
         'disable-client-account',
     }
+    stage_12_2_functions = {
+        'document-upload-authorize',
+        'document-upload-complete',
+        'document-access',
+    }
     allowed_shared_files = {
         'auth.ts',
         'client_invitation_handler.ts',
         'client_invitation_handler_test.ts',
         'client_lifecycle_handler.ts',
         'client_lifecycle_handler_test.ts',
+        'document_storage_handler.ts',
+        'document_storage_handler_test.ts',
         'cors.ts',
         'denied_log.ts',
         'env.ts',
@@ -1795,6 +1802,8 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] in stage_09_2c3c_functions and relative.name in {'index.ts', 'deno.json'}
             ) or (
                 len(relative.parts) == 2 and relative.parts[0] in stage_09_2c3d_functions and relative.name in {'index.ts', 'deno.json'}
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] in stage_12_2_functions and relative.name in {'index.ts', 'deno.json'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in allowed_shared_files:
@@ -3064,7 +3073,19 @@ for path in package_12_1_scope_files:
                     '20260724110300_1160_currency_exchange_grants.sql',
                 }
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or forbidden not in text,
+            allowed_stage_12_2_storage_marker = (
+                forbidden in ('storage.buckets', 'document_upload', 'document_download', 'mime_type in (', 'max_file_size', 'signed url')
+                and (
+                    path.name in {
+                        '20260724110400_1161_document_storage_upload_reservations.sql',
+                        '20260724110500_1162_secure_document_storage_functions.sql',
+                        '20260724110600_1163_document_storage_grants.sql',
+                        'document_storage_handler.ts',
+                        'document_storage_handler_test.ts',
+                    }
+                )
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
@@ -5101,6 +5122,159 @@ if commands_path.exists():
     ):
         require(required in commands_sql,
                 f'docs/COMMANDS.md documents Package 17.1 marker: {required}')
+
+document_storage_schema_path = ROOT / 'supabase/migrations/20260724110400_1161_document_storage_upload_reservations.sql'
+document_storage_functions_path = ROOT / 'supabase/migrations/20260724110500_1162_secure_document_storage_functions.sql'
+document_storage_grants_path = ROOT / 'supabase/migrations/20260724110600_1163_document_storage_grants.sql'
+document_storage_test_paths = [
+    ROOT / 'supabase/tests/81_package_12_2_document_storage_schema.test.sql',
+    ROOT / 'supabase/tests/82_package_12_2_document_storage_security.test.sql',
+    ROOT / 'supabase/tests/83_package_12_2_document_storage_operations.test.sql',
+]
+document_storage_function_paths = [
+    ROOT / 'supabase/functions/document-upload-authorize/index.ts',
+    ROOT / 'supabase/functions/document-upload-complete/index.ts',
+    ROOT / 'supabase/functions/document-access/index.ts',
+    ROOT / 'supabase/functions/_shared/document_storage_handler.ts',
+    ROOT / 'supabase/functions/_shared/document_storage_handler_test.ts',
+]
+for path in (document_storage_schema_path, document_storage_functions_path, document_storage_grants_path, *document_storage_test_paths, *document_storage_function_paths):
+    require(path.exists(), f'Package 12.2 artifact exists: {path.relative_to(ROOT)}')
+
+if document_storage_schema_path.exists():
+    document_storage_schema_sql = document_storage_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create type app.document_upload_status',
+        "'authorized'",
+        "'awaiting_scan'",
+        'create table app.document_uploads',
+        "storage_bucket varchar(100) not null default 'documents-private'",
+        'temporary/',
+        'documents-private',
+        '26214400',
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'insert into storage.buckets',
+        'public = false',
+        'alter table app.document_uploads force row level security',
+        'revoke all on app.document_uploads from public, anon, authenticated, service_role',
+    ):
+        require(required in document_storage_schema_sql,
+                f'1161 document storage schema contains required marker: {required}')
+    for forbidden in (
+        'create table app.document_scans',
+        'create table app.document_thumbnails',
+        'docx',
+        'xlsx',
+        'objects/<document_uuid>',
+        'create policy',
+    ):
+        require(forbidden not in document_storage_schema_sql,
+                f'1161 document storage schema omits forbidden marker: {forbidden}')
+
+if document_storage_functions_path.exists():
+    document_storage_functions_sql = document_storage_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create or replace function app.owner_reserve_document_upload',
+        'create or replace function app.owner_complete_document_upload',
+        'create or replace function app.authorize_document_access',
+        'create or replace function app.owner_invalidate_expired_document_upload',
+        'document metadata creation requires secure upload finalization',
+        'document_upload_authorized',
+        'document_upload_awaiting_scan',
+        'document_preview_authorized',
+        'document_download_authorized',
+        'orphan_upload_invalidated',
+        'client_visible',
+        "doc_row.status <> 'active'",
+        '26214400',
+        'public.server_owner_reserve_document_upload',
+        'public.server_owner_complete_document_upload',
+        'public.server_authorize_document_access',
+    ):
+        require(required in document_storage_functions_sql,
+                f'1162 document storage functions contain required marker: {required}')
+    for forbidden in (
+        'insert into app.documents',
+        'create table app.document_scans',
+        'insert into app.notifications',
+        'current_project_manager_document',
+        'current_accountant_document',
+        'current_site_supervisor_document',
+        'public.current_account()',
+        'docx',
+        'xlsx',
+        'signed_url',
+    ):
+        require(forbidden not in document_storage_functions_sql,
+                f'1162 document storage functions omit forbidden marker: {forbidden}')
+
+if document_storage_grants_path.exists():
+    document_storage_grants_sql = document_storage_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.document_uploads from public, anon, authenticated, service_role',
+        'revoke all on function public.server_owner_create_document_metadata',
+        'grant execute on function public.server_owner_reserve_document_upload',
+        'grant execute on function public.server_owner_complete_document_upload',
+        'grant execute on function public.server_authorize_document_access',
+        'grant execute on function public.server_owner_invalidate_expired_document_upload',
+        'to service_role',
+    ):
+        require(required in document_storage_grants_sql,
+                f'1163 document storage grants contain required marker: {required}')
+    for forbidden in (
+        'to authenticated',
+        'to anon',
+        'grant select on app.document_uploads',
+        'grant insert on app.document_uploads',
+        'grant update on app.document_uploads',
+        'grant delete on app.document_uploads',
+    ):
+        require(forbidden not in document_storage_grants_sql,
+                f'1163 document storage grants omit forbidden marker: {forbidden}')
+
+document_handler_path = ROOT / 'supabase/functions/_shared/document_storage_handler.ts'
+if document_handler_path.exists():
+    document_handler_sql = document_handler_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'document-upload-authorize',
+        'document-upload-complete',
+        'document-access',
+        'createsigneduploadurl',
+        'download(',
+        'verifiedmimefrommagic',
+        '%pdf-',
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'cache-control',
+        'no-store',
+    ):
+        require(required in document_handler_sql,
+                f'document storage handler contains required marker: {required}')
+    for forbidden in (
+        'docx',
+        'xlsx',
+        'clamav',
+        'insert into app.documents',
+    ):
+        require(forbidden not in document_handler_sql,
+                f'document storage handler omits forbidden marker: {forbidden}')
+
+if commands_path.exists():
+    commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()
+    for required in (
+        'stage 12 package 12.2: private storage and secure file access foundation',
+        'documents-private',
+        'awaiting_scan',
+        'temporary/<upload_uuid>/<cryptographically-random-token>',
+        'package 12.2 is not the complete stage 12 module',
+        'clamav-compatible scan/quarantine/final publication',
+    ):
+        require(required in commands_sql,
+                f'docs/COMMANDS.md documents Package 12.2 marker: {required}')
 
 for path in ROOT.rglob('*'):
     if path.is_file() and '.git' not in path.parts and path.name != '.env.example':

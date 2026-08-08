@@ -48,3 +48,12 @@ verify_jwt = false
 
 [functions.disable-client-account]
 verify_jwt = false
+
+[functions.document-upload-authorize]
+verify_jwt = false
+
+[functions.document-upload-complete]
+verify_jwt = false
+
+[functions.document-access]
+verify_jwt = false
