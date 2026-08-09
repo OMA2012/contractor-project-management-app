@@ -1779,12 +1779,17 @@ if functions_dir.exists():
     stage_12_3_functions = {
         'document-scan-finalize',
     }
+    stage_12_5_functions = {
+        'document-process-photograph',
+    }
     allowed_shared_files = {
         'auth.ts',
         'client_invitation_handler.ts',
         'client_invitation_handler_test.ts',
         'client_lifecycle_handler.ts',
         'client_lifecycle_handler_test.ts',
+        'document_image_handler.ts',
+        'document_image_handler_test.ts',
         'document_scan_handler.ts',
         'document_scan_handler_test.ts',
         'document_storage_handler.ts',
@@ -1814,6 +1819,8 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_2_functions and relative.name in {'index.ts', 'deno.json'}
             ) or (
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_3_functions and relative.name in {'index.ts', 'deno.json'}
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] in stage_12_5_functions and relative.name in {'index.ts', 'deno.json', 'magick.wasm'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in allowed_shared_files:
@@ -3121,7 +3128,28 @@ for path in package_12_1_scope_files:
                     '20260724111200_1169_financial_document_link_grants.sql',
                 }
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or forbidden not in text,
+            allowed_stage_12_5_image_marker = (
+                forbidden in (
+                    'document_upload',
+                    'document_download',
+                    'thumbnail',
+                    'mime_type in (',
+                    'max_file_size',
+                )
+                and path.name in {
+                    '20260724111300_1170_document_image_derivatives_schema.sql',
+                    '20260724111400_1171_document_image_derivative_functions.sql',
+                    '20260724111500_1172_document_image_derivative_grants.sql',
+                    'document_image_handler.ts',
+                    'document_image_handler_test.ts',
+                    'document_storage_handler.ts',
+                    'document_storage_handler_test.ts',
+                    'index.ts',
+                    'deno.json',
+                    'magick.wasm',
+                }
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
@@ -5298,6 +5326,155 @@ if document_handler_path.exists():
     ):
         require(forbidden not in document_handler_sql,
                 f'document storage handler omits forbidden marker: {forbidden}')
+
+document_image_schema_path = ROOT / 'supabase/migrations/20260724111300_1170_document_image_derivatives_schema.sql'
+document_image_functions_path = ROOT / 'supabase/migrations/20260724111400_1171_document_image_derivative_functions.sql'
+document_image_grants_path = ROOT / 'supabase/migrations/20260724111500_1172_document_image_derivative_grants.sql'
+document_image_test_paths = [
+    ROOT / 'supabase/tests/90_package_12_5_document_image_derivatives_schema.test.sql',
+    ROOT / 'supabase/tests/91_package_12_5_document_image_derivatives_security.test.sql',
+    ROOT / 'supabase/tests/92_package_12_5_document_image_derivatives_operations.test.sql',
+]
+document_image_handler_path = ROOT / 'supabase/functions/_shared/document_image_handler.ts'
+document_image_function_path = ROOT / 'supabase/functions/document-process-photograph/index.ts'
+document_image_wasm_path = ROOT / 'supabase/functions/document-process-photograph/magick.wasm'
+for path in (document_image_schema_path, document_image_functions_path, document_image_grants_path, *document_image_test_paths, document_image_handler_path, document_image_function_path, document_image_wasm_path):
+    require(path.exists(), f'Package 12.5 artifact exists: {path.relative_to(ROOT)}')
+
+if document_image_schema_path.exists():
+    document_image_schema_sql = document_image_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'progress_photograph',
+        'task_attachment',
+        'create type app.document_image_processing_status',
+        "'pending'",
+        "'processing'",
+        "'ready'",
+        "'failed'",
+        'create table app.document_image_derivatives',
+        'document_id uuid primary key',
+        'source_sha256_hash bytea',
+        'thumbnail_storage_object_key text',
+        'preview_storage_object_key text',
+        'processor_version varchar(80)',
+        'failure_code varchar(80)',
+        '6000',
+        '12000000',
+        'derivatives/',
+        'thumbnail[.]webp',
+        'preview[.]webp',
+        'animated_image_unsupported',
+        'alter table app.document_image_derivatives force row level security',
+        'revoke all on app.document_image_derivatives from public, anon, authenticated, service_role',
+    ):
+        require(required in document_image_schema_sql,
+                f'1170 document image schema contains required marker: {required}')
+    for forbidden in (
+        'site_photograph',
+        'client_id uuid',
+        'project_id uuid',
+        'original_file_name',
+        'uploaded_by',
+        'create table app.document_thumbnails',
+        'public = true',
+        'create policy',
+    ):
+        require(forbidden not in document_image_schema_sql,
+                f'1170 document image schema omits forbidden marker: {forbidden}')
+
+if document_image_functions_path.exists():
+    document_image_functions_sql = document_image_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'app.owner_prepare_document_image_processing',
+        'app.owner_complete_document_image_processing',
+        'app.owner_fail_document_image_processing',
+        'app.authorize_document_image_access',
+        'require_active_owner_admin',
+        'finalized',
+        'clean',
+        'objects/',
+        '5242880',
+        'photograph_processing_started',
+        'photograph_processing_completed',
+        'photograph_processing_failed',
+        'server_authorize_document_image_access',
+        'sanitized_derivative',
+        'project_expense_id is null',
+        'currency_exchange_id is null',
+    ):
+        require(required in document_image_functions_sql,
+                f'1171 document image functions contain required marker: {required}')
+    for forbidden in (
+        'public.current_account',
+        'current_project_manager',
+        'current_accountant',
+        'current_site_supervisor',
+        'insert into app.notifications',
+        'raw processor',
+        'signed_url',
+        'storage.objects',
+    ):
+        require(forbidden not in document_image_functions_sql,
+                f'1171 document image functions omit forbidden marker: {forbidden}')
+
+if document_image_grants_path.exists():
+    document_image_grants_sql = document_image_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.document_image_derivatives from public, anon, authenticated, service_role',
+        'grant execute on function public.server_owner_prepare_document_image_processing',
+        'grant execute on function public.server_owner_complete_document_image_processing',
+        'grant execute on function public.server_owner_fail_document_image_processing',
+        'grant execute on function public.server_authorize_document_image_access',
+        'to service_role',
+    ):
+        require(required in document_image_grants_sql,
+                f'1172 document image grants contain required marker: {required}')
+    for forbidden in (
+        'to authenticated',
+        'to anon',
+        'grant select on app.document_image_derivatives',
+        'grant insert on app.document_image_derivatives',
+        'grant update on app.document_image_derivatives',
+        'grant delete on app.document_image_derivatives',
+    ):
+        require(forbidden not in document_image_grants_sql,
+                f'1172 document image grants omit forbidden marker: {forbidden}')
+
+if document_image_handler_path.exists():
+    document_image_handler_sql = document_image_handler_path.read_text(encoding='utf-8').lower()
+    for required in (
+        '@imagemagick/magick-wasm',
+        'magick.wasm',
+        'imagemagick.read',
+        'autoorient',
+        'strip',
+        'magickformat.webp',
+        'max_photo_bytes = 5_242_880',
+        'max_dimension = 6000',
+        'max_pixels = 12_000_000',
+        'thumbnail_box = 320',
+        'preview_box = 1600',
+        'animated_image_unsupported',
+        'inspectjpeg',
+        'inspectpng',
+        'inspectwebp',
+        'server_owner_prepare_document_image_processing',
+        'server_owner_complete_document_image_processing',
+        'server_owner_fail_document_image_processing',
+    ):
+        require(required in document_image_handler_sql,
+                f'document image handler contains required marker: {required}')
+    for forbidden in (
+        'sharp',
+        'libvips',
+        'deno.command',
+        'create signed',
+        'signedurl',
+        'docx',
+        'xlsx',
+    ):
+        require(forbidden not in document_image_handler_sql,
+                f'document image handler omits forbidden marker: {forbidden}')
 
 if commands_path.exists():
     commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()

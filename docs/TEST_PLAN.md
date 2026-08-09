@@ -181,6 +181,16 @@ Package 12.4 adds tests 87-89:
 - `88_package_12_4_financial_document_links_security.test.sql` verifies service-role-only Owner finance document gateways, service-role-only storage-key/trusted-hash Client evidence wrappers, private helper revocation, direct-DML denial, Client generic upload denial, and no scanner/finalizer grant to Clients.
 - `89_package_12_4_financial_document_links_operations.test.sql` verifies Owner/Admin finance-target reservation/finalization, narrow Client transfer-evidence reservation and completion to `AWAITING_SCAN`, clean scan finalization preserving the Client uploader, private Client evidence access authorization, rejection of invalid/cross-client/non-submitted evidence, hard-delete retention and no ledger side effects.
 
+## Stage 12 Package 12.5 Tests
+
+Package 12.5 adds migrations 1170-1172 and tests 90-92:
+
+- `90_package_12_5_document_image_derivatives_schema.test.sql` verifies controlled photograph document-type seeds, exact image-processing enum/table columns, one-to-one document relationship, opaque derivative key constraints, 6000px/12MP/320/1600 bounds, controlled failure codes, preserved Package 12.1 document schema and unchanged `public.current_account()`.
+- `91_package_12_5_document_image_derivatives_security.test.sql` verifies forced RLS, no direct runtime table access, service-role-only wrappers, Owner/Admin-only processing, finalized-clean-source requirement, private derivative access authorization, Client sanitized derivative routing, parent progress/task visibility checks, finance evidence exclusions and reserved-role denial.
+- `92_package_12_5_document_image_derivatives_operations.test.sql` verifies eligible progress/task image preparation, GENERAL image and PDF exclusion, 5 MiB photograph limit, stable opaque keys, one row per document, idempotent prepare/complete, retry from failure, Client sanitized download behavior, Owner original access, cross-Client/archive denial, original hash preservation and safe logging.
+
+Deno tests cover bounded PNG/WebP dimension inspection, animated WebP rejection, real `@imagemagick/magick-wasm` WebP derivative generation through the handler, metadata marker rejection, and existing document-access routing through the new image-aware authorization wrapper.
+
 Deno tests for `_shared/document_storage_handler_test.ts` cover the fixed Client transfer-evidence authorization payload, rejection of generic finance fields on the Client path, and completion fallback only through the dedicated Client evidence reservation.
 ## Stage 15 Package 15.1
 

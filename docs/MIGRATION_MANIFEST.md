@@ -101,3 +101,13 @@ Package 12.3 uses the Edge Function `document-scan-finalize` and shared handler 
 | 1169 | `20260724111200_1169_financial_document_link_grants.sql` | Grants only the updated service-role Owner gateways and Edge-mediated Client transfer-evidence gateways | 1168 | No direct table/storage access, no direct Client storage-key/trusted-hash RPC grant, no Client generic upload grant and no Client scanner/finalization grant |
 
 Package 12.4 activates the financial document link columns originally reserved in Package 12.1. Owner/Admin document workflows may target finance records after scan/finalization, while Clients receive only a dedicated bank-transfer-evidence Edge path for their own submitted Client Payment. Client transfer evidence is private by default, accessible to that Client for direct document access authorization, and not added to the generic client-visible document list.
+
+## Stage 12 Package 12.5 Addendum
+
+| # | Migration | Purpose | Depends on | Notes |
+|---|---|---|---|---|
+| 1170 | `20260724111300_1170_document_image_derivatives_schema.sql` | Adds controlled `PROGRESS_PHOTOGRAPH` and `TASK_ATTACHMENT` document types, image-processing status enum, and one-to-one `app.document_image_derivatives` metadata table | Packages 12.1-12.4 | Preserves `app.documents`; derivatives remain private in `documents-private`; no public bucket |
+| 1171 | `20260724111400_1171_document_image_derivative_functions.sql` | Adds Owner/Admin processing prepare/complete/fail transitions and image-aware access authorization | 1170 | Requires finalized clean upload evidence, stable opaque derivative keys, Client sanitized derivative access |
+| 1172 | `20260724111500_1172_document_image_derivative_grants.sql` | Revokes direct derivative table access and grants only service-role Edge wrappers | 1171 | No Client/reserved-role direct processing or table access |
+
+Package 12.5 adds the photograph processing foundation only. It does not add galleries, Flutter photo UI, notifications, scheduled cleanup, staff-role activation, public sharing, AI analysis, video, finance workflow changes, Client transfer-evidence changes, or `public.current_account()` changes.

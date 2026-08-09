@@ -349,18 +349,28 @@ async function accessDocument(
   requestId: string,
   appOrigin: string,
 ): Promise<Response> {
-  rejectUnknownFields(body, ["document_id", "purpose"]);
+  rejectUnknownFields(body, ["document_id", "purpose", "mode"]);
   const documentId = uuidValue(body.document_id, "Document ID");
-  const purpose = body.purpose === "preview"
+  const requestedMode = body.mode === "thumbnail"
+    ? "thumbnail"
+    : body.mode === "original"
+    ? "original"
+    : body.mode === "preview"
     ? "preview"
-    : body.purpose === "download"
+    : body.mode === "download"
     ? "download"
     : "";
+  const purpose = requestedMode ||
+    (body.purpose === "preview"
+      ? "preview"
+      : body.purpose === "download"
+      ? "download"
+      : "");
   if (!purpose) throw validationFailed("Document access purpose is invalid.");
-  const access = await rpc(auth, "server_authorize_document_access", {
+  const access = await rpc(auth, "server_authorize_document_image_access", {
     p_verified_auth_subject: auth.actorAuthSubject,
     p_document_id: documentId,
-    p_purpose: purpose,
+    p_mode: purpose,
     p_request_identifier: requestId,
   });
   const row = firstRow(access.data);
