@@ -1,0 +1,37 @@
+BEGIN;
+SELECT plan(31);
+
+SELECT ok(NOT has_table_privilege('anon','app.document_replacements','SELECT,INSERT,UPDATE,DELETE'), 'anon no direct replacement table access');
+SELECT ok(NOT has_table_privilege('authenticated','app.document_replacements','SELECT,INSERT,UPDATE,DELETE'), 'authenticated no direct replacement table access');
+SELECT ok(NOT has_table_privilege('service_role','app.document_replacements','SELECT,INSERT,UPDATE,DELETE'), 'service role no direct replacement table access');
+SELECT ok(NOT has_table_privilege('anon','app.document_client_access_privacy','SELECT,INSERT,UPDATE,DELETE'), 'anon no direct lifecycle privacy table access');
+SELECT ok(NOT has_table_privilege('authenticated','app.document_client_access_privacy','SELECT,INSERT,UPDATE,DELETE'), 'authenticated no direct lifecycle privacy table access');
+SELECT ok(NOT has_table_privilege('service_role','app.document_client_access_privacy','SELECT,INSERT,UPDATE,DELETE'), 'service role no direct lifecycle privacy table access');
+SELECT ok(has_function_privilege('service_role','public.server_owner_restore_document_metadata(uuid,uuid,text)','EXECUTE'), 'service role can execute restore gateway');
+SELECT ok(has_function_privilege('service_role','public.server_owner_declare_document_replacement(uuid,uuid,uuid,text)','EXECUTE'), 'service role can execute replacement gateway');
+SELECT ok(has_function_privilege('service_role','public.server_owner_document_lifecycle_history(uuid,uuid)','EXECUTE'), 'service role can execute lifecycle history gateway');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_restore_document_metadata(uuid,uuid,text)','EXECUTE'), 'authenticated cannot execute restore gateway directly');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_declare_document_replacement(uuid,uuid,uuid,text)','EXECUTE'), 'authenticated cannot execute replacement gateway directly');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_document_lifecycle_history(uuid,uuid)','EXECUTE'), 'authenticated cannot execute history gateway directly');
+SELECT ok(NOT has_function_privilege('anon','public.server_owner_restore_document_metadata(uuid,uuid,text)','EXECUTE'), 'anon cannot execute restore gateway');
+SELECT ok(NOT has_function_privilege('anon','public.server_owner_declare_document_replacement(uuid,uuid,uuid,text)','EXECUTE'), 'anon cannot execute replacement gateway');
+SELECT ok((SELECT pg_get_functiondef('app.owner_restore_document_metadata(uuid,uuid,text)'::regprocedure)) ILIKE '%require_active_owner_admin%', 'restore is Owner/Admin gated');
+SELECT ok((SELECT pg_get_functiondef('app.owner_declare_document_replacement(uuid,uuid,uuid,text)'::regprocedure)) ILIKE '%require_active_owner_admin%', 'replacement is Owner/Admin gated');
+SELECT ok((SELECT pg_get_functiondef('app.owner_declare_document_replacement(uuid,uuid,uuid,text)'::regprocedure)) ILIKE '%document_business_context%', 'replacement derives business context from links');
+SELECT ok((SELECT pg_get_functiondef('app.owner_declare_document_replacement(uuid,uuid,uuid,text)'::regprocedure)) ILIKE '%document_is_finalized_from_clean_scan%', 'replacement requires clean finalized replacement');
+SELECT ok((SELECT pg_get_functiondef('app.owner_declare_document_replacement(uuid,uuid,uuid,text)'::regprocedure)) ILIKE '%document_replacement_would_cycle%', 'replacement checks cycles');
+SELECT ok((SELECT pg_get_functiondef('app.owner_restore_document_metadata(uuid,uuid,text)'::regprocedure)) ILIKE '%client_visible = false%' AND (SELECT pg_get_functiondef('app.owner_restore_document_metadata(uuid,uuid,text)'::regprocedure)) ILIKE '%document_client_access_privacy%', 'restore forces contractor-private lifecycle privacy');
+SELECT ok((SELECT pg_get_functiondef('app.owner_restore_document_metadata(uuid,uuid,text)'::regprocedure)) ILIKE '%Superseded documents cannot be restored%', 'restore rejects superseded documents');
+SELECT ok((SELECT pg_get_functiondef('app.document_replacements_guard_history()'::regprocedure)) ILIKE '%owner_document_lifecycle_mutation%', 'replacement insert requires trusted context marker');
+SELECT ok((SELECT pg_get_functiondef('app.document_replacements_guard_history()'::regprocedure)) ILIKE '%immutable%', 'replacement update/delete path is blocked');
+SELECT ok((SELECT pg_get_functiondef('app.document_client_access_privacy_guard()'::regprocedure)) ILIKE '%owner_document_lifecycle_mutation%', 'lifecycle privacy insert requires trusted context marker');
+SELECT ok((SELECT pg_get_functiondef('app.document_client_access_privacy_guard()'::regprocedure)) ILIKE '%lifecycle-controlled%', 'lifecycle privacy update/delete path is blocked');
+SELECT ok((SELECT pg_get_functiondef('app.current_client_document_list_for_authenticated_user(integer,integer)'::regprocedure)) ILIKE '%NOT app.document_is_superseded%' AND (SELECT pg_get_functiondef('app.current_client_document_list_for_authenticated_user(integer,integer)'::regprocedure)) ILIKE '%NOT app.document_is_client_lifecycle_private%', 'Client list hides superseded and lifecycle-private docs');
+SELECT ok((SELECT pg_get_functiondef('app.authorize_document_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%app.document_is_superseded(doc_row.id)%' AND (SELECT pg_get_functiondef('app.authorize_document_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%app.document_is_client_lifecycle_private(doc_row.id)%', 'Client direct access denies superseded and lifecycle-private docs');
+SELECT ok((SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%p_mode = ''original''%' AND (SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%app.document_is_client_lifecycle_private(doc_row.id)%', 'Client image access denies original and lifecycle-private docs');
+SELECT ok((SELECT pg_get_functiondef('app.document_business_context(uuid)'::regprocedure)) ILIKE '%SELECT DISTINCT%' AND (SELECT pg_get_functiondef('app.document_business_context(uuid)'::regprocedure)) ILIKE '%context_count%', 'business context helper normalizes all distinct link contexts');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%project_manager%access_allowed%true%', 'Project Manager remains denied');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%accountant%access_allowed%true%' AND (SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%site_supervisor%access_allowed%true%', 'Accountant and Site Supervisor remain denied');
+
+SELECT * FROM finish();
+ROLLBACK;

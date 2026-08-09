@@ -1137,6 +1137,22 @@ Client derivative authorization still requires the underlying document to be ind
 
 Package 12.5 does not add galleries, Flutter document/photo UI, camera UI, notifications, scheduled/background processing, cleanup/reconciliation jobs, public sharing, AI analysis, video, DOCX/XLSX, offline sync, finance workflow changes, Client transfer-evidence changes, staff-role activation, or `public.current_account()` changes.
 
+## Stage 12 — Document Lifecycle Completion
+
+Stage 12 — Document Lifecycle Completion adds finalized-document archive lifecycle completion, restore and replacement/supersession only. It builds on Packages 12.1-12.5 without rewriting or renumbering them.
+
+Archive remains Owner/Admin only through the existing service-role archive gateway. It is a soft lifecycle transition: the `app.documents` row, document number, final Storage object, SHA-256 hash, metadata, links and audit history are retained. Re-archiving an already archived document is idempotent and does not duplicate `document_archived` activity.
+
+Restore is Owner/Admin only. Only archived, non-superseded documents can be restored. Restore sets the document back to `ACTIVE`, forces `client_visible = false`, and writes a lifecycle Client-access privacy marker. Existing links are retained for historical/business context but do not make the document visible to Clients, including Client-submitted bank-transfer evidence and photograph derivative paths. No approved explicit document re-share operation currently exists to clear this marker, so restored documents remain Client-private until that future operation is approved and implemented.
+
+Replacement/supersession is represented by immutable `app.document_replacements` history. A replacement declaration never uploads, scans, publishes, copies, overwrites or deletes file bytes. The replacement document must already exist as an `ACTIVE` finalized document with clean scan evidence from the secure upload -> validation -> scan -> final-publication flow. One document can have at most one direct replacement, one replacement document cannot replace multiple originals, self replacement and cycles are denied, A -> B -> C chains are allowed, and Client/Project context is derived from all existing document links after collapsing duplicate/equivalent contexts.
+
+Client reads hide archived and superseded documents. The current replacement is visible only when it independently satisfies existing explicit Client visibility, Client ownership and Project/task/progress parent rules. Owner/Admin access can retrieve archived and superseded historical documents. Photograph derivative access remains private and Client original-image access for photograph types remains denied.
+
+Lifecycle activity actions are `document_archived`, `document_restored` and `document_replaced`. Metadata avoids Storage object keys, signed URLs, tokens, raw file contents, request bodies, secrets and unnecessary Client/person data.
+
+Exclusions: no Flutter screens, document gallery, photograph gallery, photograph upload UI, camera UI, notifications, email, SMS, WhatsApp, push notifications, cleanup/reconciliation jobs, derivative retry scheduler, staff-role activation, public sharing, AI analysis, video processing, DOCX/XLSX processing, offline sync, finance workflow changes, automatic exchange rates, arbitrary hard delete, finalized Storage delete/overwrite, or scanner bypass.
+
 ## Stage 12 Package 12.3: ClamAV-Compatible Scan, Quarantine and Final Publication Gate
 
 Package 12.3 adds the scanner/finalization gate after `AWAITING_SCAN`. It preserves `app.document_status` exactly as `ACTIVE` and `ARCHIVED`, and keeps operational scan state in `app.document_uploads` plus append-preserving `app.document_scans` attempts.

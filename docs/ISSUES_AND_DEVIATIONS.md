@@ -30,3 +30,9 @@
 2. **Scanner failures fail closed.** Missing scanner configuration, network failure, timeout, malformed response and unknown result all record an error/failed scan state and never create `app.documents`.
 3. **Quarantine is logical private quarantine.** Malicious uploads move to `QUARANTINED`, retain bounded scan evidence, and do not publish. Package 12.3 does not invent a retention duration and does not add scheduled cleanup.
 4. **Final object token uses stored cryptographic UUID-derived opacity.** The final key is generated once by trusted database logic under `objects/<reserved_document_id>/<opaque-token>` and reused on retry.
+
+## Stage 12 — Document Lifecycle Completion
+
+1. **Archive endpoint forward-fix.** The existing archive function and service gateway are reused and forward-fixed to add `document_archived` logging and idempotent no-duplicate behavior. No second archive model is introduced.
+2. **Replacement history table instead of status expansion.** Supersession uses immutable `app.document_replacements` history. `app.document_status` remains exactly `ACTIVE`/`ARCHIVED`; historical semantics are derived from replacement history and lifecycle-aware access filters.
+3. **No document-level re-share operation in current scope.** Restore writes lifecycle Client-access privacy so restored documents cannot regain Client access through ordinary visibility, Client-submitted bank-transfer evidence, finance, project/task/progress or photograph derivative paths. The repository does not currently expose an approved Owner/Admin document re-share operation to clear that privacy marker; implementing such a narrowly approved operation is a follow-on dependency if restored documents must later be shared again.

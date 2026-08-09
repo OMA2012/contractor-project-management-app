@@ -58,6 +58,12 @@ Package 12.4 activates financial document links and Client transfer evidence. It
 
 Package 12.5 implements the photograph processing and thumbnail foundation. It adds controlled `PROGRESS_PHOTOGRAPH` and `TASK_ATTACHMENT` document types, `app.document_image_derivatives`, private derivative state transitions, secure derivative authorization, and a dedicated `document-process-photograph` Edge Function using `npm:@imagemagick/magick-wasm@0.0.35` with a vendored `magick.wasm` asset.
 
+## Stage 12 — Document Lifecycle Completion Update
+
+Implemented finalized-document lifecycle completion as forward migrations 1173-1175. The unit adds immutable replacement/supersession history, restore-to-private backed by lifecycle Client-access privacy markers, normalized full-link replacement context validation, archive activity logging, lifecycle-aware Client current-document filtering, Owner/Admin lifecycle history, service-role-only gateways, static validation markers and pgTAP tests 93-95. No approved explicit document re-share operation currently exists, so restored documents remain Client-private after restore.
+
+No Flutter screens, galleries, notifications, cleanup jobs, staff-role activation, public sharing, AI/video/DOCX/XLSX processing, finance workflow changes, hard delete, finalized Storage overwrite/delete or scanner bypass are included.
+
 The package preserves finalized originals byte-for-byte. Owner/Admin original download continues to use the original object, while photograph preview/thumbnail and Client photograph download use sanitized WebP derivatives. Photograph processing is Owner/Admin-triggered only after clean scan finalization, recomputes the original SHA-256, enforces a 5 MiB photograph source limit, 6000px per dimension, and 12MP decoded-pixel limit, rejects animated WebP, and writes exactly two private derivatives: `thumbnail.webp` and `preview.webp`.
 
 No galleries, Flutter document/photo UI, notifications, scheduled cleanup, staff-role activation, public sharing, AI analysis, video, finance workflow changes, Client transfer-evidence changes, or `public.current_account()` changes are included.
