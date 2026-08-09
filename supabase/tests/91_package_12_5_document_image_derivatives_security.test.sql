@@ -1,0 +1,32 @@
+BEGIN;
+SELECT plan(26);
+
+SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid='app.document_image_derivatives'::regclass), 'derivatives RLS enabled');
+SELECT ok((SELECT relforcerowsecurity FROM pg_class WHERE oid='app.document_image_derivatives'::regclass), 'derivatives RLS forced');
+SELECT ok(NOT has_table_privilege('anon','app.document_image_derivatives','SELECT,INSERT,UPDATE,DELETE'), 'anon no direct derivative table access');
+SELECT ok(NOT has_table_privilege('authenticated','app.document_image_derivatives','SELECT,INSERT,UPDATE,DELETE'), 'authenticated no direct derivative table access');
+SELECT ok(NOT has_table_privilege('service_role','app.document_image_derivatives','SELECT,INSERT,UPDATE,DELETE'), 'service_role no direct derivative table access');
+SELECT ok(has_function_privilege('service_role','public.server_owner_prepare_document_image_processing(uuid,uuid,text)','EXECUTE'), 'service_role can prepare processing');
+SELECT ok(has_function_privilege('service_role','public.server_owner_complete_document_image_processing(uuid,uuid,bytea,integer,integer,bigint,bytea,integer,integer,bigint,bytea,integer,integer,text,text)','EXECUTE'), 'service_role can complete processing');
+SELECT ok(has_function_privilege('service_role','public.server_owner_fail_document_image_processing(uuid,uuid,text,text)','EXECUTE'), 'service_role can fail processing');
+SELECT ok(has_function_privilege('service_role','public.server_authorize_document_image_access(uuid,uuid,text,text)','EXECUTE'), 'service_role can authorize derivative access');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_prepare_document_image_processing(uuid,uuid,text)','EXECUTE'), 'authenticated cannot prepare processing directly');
+SELECT ok(NOT has_function_privilege('authenticated','public.server_owner_complete_document_image_processing(uuid,uuid,bytea,integer,integer,bigint,bytea,integer,integer,bigint,bytea,integer,integer,text,text)','EXECUTE'), 'authenticated cannot complete processing directly');
+SELECT ok(NOT has_function_privilege('anon','public.server_authorize_document_image_access(uuid,uuid,text,text)','EXECUTE'), 'anon cannot execute derivative authorization');
+SELECT ok((SELECT pg_get_functiondef('app.owner_prepare_document_image_processing(uuid,uuid,text)'::regprocedure)) ILIKE '%require_active_owner_admin%', 'processing is Owner/Admin only');
+SELECT ok((SELECT pg_get_functiondef('app.owner_prepare_document_image_processing(uuid,uuid,text)'::regprocedure)) ILIKE '%FINALIZED%' AND (SELECT pg_get_functiondef('app.owner_prepare_document_image_processing(uuid,uuid,text)'::regprocedure)) ILIKE '%CLEAN%', 'processing requires finalized clean upload evidence');
+SELECT ok((SELECT pg_get_functiondef('app.owner_prepare_document_image_processing(uuid,uuid,text)'::regprocedure)) ILIKE '%objects/%' AND (SELECT pg_get_functiondef('app.owner_prepare_document_image_processing(uuid,uuid,text)'::regprocedure)) NOT ILIKE '%temporary/%''%', 'processing reads finalized object namespace only');
+SELECT ok((SELECT pg_get_functiondef('app.owner_prepare_document_image_processing(uuid,uuid,text)'::regprocedure)) ILIKE '%5242880%', '5 MiB photograph limit enforced in DB prepare');
+SELECT ok((SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%thumbnail%' AND (SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%preview%', 'explicit thumbnail and preview modes supported');
+SELECT ok((SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%sanitized_derivative%', 'Client photograph download uses sanitized derivative marker');
+SELECT ok((SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%project_expense_id IS NULL%' AND (SELECT pg_get_functiondef('app.authorize_document_image_access(uuid,uuid,text,text)'::regprocedure)) ILIKE '%currency_exchange_id IS NULL%', 'contractor-private financial derivative access denied to Clients');
+SELECT ok((SELECT pg_get_functiondef('app.document_image_client_parent_visible(uuid,uuid)'::regprocedure)) ILIKE '%published_at%' AND (SELECT pg_get_functiondef('app.document_image_client_parent_visible(uuid,uuid)'::regprocedure)) ILIKE '%client_visible%', 'progress photograph requires published visible parent');
+SELECT ok((SELECT pg_get_functiondef('app.document_image_client_parent_visible(uuid,uuid)'::regprocedure)) ILIKE '%t.client_visible%', 'task attachment requires Client-visible task');
+SELECT ok((SELECT pg_get_functiondef('app.owner_complete_document_image_processing(uuid,uuid,bytea,integer,integer,bigint,bytea,integer,integer,bigint,bytea,integer,integer,text,text)'::regprocedure)) ILIKE '%processing_status <> ''PROCESSING''%', 'completion is state validated');
+SELECT ok((SELECT pg_get_functiondef('app.owner_fail_document_image_processing(uuid,uuid,text,text)'::regprocedure)) NOT ILIKE '%raw%', 'raw processor errors are not persisted');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%project_manager%access_allowed%true%', 'Project Manager remains denied');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%accountant%access_allowed%true%', 'Accountant remains denied');
+SELECT ok((SELECT pg_get_functiondef('public.current_account()'::regprocedure)) NOT ILIKE '%site_supervisor%access_allowed%true%', 'Site Supervisor remains denied');
+
+SELECT * FROM finish();
+ROLLBACK;

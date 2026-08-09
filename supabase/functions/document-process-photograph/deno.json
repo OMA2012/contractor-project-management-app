@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/server": "npm:@supabase/server@1.4.1",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.8",
+    "@imagemagick/magick-wasm": "npm:@imagemagick/magick-wasm@0.0.35"
+  }
+}

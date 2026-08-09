@@ -1102,6 +1102,41 @@ Physical deletion is permitted only for expired, failed, confirmed orphan, or fu
 
 Package 12.2 is not the complete Stage 12 module. Remaining approved Stage 12 work includes ClamAV-compatible scan/quarantine/final publication, document-finance link activation, approved Client transfer-evidence upload, notifications, background cleanup scheduling/reconciliation, photograph processing/thumbnails, photograph galleries, responsive Flutter document/photo interfaces, and deferred staff-role workflows when those roles are activated.
 
+### Stage 12 Package 12.5: Photograph Processing Foundation
+
+Package 12.5 adds only the secure backend/database/storage foundation for photograph processing after clean document finalization. It adds controlled document types `PROGRESS_PHOTOGRAPH` and `TASK_ATTACHMENT`, both private by default. `PROGRESS_PHOTOGRAPH` may link to a Project or progress update; `TASK_ATTACHMENT` links to a task. Business document type and physical MIME remain distinct: GENERAL image documents are not automatically processed, and TASK_ATTACHMENT PDFs remain documents rather than photographs.
+
+Photograph processing applies only to finalized `image/jpeg`, `image/png`, or `image/webp` originals that have clean scan evidence. The processor never reads `temporary/...` objects and never rewrites `app.documents.storage_object_key`, `app.documents.sha256_hash`, or `app.documents.file_size_bytes`.
+
+Package 12.5 technical MVP limits:
+
+- Photograph source bytes: `5 MiB` / `5,242,880` bytes for eligible photograph images only.
+- Existing ordinary document limit remains `25 MiB` / `26,214,400` bytes.
+- Maximum source dimension: `6000 x 6000`.
+- Maximum decoded pixels: `12,000,000`.
+- Thumbnail bounding box: `320 x 320`.
+- Preview bounding box: `1600 x 1600`.
+- Output derivative format: `image/webp`.
+- Animated WebP is rejected with `animated_image_unsupported`.
+
+Derivatives are stored in the existing private `documents-private` bucket using opaque keys under `derivatives/<document_uuid>/<opaque-token>/thumbnail.webp` and `derivatives/<document_uuid>/<opaque-token>/preview.webp`. Keys never include Client names, Project names, email, original filenames, document numbers, user IDs, or caller-selected paths.
+
+Owner/Admin access:
+
+- `original` returns the preserved original.
+- `preview` returns the sanitized preview derivative.
+- `thumbnail` returns the sanitized thumbnail derivative.
+
+Client access:
+
+- photograph `preview` returns the sanitized preview derivative.
+- photograph `thumbnail` returns the sanitized thumbnail derivative.
+- photograph `download` returns the sanitized preview derivative, not the preserved original.
+
+Client derivative authorization still requires the underlying document to be independently authorized, active, `client_visible = true`, same Client/project, no cross-Client relationship, and no contractor-private finance evidence. Progress photographs linked to a progress update additionally require the parent update to be approved, published, not archived, and Client-visible. Task attachments additionally require the task to be Client-visible. Publishing a progress update does not automatically change document visibility.
+
+Package 12.5 does not add galleries, Flutter document/photo UI, camera UI, notifications, scheduled/background processing, cleanup/reconciliation jobs, public sharing, AI analysis, video, DOCX/XLSX, offline sync, finance workflow changes, Client transfer-evidence changes, staff-role activation, or `public.current_account()` changes.
+
 ## Stage 12 Package 12.3: ClamAV-Compatible Scan, Quarantine and Final Publication Gate
 
 Package 12.3 adds the scanner/finalization gate after `AWAITING_SCAN`. It preserves `app.document_status` exactly as `ACTIVE` and `ARCHIVED`, and keeps operational scan state in `app.document_uploads` plus append-preserving `app.document_scans` attempts.

@@ -14,7 +14,7 @@
 ## Stage 12 Package 12.1
 
 1. **Finance links are schema-present but disabled.** The approved `document_links` finance target columns are present, nullable, and constrained to remain `NULL`. Foreign keys and enabled behavior are deferred until `client_payments`, `payment_requests`, `project_expenses`, and `currency_exchanges` exist.
-2. **Metadata-only storage fields.** `storage_bucket` and `storage_object_key` are metadata fields only. No Storage bucket, upload, download, signed URL, scanner, thumbnail, Edge Function, Flutter UI, notification integration, finance implementation, or reserved-role activation is included.
+2. **Metadata-only storage fields in Package 12.1.** `storage_bucket` and `storage_object_key` began as metadata fields only. Storage, scanner, finance links and photograph derivatives are added only by later explicit Stage 12 packages; Flutter UI, notification integration and reserved-role activation remain excluded.
 3. **Unfinalized file policy values remain unresolved.** MIME allowlist, maximum file size, retention period, quarantine period, and scanner policy are not invented in Package 12.1.
 
 ## Stage 12 Package 12.2

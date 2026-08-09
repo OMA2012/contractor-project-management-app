@@ -155,7 +155,7 @@ function mockAuth(options: {
             error: null,
           });
         }
-        if (name === "server_authorize_document_access") {
+        if (name === "server_authorize_document_image_access") {
           return Promise.resolve({
             data: [{
               document_id: documentId,
@@ -396,6 +396,7 @@ Deno.test("document access proxies bytes instead of returning a reusable signed 
   );
   const text = await response.text();
   assertEquals(text, "%PDF-123");
+  assert(calls.includes("rpc:server_authorize_document_image_access"));
   assert(!calls.some((call) => call.startsWith("signed:")));
 });
 
