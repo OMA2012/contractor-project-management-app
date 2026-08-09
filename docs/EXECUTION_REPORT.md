@@ -71,3 +71,11 @@ No galleries, Flutter document/photo UI, notifications, scheduled cleanup, staff
 Owner/Admin document uploads can now reserve and finalize approved finance targets. Clients can only reserve and complete bank transfer evidence for their own submitted Client Payment through the Edge-mediated upload path; database wrappers that return storage keys or accept trusted hash facts are service-role-only. Evidence remains non-public, scanner-gated, and does not create postings, matches, notifications or generic client-visible document rows.
 
 No deploy, migration apply outside the local reset, commit, push or staging action is performed by this package implementation.
+
+## Stage 12 - Storage Reconciliation Foundation Update
+
+Implemented forward migration 1176 and pgTAP tests 96-98. The architecture is a computed database read model using `storage.objects` joined to authoritative application tables through a private `app.storage_reconciliation_report()` and service-role-only `public.server_storage_reconciliation_report()` wrapper.
+
+No persistence table, Edge Function, cron job, cleanup workflow, physical Storage deletion, finalized-record deletion, automatic invalidation or automatic retry behavior is introduced.
+
+Policy areas still undecided/not implemented: retention durations, automatic physical deletion, quarantine disposal, cleanup cadence, cron/scheduling, stale scan timeout, stale image-processing timeout and automatic retry policy.

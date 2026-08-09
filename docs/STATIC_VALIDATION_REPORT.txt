@@ -1,4 +1,8 @@
-PASSED: 9657
+PASSED: 9768
+  PASS static validation report contains no NUL bytes
+  PASS static validation report has no UTF-8 BOM
+  PASS static validation report has no UTF-16 BOM
+  PASS static validation report decodes as strict UTF-8
   PASS required Package 09.1 migration exists: 20260721220100_0901_extensions_and_identity_types.sql
   PASS required Package 09.1 migration exists: 20260721220200_0902_currency_reference.sql
   PASS required Package 09.1 migration exists: 20260721220300_0903_contractor_profiles.sql
@@ -178,6 +182,7 @@ PASSED: 9657
   PASS PostgreSQL syntax parsed: 20260724111600_1173_document_lifecycle_replacements_schema.sql
   PASS PostgreSQL syntax parsed: 20260724111700_1174_document_lifecycle_completion_functions.sql
   PASS PostgreSQL syntax parsed: 20260724111800_1175_document_lifecycle_completion_grants.sql
+  PASS PostgreSQL syntax parsed: 20260724111900_1176_storage_reconciliation_foundation.sql
   PASS pgTAP SQL syntax parsed: 00_package_09_1_schema.test.sql
   PASS pgTAP plan exists: 00_package_09_1_schema.test.sql
   PASS pgTAP plan matches 51 assertions: 00_package_09_1_schema.test.sql
@@ -466,6 +471,15 @@ PASSED: 9657
   PASS pgTAP SQL syntax parsed: 95_stage_12_document_lifecycle_operations.test.sql
   PASS pgTAP plan exists: 95_stage_12_document_lifecycle_operations.test.sql
   PASS pgTAP plan matches 57 assertions: 95_stage_12_document_lifecycle_operations.test.sql
+  PASS pgTAP SQL syntax parsed: 96_stage_12_storage_reconciliation_schema.test.sql
+  PASS pgTAP plan exists: 96_stage_12_storage_reconciliation_schema.test.sql
+  PASS pgTAP plan matches 15 assertions: 96_stage_12_storage_reconciliation_schema.test.sql
+  PASS pgTAP SQL syntax parsed: 97_stage_12_storage_reconciliation_security.test.sql
+  PASS pgTAP plan exists: 97_stage_12_storage_reconciliation_security.test.sql
+  PASS pgTAP plan matches 23 assertions: 97_stage_12_storage_reconciliation_security.test.sql
+  PASS pgTAP SQL syntax parsed: 98_stage_12_storage_reconciliation_operations.test.sql
+  PASS pgTAP plan exists: 98_stage_12_storage_reconciliation_operations.test.sql
+  PASS pgTAP plan matches 32 assertions: 98_stage_12_storage_reconciliation_operations.test.sql
   PASS required object present: create table app.contractor_profiles
   PASS required object present: create table app.users
   PASS required object present: create table app.user_profiles
@@ -1704,28 +1718,28 @@ PASSED: 9657
   PASS only approved shared Deno helper files exist: _shared\supabase.ts
   PASS only approved shared Deno helper files exist: _shared\token.ts
   PASS only approved shared Deno helper files exist: _shared\validation.ts
-  PASS shared helper file exists: _shared/http.ts
+  PASS shared helper file exists: _shared/invitation_url.ts
+  PASS shared helper file exists: _shared/document_scan_handler.ts
+  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
   PASS shared helper file exists: _shared/supabase.ts
   PASS shared helper file exists: _shared/errors.ts
-  PASS shared helper file exists: _shared/document_scan_handler.ts
-  PASS shared helper file exists: _shared/document_storage_handler.ts
-  PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
-  PASS shared helper file exists: _shared/document_image_handler_test.ts
-  PASS shared helper file exists: _shared/token.ts
-  PASS shared helper file exists: _shared/document_storage_handler_test.ts
-  PASS shared helper file exists: _shared/validation.ts
-  PASS shared helper file exists: _shared/env.ts
-  PASS shared helper file exists: _shared/document_scan_handler_test.ts
-  PASS shared helper file exists: _shared/helpers_test.ts
-  PASS shared helper file exists: _shared/denied_log.ts
-  PASS shared helper file exists: _shared/client_invitation_handler.ts
-  PASS shared helper file exists: _shared/invitation_url.ts
-  PASS shared helper file exists: _shared/document_image_handler.ts
-  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
-  PASS shared helper file exists: _shared/redaction.ts
   PASS shared helper file exists: _shared/auth.ts
+  PASS shared helper file exists: _shared/helpers_test.ts
+  PASS shared helper file exists: _shared/document_scan_handler_test.ts
+  PASS shared helper file exists: _shared/validation.ts
+  PASS shared helper file exists: _shared/denied_log.ts
+  PASS shared helper file exists: _shared/document_storage_handler.ts
+  PASS shared helper file exists: _shared/token.ts
+  PASS shared helper file exists: _shared/document_image_handler.ts
+  PASS shared helper file exists: _shared/client_invitation_handler.ts
+  PASS shared helper file exists: _shared/document_image_handler_test.ts
+  PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
   PASS shared helper file exists: _shared/client_lifecycle_handler.ts
   PASS shared helper file exists: _shared/cors.ts
+  PASS shared helper file exists: _shared/http.ts
+  PASS shared helper file exists: _shared/document_storage_handler_test.ts
+  PASS shared helper file exists: _shared/redaction.ts
+  PASS shared helper file exists: _shared/env.ts
   PASS 09.2C3C Edge Function directory exists: accept-client-invitation
   PASS 09.2C3C Edge Function entrypoint exists: accept-client-invitation/index.ts
   PASS 09.2C3C function-level deno.json exists: accept-client-invitation/deno.json
@@ -5554,6 +5568,36 @@ PASSED: 9657
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111800_1175_document_lifecycle_completion_grants.sql: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111800_1175_document_lifecycle_completion_grants.sql: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111800_1175_document_lifecycle_completion_grants.sql: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: scanner_policy
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: storage.objects
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: storage.buckets
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: create bucket
@@ -9283,6 +9327,69 @@ PASSED: 9657
   PASS 1175 document lifecycle grants omit forbidden marker: grant insert on app.document_replacements
   PASS 1175 document lifecycle grants omit forbidden marker: grant update on app.document_replacements
   PASS 1175 document lifecycle grants omit forbidden marker: grant delete on app.document_replacements
+  PASS Stage 12 storage reconciliation artifact exists: supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql
+  PASS Stage 12 storage reconciliation artifact exists: supabase\tests\96_stage_12_storage_reconciliation_schema.test.sql
+  PASS Stage 12 storage reconciliation artifact exists: supabase\tests\97_stage_12_storage_reconciliation_security.test.sql
+  PASS Stage 12 storage reconciliation artifact exists: supabase\tests\98_stage_12_storage_reconciliation_operations.test.sql
+  PASS 1176 storage reconciliation contains required marker: stage
+  PASS 1176 storage reconciliation contains required marker: create type app.storage_reconciliation_classification
+  PASS 1176 storage reconciliation contains required marker: create type app.storage_reconciliation_recommended_action
+  PASS 1176 storage reconciliation contains required marker: orphan_temporary_candidate
+  PASS 1176 storage reconciliation contains required marker: invalidation_candidate
+  PASS 1176 storage reconciliation contains required marker: missing_object
+  PASS 1176 storage reconciliation contains required marker: unexpected_object
+  PASS 1176 storage reconciliation contains required marker: quarantined
+  PASS 1176 storage reconciliation contains required marker: processing_incomplete
+  PASS 1176 storage reconciliation contains required marker: derivative_mismatch
+  PASS 1176 storage reconciliation contains required marker: policy_decision_required
+  PASS 1176 storage reconciliation contains required marker: create or replace function app.storage_reconciliation_report
+  PASS 1176 storage reconciliation contains required marker: storage.objects
+  PASS 1176 storage reconciliation contains required marker: app.document_uploads
+  PASS 1176 storage reconciliation contains required marker: app.documents
+  PASS 1176 storage reconciliation contains required marker: app.document_image_derivatives
+  PASS 1176 storage reconciliation contains required marker: public.server_storage_reconciliation_report
+  PASS 1176 storage reconciliation contains required marker: grant execute on function public.server_storage_reconciliation_report() to service_role
+  PASS 1176 storage reconciliation contains required marker: revoke all on function public.server_storage_reconciliation_report() from public, anon, authenticated
+  PASS 1176 storage reconciliation omits forbidden marker: delete from storage.objects
+  PASS 1176 storage reconciliation omits forbidden marker: delete from app.documents
+  PASS 1176 storage reconciliation omits forbidden marker: delete from app.document_uploads
+  PASS 1176 storage reconciliation omits forbidden marker: delete from app.document_image_derivatives
+  PASS 1176 storage reconciliation omits forbidden marker: update storage.objects
+  PASS 1176 storage reconciliation omits forbidden marker: insert into app.activity_logs
+  PASS 1176 storage reconciliation omits forbidden marker: cron
+  PASS 1176 storage reconciliation omits forbidden marker: pg_cron
+  PASS 1176 storage reconciliation omits forbidden marker: schedule
+  PASS 1176 storage reconciliation omits forbidden marker: timeout
+  PASS 1176 storage reconciliation omits forbidden marker: current_project_manager
+  PASS 1176 storage reconciliation omits forbidden marker: current_accountant
+  PASS 1176 storage reconciliation omits forbidden marker: current_site_supervisor
+  PASS 1176 storage reconciliation omits forbidden marker: public.current_account
+  PASS 1176 storage reconciliation omits forbidden marker: server_owner_invalidate_expired_document_upload(
+  PASS 1176 storage reconciliation omits forbidden marker: owner_start_document_scan(
+  PASS 1176 storage reconciliation omits forbidden marker: owner_prepare_document_image_processing(
+  PASS 1176 storage reconciliation omits forbidden marker: 'delete'
+  PASS Stage 12 storage reconciliation tests cover marker: service role can execute reconciliation gateway
+  PASS Stage 12 storage reconciliation tests cover marker: anon cannot execute reconciliation gateway
+  PASS Stage 12 storage reconciliation tests cover marker: authenticated cannot execute reconciliation gateway
+  PASS Stage 12 storage reconciliation tests cover marker: healthy active reservation with expected object is ok
+  PASS Stage 12 storage reconciliation tests cover marker: expired reservation with object is invalidation candidate
+  PASS Stage 12 storage reconciliation tests cover marker: reservation with missing temporary object is reported
+  PASS Stage 12 storage reconciliation tests cover marker: orphan temporary object is reported without deletion
+  PASS Stage 12 storage reconciliation tests cover marker: finalized document with object is ok
+  PASS Stage 12 storage reconciliation tests cover marker: finalized db record with missing object is reported
+  PASS Stage 12 storage reconciliation tests cover marker: unexpected final object is review only
+  PASS Stage 12 storage reconciliation tests cover marker: archived finalized object retained as ok
+  PASS Stage 12 storage reconciliation tests cover marker: superseded finalized object retained as ok
+  PASS Stage 12 storage reconciliation tests cover marker: restored-private finalized object retained as ok
+  PASS Stage 12 storage reconciliation tests cover marker: quarantined upload reported but retained
+  PASS Stage 12 storage reconciliation tests cover marker: scan_failed reported without automatic retry
+  PASS Stage 12 storage reconciliation tests cover marker: photograph failed reported without automatic retry
+  PASS Stage 12 storage reconciliation tests cover marker: ready derivatives with both objects are ok
+  PASS Stage 12 storage reconciliation tests cover marker: ready derivative missing object is reported
+  PASS Stage 12 storage reconciliation tests cover marker: unmatched derivative object is reported
+  PASS Stage 12 storage reconciliation tests cover marker: repeated reconciliation returns equivalent findings
+  PASS Stage 12 storage reconciliation tests cover marker: reconciliation does not physically delete storage objects
+  PASS Stage 12 storage reconciliation tests cover marker: report never returns delete action
   PASS docs/COMMANDS.md documents Package 12.2 marker: stage 12 package 12.2: private storage and secure file access foundation
   PASS docs/COMMANDS.md documents Package 12.2 marker: documents-private
   PASS docs/COMMANDS.md documents Package 12.2 marker: awaiting_scan
@@ -9482,6 +9589,7 @@ PASSED: 9657
   PASS no real service-role assignment in supabase\migrations\20260724111600_1173_document_lifecycle_replacements_schema.sql
   PASS no real service-role assignment in supabase\migrations\20260724111700_1174_document_lifecycle_completion_functions.sql
   PASS no real service-role assignment in supabase\migrations\20260724111800_1175_document_lifecycle_completion_grants.sql
+  PASS no real service-role assignment in supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql
   PASS no real service-role assignment in supabase\tests\00_package_09_1_schema.test.sql
   PASS no real service-role assignment in supabase\tests\01_package_09_1_constraints.test.sql
   PASS no real service-role assignment in supabase\tests\02_package_09_1_default_deny.test.sql
@@ -9578,6 +9686,9 @@ PASSED: 9657
   PASS no real service-role assignment in supabase\tests\93_stage_12_document_lifecycle_schema.test.sql
   PASS no real service-role assignment in supabase\tests\94_stage_12_document_lifecycle_security.test.sql
   PASS no real service-role assignment in supabase\tests\95_stage_12_document_lifecycle_operations.test.sql
+  PASS no real service-role assignment in supabase\tests\96_stage_12_storage_reconciliation_schema.test.sql
+  PASS no real service-role assignment in supabase\tests\97_stage_12_storage_reconciliation_security.test.sql
+  PASS no real service-role assignment in supabase\tests\98_stage_12_storage_reconciliation_operations.test.sql
   PASS no real service-role assignment in supabase\functions\accept-client-invitation\deno.json
   PASS no real service-role assignment in supabase\functions\accept-client-invitation\index.ts
   PASS no real service-role assignment in supabase\functions\create-client-invitation\deno.json

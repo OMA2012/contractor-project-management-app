@@ -217,3 +217,13 @@ git status --short
 ```
 
 Package 15.1 coverage is in pgTAP suites 72-74: schema/seeds/RLS, grants and forbidden access, Owner category workflow, draft/update/submit/reject/list/detail, different-Owner approval, two-line Project Expense ledger posting, duplicate protection and safe activity logs.
+
+## Stage 12 - Storage Reconciliation Foundation Tests
+
+Stage 12 - Storage Reconciliation Foundation adds migration 1176 and tests 96-98:
+
+- `96_stage_12_storage_reconciliation_schema.test.sql` verifies controlled classification and recommendation enums, computed report/gateway presence, `SECURITY DEFINER` stable functions, Storage/document/upload/derivative inspection markers and absence of a persistence table.
+- `97_stage_12_storage_reconciliation_security.test.sql` verifies service-role-only gateway execution, anon/authenticated/private denial, absence of Client/reserved-role gateways, unchanged `public.current_account()`, no physical delete/update/insert behavior, no cron/scheduler, no stale timeout, no automatic invalidation and no automatic scanner/image retry.
+- `98_stage_12_storage_reconciliation_operations.test.sql` verifies temporary reservation/object states, expired/failed/missing/orphan/finalized-leftover temporary objects, finalized document/object healthy and missing states, unexpected final objects, archived/superseded/restored-private retention, quarantine/scan failure reporting, READY/FAILED/PENDING/missing/mismatched/unmatched derivative states, repeated read-only equivalence and no document/upload/storage/lifecycle/activity mutation.
+
+This unit keeps retention durations, automatic physical deletion, quarantine disposal, cleanup cadence, cron/scheduling, stale scan timeout, stale image-processing timeout and automatic retry policy undecided and unimplemented.
