@@ -111,3 +111,13 @@ Package 12.4 activates the financial document link columns originally reserved i
 | 1172 | `20260724111500_1172_document_image_derivative_grants.sql` | Revokes direct derivative table access and grants only service-role Edge wrappers | 1171 | No Client/reserved-role direct processing or table access |
 
 Package 12.5 adds the photograph processing foundation only. It does not add galleries, Flutter photo UI, notifications, scheduled cleanup, staff-role activation, public sharing, AI analysis, video, finance workflow changes, Client transfer-evidence changes, or `public.current_account()` changes.
+
+## Stage 12 — Document Lifecycle Completion
+
+| Number | File | Purpose | Dependencies | Notes |
+| --- | --- | --- | --- | --- |
+| 1173 | `20260724111600_1173_document_lifecycle_replacements_schema.sql` | Adds immutable `app.document_replacements` history plus restored-document Client-access privacy markers with restrictive FKs, forced RLS and trusted lifecycle guards | Packages 12.1-12.5 | Forward-only relationship model; no generic editable document-status model or broad sharing model |
+| 1174 | `20260724111700_1174_document_lifecycle_completion_functions.sql` | Forward-fixes archive logging, adds restore, replacement declaration, lifecycle history, finalized-clean replacement validation, normalized full-link business-context checks and Client access filters for archived/superseded/lifecycle-private documents | 1173, finalized upload/scan pipeline, activity logs | Replacement only links existing clean finalized documents; no upload, scan, publication, Storage mutation or visibility transfer; restored documents remain Client-private because no approved explicit document re-share operation exists |
+| 1175 | `20260724111800_1175_document_lifecycle_completion_grants.sql` | Revokes direct lifecycle/replacement/privacy table and private function access, and grants only service-role Owner/Admin lifecycle gateways | 1174 | No Client or reserved-role mutation capability |
+
+Stage 12 — Document Lifecycle Completion preserves finalized document bytes, hashes, metadata, links and audit history. Archive never deletes Storage. Restore returns documents as contractor-private. Replacement creates immutable supersession history and hides superseded documents from normal Client reads while retaining Owner/Admin historical access. Exclusions remain: no Flutter screens, galleries, notifications, cleanup/reconciliation jobs, staff-role activation, public sharing, AI/video/DOCX/XLSX processing, finance workflow changes, arbitrary hard delete, Storage overwrite/delete or scanner bypass.

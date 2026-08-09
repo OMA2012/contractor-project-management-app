@@ -192,6 +192,16 @@ Package 12.5 adds migrations 1170-1172 and tests 90-92:
 Deno tests cover bounded PNG/WebP dimension inspection, animated WebP rejection, real `@imagemagick/magick-wasm` WebP derivative generation through the handler, metadata marker rejection, and existing document-access routing through the new image-aware authorization wrapper.
 
 Deno tests for `_shared/document_storage_handler_test.ts` cover the fixed Client transfer-evidence authorization payload, rejection of generic finance fields on the Client path, and completion fallback only through the dedicated Client evidence reservation.
+
+## Stage 12 — Document Lifecycle Completion Tests
+
+Stage 12 — Document Lifecycle Completion adds migrations 1173-1175 and tests 93-95:
+
+- `93_stage_12_document_lifecycle_schema.test.sql` verifies immutable replacement history structure, restored-document Client lifecycle privacy structure, restrictive FKs, one direct replacement per original, one original per replacement, forced RLS, lifecycle helper/gateway presence, archive logging marker, and lifecycle-aware standard/image access markers.
+- `94_stage_12_document_lifecycle_security.test.sql` verifies no direct replacement/privacy table DML, service-role-only lifecycle gateways, no authenticated/anon lifecycle mutation grants, Owner/Admin authorization markers, restore-to-private lifecycle privacy, cycle/finalized-clean/normalized-context validation markers, superseded/lifecycle-private Client hiding, photograph original-denial preservation, and reserved-role denial preservation.
+- `95_stage_12_document_lifecycle_operations.test.sql` verifies archive, idempotent archive logging, restore, restore-to-private Client hiding for ordinary and Client bank-transfer evidence documents, active restore rejection, Client mutation denial, valid replacement, duplicate/reused/self/non-finalized/cross-Client/cycle denials, A -> B -> C -> D chains, same-Client different-Project denial, mixed multiple-link context denial, equivalent multiple-link allowance, superseded Client hiding, current replacement visibility, wrong-Client/private replacement denial, effective Client photograph original denial, archived/superseded photograph denial, Owner original photograph access, Owner historical access, Storage metadata/hash preservation, lifecycle activities, superseded restore denial and direct DELETE denial.
+
+This unit excludes Flutter screens, galleries, photograph upload/camera UI, notifications, email/SMS/WhatsApp/push, cleanup jobs, derivative retry scheduling, staff-role activation, public sharing, AI/video/DOCX/XLSX processing, offline sync, finance workflow changes, hard deletion, finalized Storage overwrite/delete and scanner bypass.
 ## Stage 15 Package 15.1
 
 Run after applying migrations:

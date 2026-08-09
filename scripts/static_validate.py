@@ -3149,7 +3149,18 @@ for path in package_12_1_scope_files:
                     'magick.wasm',
                 }
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or forbidden not in text,
+            allowed_stage_12_lifecycle_marker = (
+                forbidden in (
+                    'document_upload',
+                    'document_download',
+                    'thumbnail',
+                    'mime_type in (',
+                )
+                and path.name in {
+                    '20260724111700_1174_document_lifecycle_completion_functions.sql',
+                }
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
@@ -5475,6 +5486,117 @@ if document_image_handler_path.exists():
     ):
         require(forbidden not in document_image_handler_sql,
                 f'document image handler omits forbidden marker: {forbidden}')
+
+document_lifecycle_schema_path = ROOT / 'supabase/migrations/20260724111600_1173_document_lifecycle_replacements_schema.sql'
+document_lifecycle_functions_path = ROOT / 'supabase/migrations/20260724111700_1174_document_lifecycle_completion_functions.sql'
+document_lifecycle_grants_path = ROOT / 'supabase/migrations/20260724111800_1175_document_lifecycle_completion_grants.sql'
+document_lifecycle_test_paths = [
+    ROOT / 'supabase/tests/93_stage_12_document_lifecycle_schema.test.sql',
+    ROOT / 'supabase/tests/94_stage_12_document_lifecycle_security.test.sql',
+    ROOT / 'supabase/tests/95_stage_12_document_lifecycle_operations.test.sql',
+]
+for path in (document_lifecycle_schema_path, document_lifecycle_functions_path, document_lifecycle_grants_path, *document_lifecycle_test_paths):
+    require(path.exists(), f'Stage 12 document lifecycle artifact exists: {path.relative_to(ROOT)}')
+
+if document_lifecycle_schema_path.exists():
+    document_lifecycle_schema_sql = document_lifecycle_schema_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'create table app.document_replacements',
+        'superseded_document_id uuid not null',
+        'replacement_document_id uuid not null',
+        'document_replacements_superseded_uk unique',
+        'document_replacements_replacement_uk unique',
+        'references app.documents(id) on delete restrict',
+        'document_replacements_guard_history',
+        'create table app.document_client_access_privacy',
+        'restored_private',
+        'document_client_access_privacy_guard',
+        'alter table app.document_client_access_privacy force row level security',
+        'revoke all on app.document_client_access_privacy from public, anon, authenticated, service_role',
+        'owner_document_lifecycle_mutation',
+        'alter table app.document_replacements force row level security',
+        'revoke all on app.document_replacements from public, anon, authenticated, service_role',
+    ):
+        require(required in document_lifecycle_schema_sql,
+                f'1173 document lifecycle schema contains required marker: {required}')
+    for forbidden in (
+        'drop table app.documents',
+        'alter type app.document_status add value',
+        'grant select on app.document_replacements',
+        'grant insert on app.document_replacements',
+        'grant update on app.document_replacements',
+        'grant delete on app.document_replacements',
+    ):
+        require(forbidden not in document_lifecycle_schema_sql,
+                f'1173 document lifecycle schema omits forbidden marker: {forbidden}')
+
+if document_lifecycle_functions_path.exists():
+    document_lifecycle_functions_sql = document_lifecycle_functions_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'app.document_business_context',
+        'app.document_is_superseded',
+        'app.document_is_client_lifecycle_private',
+        'context_count',
+        'select distinct',
+        'app.document_replacement_would_cycle',
+        'app.document_is_finalized_from_clean_scan',
+        'app.owner_restore_document_metadata',
+        'app.owner_declare_document_replacement',
+        'app.owner_document_lifecycle_history',
+        'document_archived',
+        'document_restored',
+        'document_replaced',
+        'client_visible = false',
+        'document_client_access_privacy',
+        'not app.document_is_superseded',
+        'not app.document_is_client_lifecycle_private',
+        'app.document_is_superseded(doc_row.id)',
+        'app.document_is_client_lifecycle_private(doc_row.id)',
+        'public.server_owner_restore_document_metadata',
+        'public.server_owner_declare_document_replacement',
+        'public.server_owner_document_lifecycle_history',
+    ):
+        require(required in document_lifecycle_functions_sql,
+                f'1174 document lifecycle functions contain required marker: {required}')
+    for forbidden in (
+        'storage_object_key',
+        'delete from app.documents',
+        'delete from storage.objects',
+        'update storage.objects',
+        'project_manager',
+        'accountant',
+        'site_supervisor',
+    ):
+        if forbidden == 'storage_object_key':
+            require("'document_replaced', 'document'" in document_lifecycle_functions_sql,
+                    '1174 document lifecycle functions use replacement activity action')
+        else:
+            require(forbidden not in document_lifecycle_functions_sql,
+                    f'1174 document lifecycle functions omit forbidden marker: {forbidden}')
+
+if document_lifecycle_grants_path.exists():
+    document_lifecycle_grants_sql = document_lifecycle_grants_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'revoke all on app.document_replacements from public, anon, authenticated, service_role',
+        'revoke all on app.document_client_access_privacy from public, anon, authenticated, service_role',
+        'revoke all on function app.document_is_client_lifecycle_private',
+        'grant execute on function public.server_owner_restore_document_metadata',
+        'grant execute on function public.server_owner_declare_document_replacement',
+        'grant execute on function public.server_owner_document_lifecycle_history',
+        'to service_role',
+    ):
+        require(required in document_lifecycle_grants_sql,
+                f'1175 document lifecycle grants contain required marker: {required}')
+    for forbidden in (
+        'to authenticated',
+        'to anon',
+        'grant select on app.document_replacements',
+        'grant insert on app.document_replacements',
+        'grant update on app.document_replacements',
+        'grant delete on app.document_replacements',
+    ):
+        require(forbidden not in document_lifecycle_grants_sql,
+                f'1175 document lifecycle grants omit forbidden marker: {forbidden}')
 
 if commands_path.exists():
     commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()
