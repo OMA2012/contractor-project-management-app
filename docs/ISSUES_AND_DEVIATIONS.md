@@ -36,3 +36,10 @@
 1. **Archive endpoint forward-fix.** The existing archive function and service gateway are reused and forward-fixed to add `document_archived` logging and idempotent no-duplicate behavior. No second archive model is introduced.
 2. **Replacement history table instead of status expansion.** Supersession uses immutable `app.document_replacements` history. `app.document_status` remains exactly `ACTIVE`/`ARCHIVED`; historical semantics are derived from replacement history and lifecycle-aware access filters.
 3. **No document-level re-share operation in current scope.** Restore writes lifecycle Client-access privacy so restored documents cannot regain Client access through ordinary visibility, Client-submitted bank-transfer evidence, finance, project/task/progress or photograph derivative paths. The repository does not currently expose an approved Owner/Admin document re-share operation to clear that privacy marker; implementing such a narrowly approved operation is a follow-on dependency if restored documents must later be shared again.
+
+## Stage 12 - Storage Reconciliation Foundation
+
+1. **Computed report only.** Findings are not persisted. This is intentional because the approved requirement is diagnostic visibility, not historical reconciliation case management.
+2. **Storage inspection stays in PostgreSQL.** The database can safely inspect `storage.objects` under the existing trusted service-role architecture, so no Edge Function was added.
+3. **No cleanup policy invented.** Retention durations, automatic physical deletion, quarantine disposal, cleanup cadence, cron/scheduling, stale scan timeout, stale image-processing timeout and automatic retry policy remain undecided and unimplemented.
+4. **Recommendations are informational.** `INVALIDATE_RESERVATION`, `RETRY_EXISTING_WORKFLOW` and `POLICY_DECISION_REQUIRED` classify possible next operator paths only; reconciliation does not invoke them.

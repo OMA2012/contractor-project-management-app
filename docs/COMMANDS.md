@@ -1662,3 +1662,25 @@ Activity logs include safe identifiers and transitions only: request ID, request
 - Lifecycle: reuses financial event `DRAFT -> SUBMITTED -> APPROVED / REJECTED` and transaction `DRAFT -> SUBMITTED -> POSTED / REJECTED`; drafts/submitted/rejected records have no ledger effect, approvals are idempotent, posted records are immutable, and corrections use full reversals.
 - Exclusions: no Client or reserved-role exchange access, document-finance link activation, uploads, notifications, automatic exchange-rate retrieval, external banking, Flutter, Edge Functions, refunds, reports, arbitrary journals, editable balances, partial reversals, sufficient-balance enforcement or separate exchange numbering.
 - Trusted ledger context: `currency_exchange_posting`.
+
+## Stage 12 - Storage Reconciliation Foundation
+
+Required validation for this unit:
+
+```bash
+supabase db reset --local
+supabase test db
+py -3 scripts\static_validate.py
+git diff --check
+git status -sb
+```
+
+No Deno/Edge or Flutter validation is required for this unit because no Edge Function or Flutter code is changed.
+
+The reconciliation report is internal/service-role only:
+
+```sql
+SELECT * FROM public.server_storage_reconciliation_report();
+```
+
+It is diagnostic only. It does not delete Storage objects, delete finalized records, run invalidation, retry scan/image workflows, schedule cleanup, or decide retention/quarantine disposal policy.

@@ -59,3 +59,9 @@ Do not proceed to Package 09.2 until:
 3. all three pgTAP suites pass;
 4. the static scope/secret checks pass;
 5. the database reviewer accepts the schema and the documented deviations.
+
+## Stage 12 - Storage Reconciliation Foundation
+
+This workspace includes Stage 12 - Storage Reconciliation Foundation as a report-only database capability. It compares temporary upload reservations, private `documents-private` Storage objects, finalized documents, scan/quarantine state and photograph derivative metadata/objects through a service-role-only computed report.
+
+It performs no physical Storage deletion and no business mutation. Retention durations, automatic physical deletion, quarantine disposal, cleanup cadence, cron/scheduling, stale scan timeout, stale image-processing timeout and automatic retry policy remain undecided and unimplemented.

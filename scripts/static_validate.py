@@ -13,6 +13,18 @@ passes: list[str] = []
 def require(condition: bool, message: str) -> None:
     (passes if condition else errors).append(message)
 
+static_report_path = ROOT / 'docs/STATIC_VALIDATION_REPORT.txt'
+if static_report_path.exists():
+    static_report_bytes = static_report_path.read_bytes()
+    require(b'\x00' not in static_report_bytes, 'static validation report contains no NUL bytes')
+    require(not static_report_bytes.startswith(b'\xef\xbb\xbf'), 'static validation report has no UTF-8 BOM')
+    require(not static_report_bytes.startswith((b'\xff\xfe', b'\xfe\xff')), 'static validation report has no UTF-16 BOM')
+    try:
+        static_report_bytes.decode('utf-8')
+        passes.append('static validation report decodes as strict UTF-8')
+    except UnicodeDecodeError as exc:
+        errors.append(f'static validation report is not strict UTF-8: {exc}')
+
 migrations = sorted((ROOT / 'supabase/migrations').glob('*.sql'))
 tests = sorted((ROOT / 'supabase/tests').glob('*.sql'))
 required_09_1_migrations = {
@@ -3160,7 +3172,15 @@ for path in package_12_1_scope_files:
                     '20260724111700_1174_document_lifecycle_completion_functions.sql',
                 }
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or forbidden not in text,
+            allowed_stage_12_reconciliation_marker = (
+                forbidden in (
+                    'storage.objects',
+                    'document_upload',
+                    'thumbnail',
+                )
+                and path.name == '20260724111900_1176_storage_reconciliation_foundation.sql'
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
@@ -5597,6 +5617,92 @@ if document_lifecycle_grants_path.exists():
     ):
         require(forbidden not in document_lifecycle_grants_sql,
                 f'1175 document lifecycle grants omit forbidden marker: {forbidden}')
+
+storage_reconciliation_path = ROOT / 'supabase/migrations/20260724111900_1176_storage_reconciliation_foundation.sql'
+storage_reconciliation_test_paths = [
+    ROOT / 'supabase/tests/96_stage_12_storage_reconciliation_schema.test.sql',
+    ROOT / 'supabase/tests/97_stage_12_storage_reconciliation_security.test.sql',
+    ROOT / 'supabase/tests/98_stage_12_storage_reconciliation_operations.test.sql',
+]
+for path in (storage_reconciliation_path, *storage_reconciliation_test_paths):
+    require(path.exists(), f'Stage 12 storage reconciliation artifact exists: {path.relative_to(ROOT)}')
+
+if storage_reconciliation_path.exists():
+    storage_reconciliation_sql = storage_reconciliation_path.read_text(encoding='utf-8').lower()
+    for required in (
+        'stage',
+        'create type app.storage_reconciliation_classification',
+        'create type app.storage_reconciliation_recommended_action',
+        'orphan_temporary_candidate',
+        'invalidation_candidate',
+        'missing_object',
+        'unexpected_object',
+        'quarantined',
+        'processing_incomplete',
+        'derivative_mismatch',
+        'policy_decision_required',
+        'create or replace function app.storage_reconciliation_report',
+        'storage.objects',
+        'app.document_uploads',
+        'app.documents',
+        'app.document_image_derivatives',
+        'public.server_storage_reconciliation_report',
+        'grant execute on function public.server_storage_reconciliation_report() to service_role',
+        'revoke all on function public.server_storage_reconciliation_report() from public, anon, authenticated',
+    ):
+        require(required in storage_reconciliation_sql,
+                f'1176 storage reconciliation contains required marker: {required}')
+    for forbidden in (
+        'delete from storage.objects',
+        'delete from app.documents',
+        'delete from app.document_uploads',
+        'delete from app.document_image_derivatives',
+        'update storage.objects',
+        'insert into app.activity_logs',
+        'cron',
+        'pg_cron',
+        'schedule',
+        'timeout',
+        'current_project_manager',
+        'current_accountant',
+        'current_site_supervisor',
+        'public.current_account',
+        'server_owner_invalidate_expired_document_upload(',
+        'owner_start_document_scan(',
+        'owner_prepare_document_image_processing(',
+        "'delete'",
+    ):
+        require(forbidden not in storage_reconciliation_sql,
+                f'1176 storage reconciliation omits forbidden marker: {forbidden}')
+
+if all(path.exists() for path in storage_reconciliation_test_paths):
+    combined_reconciliation_tests = '\n'.join(path.read_text(encoding='utf-8').lower() for path in storage_reconciliation_test_paths)
+    for required in (
+        'service role can execute reconciliation gateway',
+        'anon cannot execute reconciliation gateway',
+        'authenticated cannot execute reconciliation gateway',
+        'healthy active reservation with expected object is ok',
+        'expired reservation with object is invalidation candidate',
+        'reservation with missing temporary object is reported',
+        'orphan temporary object is reported without deletion',
+        'finalized document with object is ok',
+        'finalized db record with missing object is reported',
+        'unexpected final object is review only',
+        'archived finalized object retained as ok',
+        'superseded finalized object retained as ok',
+        'restored-private finalized object retained as ok',
+        'quarantined upload reported but retained',
+        'scan_failed reported without automatic retry',
+        'photograph failed reported without automatic retry',
+        'ready derivatives with both objects are ok',
+        'ready derivative missing object is reported',
+        'unmatched derivative object is reported',
+        'repeated reconciliation returns equivalent findings',
+        'reconciliation does not physically delete storage objects',
+        'report never returns delete action',
+    ):
+        require(required in combined_reconciliation_tests,
+                f'Stage 12 storage reconciliation tests cover marker: {required}')
 
 if commands_path.exists():
     commands_sql = commands_path.read_text(encoding='utf-8', errors='ignore').lower()
