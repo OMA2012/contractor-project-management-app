@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:contractor_project_management/src/account/current_account.dart';
+import 'package:contractor_project_management/src/account/current_account_provider.dart';
+import 'package:contractor_project_management/src/account/current_account_repository.dart';
 import 'package:contractor_project_management/src/auth/auth_session.dart';
 import 'package:contractor_project_management/src/documents/document_models.dart';
 import 'package:contractor_project_management/src/documents/document_providers.dart';
@@ -81,6 +84,103 @@ void main() {
 
     expect(calls, ['current_client_document_list']);
     expect(documents.single.safeDisplayFileName, 'invoice.pdf');
+  });
+
+  test('owner admin list maps filters and pagination to safe RPC', () async {
+    final calls = <Map<String, dynamic>>[];
+    final repository = SupabaseDocumentRepository(
+      rpc: (functionName, {params}) async {
+        calls.add({'function': functionName, ...?params});
+        return [validDocumentRow()];
+      },
+    );
+
+    final documents = await repository.listOwnerAdminDocuments(
+      filters: const OwnerAdminDocumentFilters(
+        projectId: 'project-1',
+        documentTypeCode: 'INVOICE',
+        clientVisible: true,
+        status: 'ACTIVE',
+        contextType: 'project',
+      ),
+      limit: 25,
+      offset: 50,
+    );
+
+    expect(documents.single.documentNumber, 'DOC-001');
+    expect(calls.single, {
+      'function': 'owner_admin_document_list',
+      'p_limit': 25,
+      'p_offset': 50,
+      'p_project_id': 'project-1',
+      'p_document_type_code': 'INVOICE',
+      'p_client_visible': true,
+      'p_status': 'ACTIVE',
+      'p_context_type': 'project',
+    });
+  });
+
+  test('owner admin context filters use migration 1177 backend values', () {
+    for (final value in const [
+      'client',
+      'project',
+      'task',
+      'progress_update',
+      'client_payment',
+    ]) {
+      expect(
+        OwnerAdminDocumentFilters(
+          contextType: value,
+        ).toRpcParams(limit: 50, offset: 0)['p_context_type'],
+        value,
+      );
+    }
+  });
+
+  test(
+    'owner admin detail maps safe RPC and rejects malformed response',
+    () async {
+      final calls = <Map<String, dynamic>>[];
+      final repository = SupabaseDocumentRepository(
+        rpc: (functionName, {params}) async {
+          calls.add({'function': functionName, ...?params});
+          return validDocumentRow();
+        },
+      );
+
+      final document = await repository.getOwnerAdminDocumentDetail('doc-1');
+
+      expect(document.safeDisplayFileName, 'invoice.pdf');
+      expect(calls.single, {
+        'function': 'owner_admin_document_detail',
+        'p_document_id': 'doc-1',
+      });
+
+      final malformed = SupabaseDocumentRepository(
+        rpc: (_, {params}) async => {'id': 'doc-1'},
+      );
+      expect(
+        malformed.getOwnerAdminDocumentDetail('doc-1'),
+        throwsA(isA<DocumentParseFailure>()),
+      );
+    },
+  );
+
+  test('owner admin safe models do not expose technical fields', () {
+    final document = SafeDocument.fromJson({
+      ...validDocumentRow(),
+      'storage_bucket': 'bucket',
+      'storage_key': 'key',
+      'sha256_hash': 'hash',
+      'signed_url': 'token',
+      'service_role': 'service-role',
+    });
+
+    expect(document.toString(), isNot(contains('bucket')));
+    expect(document.toString(), isNot(contains('key')));
+    expect(document.toString(), isNot(contains('hash')));
+    expect(document.toString(), isNot(contains('token')));
+    expect(document.toString(), isNot(contains('service-role')));
   });
 
   test(
@@ -433,20 +533,16 @@ void main() {
   test(
     'Client documents clear on sign-out and ignore stale user result',
     () async {
-      final source = ControlledAuthSessionSource(
-        const AuthSessionSnapshot(
-          authUserId: 'user-a',
-          email: 'a@example.test',
-        ),
-      );
       final firstLoad = Completer<List<SafeDocument>>();
-      final secondLoad = Completer<List<SafeDocument>>();
-      final repository = FakeDocumentRepository(
-        listCompleters: [firstLoad, secondLoad],
-      );
+      final repository = FakeDocumentRepository(listCompleters: [firstLoad]);
       final container = ProviderContainer(
         overrides: [
-          authSessionSourceProvider.overrideWithValue(source),
+          initialAuthSessionProvider.overrideWithValue(
+            const AuthSessionState.authenticated(
+              authUserId: 'user-a',
+              email: 'a@example.test',
+            ),
+          ),
           documentRepositoryProvider.overrideWithValue(repository),
         ],
       );
@@ -459,31 +555,318 @@ void main() {
       );
       await pumpProvider();
       final first = container.read(clientDocumentListProvider.notifier).load();
-      source.emitSignedOut();
+      container.read(authSessionProvider.notifier).signOut();
       await pumpProvider();
       expect(container.read(clientDocumentListProvider).documents, isEmpty);
 
-      source.emitSignedIn(
-        const AuthSessionSnapshot(
-          authUserId: 'user-b',
-          email: 'b@example.test',
-        ),
-      );
-      await pumpProvider();
-      final second = container.read(clientDocumentListProvider.notifier).load();
       firstLoad.complete([
         SafeDocument.fromJson(validDocumentRow(id: 'doc-a')),
       ]);
       await first;
       expect(container.read(clientDocumentListProvider).documents, isEmpty);
-      secondLoad.complete([
-        SafeDocument.fromJson(validDocumentRow(id: 'doc-b')),
+    },
+  );
+
+  test('Client document list loads for trusted client route target', () async {
+    final account = ControlledCurrentAccountRepository(
+      accountRow(roleCode: 'client', userType: 'CLIENT'),
+    );
+    final repository = FakeDocumentRepository(
+      clientFallbackRows: [
+        SafeDocument.fromJson(validDocumentRow(id: 'client-doc')),
+      ],
+    );
+    final container = containerWith(
+      repository: repository,
+      currentAccountRepository: account,
+      overrideOwnerAdminAccess: false,
+    );
+    addTearDown(container.dispose);
+
+    container.read(currentAccountProvider);
+    await pumpProvider();
+    expect(
+      container.read(currentAccountProvider).routeTarget,
+      TrustedAccountRouteTarget.client,
+    );
+    expect(container.read(ownerAdminDocumentAccessProvider), isFalse);
+
+    await container.read(clientDocumentListProvider.notifier).load();
+
+    expect(
+      container.read(clientDocumentListProvider).documents.single.id,
+      'client-doc',
+    );
+  });
+
+  test('Owner/Admin load more appends unique backend rows in order', () async {
+    final repository = FakeDocumentRepository(
+      ownerAdminPages: [
+        [
+          SafeDocument.fromJson(validDocumentRow(id: 'doc-a')),
+          SafeDocument.fromJson(validDocumentRow(id: 'doc-b')),
+        ],
+        [
+          SafeDocument.fromJson(validDocumentRow(id: 'doc-b')),
+          SafeDocument.fromJson(validDocumentRow(id: 'doc-c')),
+        ],
+      ],
+    );
+    final container = containerWith(repository: repository);
+    addTearDown(container.dispose);
+
+    await container.read(ownerAdminDocumentListProvider.notifier).load();
+    await container.read(ownerAdminDocumentListProvider.notifier).loadMore();
+
+    expect(
+      container
+          .read(ownerAdminDocumentListProvider)
+          .documents
+          .map((document) => document.id),
+      ['doc-a', 'doc-b', 'doc-c'],
+    );
+    expect(repository.ownerAdminOffsets, [0, 2]);
+  });
+
+  test(
+    'Owner/Admin stale load-more result cannot overwrite new filter',
+    () async {
+      final stalePage = Completer<List<SafeDocument>>();
+      final filteredPage = Completer<List<SafeDocument>>();
+      final repository = FakeDocumentRepository(
+        ownerAdminPages: [
+          [SafeDocument.fromJson(validDocumentRow(id: 'doc-a'))],
+        ],
+        ownerAdminCompleters: [stalePage, filteredPage],
+      );
+      final container = containerWith(repository: repository);
+      addTearDown(container.dispose);
+
+      await container.read(ownerAdminDocumentListProvider.notifier).load();
+      final loadMore = container
+          .read(ownerAdminDocumentListProvider.notifier)
+          .loadMore();
+      await pumpProvider();
+      final filteredLoad = container
+          .read(ownerAdminDocumentListProvider.notifier)
+          .applyFilters(
+            const OwnerAdminDocumentFilters(contextType: 'project'),
+          );
+
+      stalePage.complete([
+        SafeDocument.fromJson(validDocumentRow(id: 'stale')),
       ]);
-      await second;
+      filteredPage.complete([
+        SafeDocument.fromJson(validDocumentRow(id: 'filtered')),
+      ]);
+      await loadMore;
+      await filteredLoad;
 
       expect(
-        container.read(clientDocumentListProvider).documents.single.id,
-        'doc-b',
+        container.read(ownerAdminDocumentListProvider).documents.single.id,
+        'filtered',
+      );
+    },
+  );
+
+  test('Owner/Admin documents clear on logout and account switch', () async {
+    final source = ControlledAuthSessionSource(
+      const AuthSessionSnapshot(authUserId: 'owner-a'),
+    );
+    final first = Completer<List<SafeDocument>>();
+    final second = Completer<List<SafeDocument>>();
+    final repository = FakeDocumentRepository(
+      ownerAdminCompleters: [first, second],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        authSessionSourceProvider.overrideWithValue(source),
+        documentRepositoryProvider.overrideWithValue(repository),
+        ownerAdminDocumentAccessProvider.overrideWithValue(true),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.listen(
+      ownerAdminDocumentListProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    await pumpProvider();
+    final firstLoad = container
+        .read(ownerAdminDocumentListProvider.notifier)
+        .load();
+    source.emitSignedOut();
+    await pumpProvider();
+    expect(container.read(ownerAdminDocumentListProvider).documents, isEmpty);
+
+    source.emitSignedIn(const AuthSessionSnapshot(authUserId: 'owner-b'));
+    await pumpProvider();
+    final secondLoad = container
+        .read(ownerAdminDocumentListProvider.notifier)
+        .load();
+    first.complete([SafeDocument.fromJson(validDocumentRow(id: 'owner-a'))]);
+    await firstLoad;
+    expect(container.read(ownerAdminDocumentListProvider).documents, isEmpty);
+    second.complete([SafeDocument.fromJson(validDocumentRow(id: 'owner-b'))]);
+    await secondLoad;
+
+    expect(
+      container.read(ownerAdminDocumentListProvider).documents.single.id,
+      'owner-b',
+    );
+  });
+
+  test('Owner/Admin list clears on trusted current-account denial', () async {
+    for (final row in [
+      accountRow(roleCode: 'project_manager', accessAllowed: false),
+      accountRow(roleCode: 'accountant', accessAllowed: false),
+      accountRow(roleCode: 'site_supervisor', accessAllowed: false),
+      accountRow(
+        roleCode: 'owner_admin',
+        accountStatus: 'SUSPENDED',
+        isActive: false,
+        accessAllowed: false,
+      ),
+    ]) {
+      final account = ControlledCurrentAccountRepository(accountRow());
+      final repository = FakeDocumentRepository(
+        ownerAdminPages: [
+          [SafeDocument.fromJson(validDocumentRow(id: 'allowed'))],
+          [SafeDocument.fromJson(validDocumentRow(id: 'fresh'))],
+        ],
+      );
+      final container = containerWith(
+        repository: repository,
+        currentAccountRepository: account,
+        overrideOwnerAdminAccess: false,
+      );
+      addTearDown(container.dispose);
+
+      container.listen(
+        ownerAdminDocumentListProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.read(currentAccountProvider);
+      await pumpProvider();
+      await container.read(ownerAdminDocumentListProvider.notifier).load();
+      expect(
+        container.read(ownerAdminDocumentListProvider).documents.single.id,
+        'allowed',
+      );
+
+      account.row = row;
+      await container.read(currentAccountProvider.notifier).load();
+      await pumpUntil(() {
+        return container.read(currentAccountProvider).routeTarget !=
+            TrustedAccountRouteTarget.staff;
+      });
+      expect(
+        container.read(currentAccountProvider).routeTarget,
+        isNot(TrustedAccountRouteTarget.staff),
+      );
+      container.read(ownerAdminDocumentListProvider);
+      expect(container.read(ownerAdminDocumentListProvider).documents, isEmpty);
+
+      account.row = accountRow();
+      await container.read(currentAccountProvider.notifier).load();
+      await pumpUntil(() {
+        return container.read(currentAccountProvider).routeTarget ==
+            TrustedAccountRouteTarget.staff;
+      });
+      expect(
+        container.read(currentAccountProvider).routeTarget,
+        TrustedAccountRouteTarget.staff,
+      );
+      await container.read(ownerAdminDocumentListProvider.notifier).load();
+      expect(
+        container.read(ownerAdminDocumentListProvider).documents.single.id,
+        'fresh',
+      );
+    }
+  });
+
+  test(
+    'Owner/Admin stale list detail and upload results cannot restore after denial',
+    () async {
+      final account = ControlledCurrentAccountRepository(accountRow());
+      final list = Completer<List<SafeDocument>>();
+      final detail = Completer<SafeDocument>();
+      final upload = Completer<void>();
+      final repository = FakeDocumentRepository(
+        ownerAdminCompleters: [list],
+        ownerAdminDetailCompleters: [detail],
+        uploadCompleters: [upload],
+      );
+      final container = containerWith(
+        repository: repository,
+        currentAccountRepository: account,
+        overrideOwnerAdminAccess: false,
+      );
+      addTearDown(container.dispose);
+
+      container.listen(
+        ownerAdminDocumentListProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.listen(
+        ownerAdminDocumentDetailProvider('doc-1'),
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.listen(
+        documentUploadProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.read(currentAccountProvider);
+      await pumpProvider();
+
+      final listLoad = container
+          .read(ownerAdminDocumentListProvider.notifier)
+          .load();
+      final detailLoad = container
+          .read(ownerAdminDocumentDetailProvider('doc-1').notifier)
+          .load();
+      final uploadStart = container
+          .read(documentUploadProvider.notifier)
+          .start(uploadRequest());
+      await pumpProvider();
+
+      account.row = accountRow(
+        roleCode: 'project_manager',
+        accessAllowed: false,
+      );
+      await container.read(currentAccountProvider.notifier).load();
+      await pumpProvider();
+
+      expect(container.read(ownerAdminDocumentListProvider).documents, isEmpty);
+      expect(
+        container.read(ownerAdminDocumentDetailProvider('doc-1')).document,
+        isNull,
+      );
+      expect(
+        container.read(documentUploadProvider).phase,
+        DocumentUploadPhase.idle,
+      );
+
+      list.complete([SafeDocument.fromJson(validDocumentRow(id: 'stale'))]);
+      detail.complete(SafeDocument.fromJson(validDocumentRow(id: 'stale')));
+      upload.complete();
+      await listLoad;
+      await detailLoad;
+      await uploadStart;
+
+      expect(container.read(ownerAdminDocumentListProvider).documents, isEmpty);
+      expect(
+        container.read(ownerAdminDocumentDetailProvider('doc-1')).document,
+        isNull,
+      );
+      expect(
+        container.read(documentUploadProvider).phase,
+        DocumentUploadPhase.idle,
       );
     },
   );
@@ -495,7 +878,11 @@ void main() {
   });
 }
 
-ProviderContainer containerWith({required DocumentRepository repository}) {
+ProviderContainer containerWith({
+  required DocumentRepository repository,
+  CurrentAccountRepository? currentAccountRepository,
+  bool overrideOwnerAdminAccess = true,
+}) {
   return ProviderContainer(
     overrides: [
       initialAuthSessionProvider.overrideWithValue(
@@ -505,6 +892,12 @@ ProviderContainer containerWith({required DocumentRepository repository}) {
         ),
       ),
       documentRepositoryProvider.overrideWithValue(repository),
+      currentAccountRepositoryProvider.overrideWithValue(
+        currentAccountRepository ??
+            ControlledCurrentAccountRepository(accountRow()),
+      ),
+      if (overrideOwnerAdminAccess)
+        ownerAdminDocumentAccessProvider.overrideWithValue(true),
     ],
   );
 }
@@ -522,6 +915,27 @@ Map<String, dynamic> validDocumentRow({
     'status': status,
     'uploaded_at': '2026-08-10T01:00:00Z',
   };
+}
+
+List<Map<String, dynamic>> accountRow({
+  String roleCode = 'owner_admin',
+  String accountStatus = 'ACTIVE',
+  bool isActive = true,
+  bool accessAllowed = true,
+  String userType = 'STAFF',
+}) {
+  return [
+    {
+      'application_user_id': '10000000-0000-0000-0000-000000000201',
+      'account_status': accountStatus,
+      'is_active': isActive,
+      'access_allowed': accessAllowed,
+      'user_type': userType,
+      'full_name': 'Staff Person',
+      'job_title': 'Staff',
+      'active_role_codes': [roleCode],
+    },
+  ];
 }
 
 Map<String, dynamic> uploadAuthorizationJson() {
@@ -570,6 +984,10 @@ class FakeDocumentRepository implements DocumentRepository {
     this.failList = false,
     this.uploadCompleters = const [],
     this.listCompleters = const [],
+    this.ownerAdminCompleters = const [],
+    this.ownerAdminDetailCompleters = const [],
+    this.ownerAdminPages = const [],
+    this.clientFallbackRows = const [],
   });
 
   final DocumentUploadResult completion;
@@ -577,9 +995,43 @@ class FakeDocumentRepository implements DocumentRepository {
   final bool failList;
   final List<Completer<void>> uploadCompleters;
   final List<Completer<List<SafeDocument>>> listCompleters;
+  final List<Completer<List<SafeDocument>>> ownerAdminCompleters;
+  final List<Completer<SafeDocument>> ownerAdminDetailCompleters;
+  final List<List<SafeDocument>> ownerAdminPages;
+  final List<SafeDocument> clientFallbackRows;
+  final ownerAdminOffsets = <int>[];
   bool uploaded = false;
   var _uploadCall = 0;
   var _listCall = 0;
+  var _ownerAdminListCall = 0;
+  var _ownerAdminCompleterCall = 0;
+  var _ownerAdminDetailCompleterCall = 0;
+
+  @override
+  Future<SafeDocument> getOwnerAdminDocumentDetail(String documentId) async {
+    if (_ownerAdminDetailCompleterCall < ownerAdminDetailCompleters.length) {
+      return ownerAdminDetailCompleters[_ownerAdminDetailCompleterCall++]
+          .future;
+    }
+    return SafeDocument.fromJson(validDocumentRow());
+  }
+
+  @override
+  Future<List<SafeDocument>> listOwnerAdminDocuments({
+    OwnerAdminDocumentFilters filters = const OwnerAdminDocumentFilters(),
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    ownerAdminOffsets.add(offset);
+    if (_ownerAdminListCall < ownerAdminPages.length) {
+      return ownerAdminPages[_ownerAdminListCall++];
+    }
+    if (_ownerAdminCompleterCall < ownerAdminCompleters.length) {
+      return ownerAdminCompleters[_ownerAdminCompleterCall++].future;
+    }
+    if (failList) throw StateError('offline');
+    return [SafeDocument.fromJson(validDocumentRow())];
+  }
 
   @override
   Future<List<SafeDocument>> listClientDocuments({
@@ -590,6 +1042,7 @@ class FakeDocumentRepository implements DocumentRepository {
       return listCompleters[_listCall++].future;
     }
     if (failList) throw StateError('offline');
+    if (clientFallbackRows.isNotEmpty) return clientFallbackRows;
     return const [];
   }
 
@@ -690,8 +1143,27 @@ class FakeDocumentRepository implements DocumentRepository {
   }
 }
 
+class ControlledCurrentAccountRepository extends CurrentAccountRepository {
+  ControlledCurrentAccountRepository(this.row);
+
+  List<Map<String, dynamic>> row;
+
+  @override
+  Future<CurrentAccount?> loadCurrentAccount() async {
+    if (row.isEmpty) return null;
+    return CurrentAccount.fromJson(row.single);
+  }
+}
+
 Future<void> pumpProvider() async {
   for (var i = 0; i < 5; i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
+}
+
+Future<void> pumpUntil(bool Function() done) async {
+  for (var i = 0; i < 20; i++) {
+    if (done()) return;
     await Future<void>.delayed(Duration.zero);
   }
 }
@@ -700,7 +1172,7 @@ class ControlledAuthSessionSource implements AuthSessionSource {
   ControlledAuthSessionSource(this.restoredSession);
 
   AuthSessionSnapshot? restoredSession;
-  final controller = StreamController<AuthSessionChange>.broadcast();
+  final controller = StreamController<AuthSessionChange>.broadcast(sync: true);
 
   @override
   AuthSessionSnapshot? get currentSession => restoredSession;

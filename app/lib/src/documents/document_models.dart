@@ -56,6 +56,81 @@ class DocumentListState {
   bool get isEmpty => !isLoading && error == null && documents.isEmpty;
 }
 
+class OwnerAdminDocumentFilters {
+  const OwnerAdminDocumentFilters({
+    this.projectId,
+    this.documentTypeCode,
+    this.clientVisible,
+    this.status,
+    this.contextType,
+  });
+
+  final String? projectId;
+  final String? documentTypeCode;
+  final bool? clientVisible;
+  final String? status;
+  final String? contextType;
+
+  Map<String, dynamic> toRpcParams({required int limit, required int offset}) {
+    return {
+      'p_limit': limit,
+      'p_offset': offset,
+      if (projectId != null && projectId!.isNotEmpty) 'p_project_id': projectId,
+      if (documentTypeCode != null && documentTypeCode!.isNotEmpty)
+        'p_document_type_code': documentTypeCode,
+      if (clientVisible != null) 'p_client_visible': clientVisible,
+      if (status != null && status!.isNotEmpty) 'p_status': status,
+      if (contextType != null && contextType!.isNotEmpty)
+        'p_context_type': contextType,
+    };
+  }
+
+  OwnerAdminDocumentFilters copyWith({
+    String? projectId,
+    String? documentTypeCode,
+    bool? clientVisible,
+    String? status,
+    String? contextType,
+    bool clearProject = false,
+    bool clearDocumentType = false,
+    bool clearClientVisible = false,
+    bool clearStatus = false,
+    bool clearContextType = false,
+  }) {
+    return OwnerAdminDocumentFilters(
+      projectId: clearProject ? null : projectId ?? this.projectId,
+      documentTypeCode: clearDocumentType
+          ? null
+          : documentTypeCode ?? this.documentTypeCode,
+      clientVisible: clearClientVisible
+          ? null
+          : clientVisible ?? this.clientVisible,
+      status: clearStatus ? null : status ?? this.status,
+      contextType: clearContextType ? null : contextType ?? this.contextType,
+    );
+  }
+}
+
+class OwnerAdminDocumentDetailState {
+  const OwnerAdminDocumentDetailState._({
+    required this.isLoading,
+    this.document,
+    this.error,
+  });
+
+  const OwnerAdminDocumentDetailState.loading() : this._(isLoading: true);
+
+  const OwnerAdminDocumentDetailState.loaded(SafeDocument document)
+    : this._(isLoading: false, document: document);
+
+  const OwnerAdminDocumentDetailState.failure(Object error)
+    : this._(isLoading: false, error: error);
+
+  final bool isLoading;
+  final SafeDocument? document;
+  final Object? error;
+}
+
 class SafeDocument {
   const SafeDocument({
     required this.id,

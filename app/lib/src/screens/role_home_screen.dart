@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../auth/auth_session.dart';
 
@@ -29,6 +30,14 @@ class RoleHomeScreen extends StatelessWidget {
                   Text(label, style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 8),
                   const Text('Protected shell placeholder'),
+                  if (role == AccountRole.staff) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => context.go('/staff/documents'),
+                      icon: const Icon(Icons.description),
+                      label: const Text('Documents'),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -41,6 +41,14 @@ class DocumentAccessResponse {
 }
 
 abstract class DocumentRepository {
+  Future<List<SafeDocument>> listOwnerAdminDocuments({
+    OwnerAdminDocumentFilters filters = const OwnerAdminDocumentFilters(),
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<SafeDocument> getOwnerAdminDocumentDetail(String documentId);
+
   Future<List<SafeDocument>> listClientDocuments({
     int limit = 50,
     int offset = 0,
@@ -95,6 +103,31 @@ class SupabaseDocumentRepository implements DocumentRepository {
       <String, DocumentUploadCredential>{};
 
   SupabaseClient get client => supabaseClient ?? Supabase.instance.client;
+
+  @override
+  Future<List<SafeDocument>> listOwnerAdminDocuments({
+    OwnerAdminDocumentFilters filters = const OwnerAdminDocumentFilters(),
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _rpc(
+      'owner_admin_document_list',
+      filters.toRpcParams(limit: limit, offset: offset),
+    );
+    return _rows(response).map(SafeDocument.fromJson).toList(growable: false);
+  }
+
+  @override
+  Future<SafeDocument> getOwnerAdminDocumentDetail(String documentId) async {
+    final response = await _rpc('owner_admin_document_detail', {
+      'p_document_id': documentId,
+    });
+    final rows = _rows(response);
+    if (rows.isEmpty) {
+      throw const DocumentFailure('Document was not found.');
+    }
+    return SafeDocument.fromJson(rows.single);
+  }
 
   @override
   Future<List<SafeDocument>> listClientDocuments({

@@ -2270,6 +2270,25 @@ def strip_stage_12_document_core_progress_terms(text):
         text = text.replace(approved, '')
     return text
 
+def strip_stage_12_owner_admin_document_ui_progress_terms(text, rel_path):
+    if rel_path != 'app/lib/src/screens/owner_admin_documents_screen.dart':
+        return text
+    for approved in (
+        'CircularProgressIndicator',
+        'validatingCompleting',
+        'processingPhotograph',
+        'Complete',
+        'Completing upload',
+        'Processing photograph',
+        'Photograph processing',
+        'progressUpdateId',
+        'progress_update_id',
+        'PROGRESS',
+        'Progress context',
+    ):
+        text = re.sub(re.escape(approved), '', text, flags=re.I)
+    return text
+
 
 def stage_12_document_core_progress_ui_blocked(text):
     return re.search(r'completion|progress|overdue|upcoming', strip_stage_12_document_core_progress_terms(text), re.I) is not None
@@ -2282,6 +2301,7 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
     text = p.read_text(encoding='utf-8', errors='ignore')
     rel = str(p.relative_to(ROOT)).replace('\\', '/')
     searchable = strip_stage_12_document_core_progress_terms(text) if rel.startswith('app/lib/src/documents/') else text
+    searchable = strip_stage_12_owner_admin_document_ui_progress_terms(searchable, rel)
     if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
         flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
@@ -2296,6 +2316,10 @@ require(stage_12_document_core_progress_ui_blocked('class ProgressDashboardScree
         'Stage 12 document core still blocks progress UI constructs')
 require(stage_12_document_core_progress_ui_blocked('class CompletionPanel {}'),
         'Stage 12 document core still blocks completion UI constructs')
+require('progress' not in strip_stage_12_owner_admin_document_ui_progress_terms('Photograph processing Progress context', 'app/lib/src/screens/owner_admin_documents_screen.dart').lower(),
+        'Stage 12 owner/admin document UI permits approved read-only progress labels')
+require('progress' in strip_stage_12_owner_admin_document_ui_progress_terms('class ProgressDashboardScreen {}', 'app/lib/src/screens/project_progress_screen.dart').lower(),
+        'Stage 12 owner/admin document UI allowance does not permit unrelated progress UI')
 require('gallery' not in document_core_text and 'camera' not in document_core_text,
         'Stage 12 document core still excludes gallery/camera UI')
 require(not any((ROOT / 'supabase/functions').glob('*completion*')), 'no completion Edge Function added')
@@ -3238,6 +3262,23 @@ for path in package_12_1_scope_files:
                     marker_text = marker_text.replace(approved, '')
                 return marker_text
 
+            def allows_stage_12_owner_admin_document_ui_marker(marker, marker_text, rel_path):
+                lowered = marker_text.lower()
+                return (
+                    marker == 'thumbnail'
+                    and rel_path == 'app/lib/src/screens/owner_admin_documents_screen.dart'
+                    and 'thumbnailavailable' in lowered
+                    and 'gallery' not in lowered
+                    and 'camera' not in lowered
+                    and 'imageeditor' not in lowered
+                    and 'image_editor' not in lowered
+                    and 'clientdocumentportal' not in lowered
+                    and 'client_document_portal' not in lowered
+                    and 'archive document' not in lowered
+                    and 'restore document' not in lowered
+                    and 'replace document' not in lowered
+                )
+
             allowed_stage_12_ui_core_marker = (
                 forbidden in (
                     'thumbnail',
@@ -3246,7 +3287,12 @@ for path in package_12_1_scope_files:
                 and str(path.relative_to(ROOT)).replace('\\', '/').startswith('app/lib/src/documents/')
                 and forbidden not in strip_stage_12_ui_core_marker_terms(text, forbidden, str(path.relative_to(ROOT)).replace('\\', '/'))
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_ui_core_marker or forbidden not in text,
+            allowed_stage_12_owner_admin_document_ui_marker = allows_stage_12_owner_admin_document_ui_marker(
+                forbidden,
+                text,
+                str(path.relative_to(ROOT)).replace('\\', '/'),
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 require('thumbnail' not in strip_stage_12_ui_core_marker_terms("thumbnail, preview 'mode': 'thumbnail' data['thumbnail'] thumbnailavailable thumbnail_available requestphotographthumbnail", 'thumbnail', 'app/lib/src/documents/document_models.dart'),
@@ -3257,6 +3303,12 @@ require('max_file_size' not in strip_stage_12_ui_core_marker_terms('max_file_siz
         'Stage 12 document core permits approved max_file_size transport key')
 require('max_file_size' in strip_stage_12_ui_core_marker_terms('const unrelated_max_file_size = 1;', 'max_file_size', 'app/lib/src/documents/document_limits.dart'),
         'Stage 12 document core still blocks unrelated max_file_size constructs')
+require(allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'document.photograph?.thumbnailAvailable == true', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
+        'Stage 12 owner/admin document UI permits the approved thumbnail availability indicator')
+require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'thumbnailAvailable gallery camera image_editor ClientDocumentPortal Archive Document Restore Document Replace Document', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
+        'Stage 12 owner/admin document UI thumbnail allowance still blocks gallery camera client portal and lifecycle mutation constructs')
+require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'document.photograph?.thumbnailAvailable == true', 'app/lib/src/screens/client_documents_screen.dart'),
+        'Stage 12 owner/admin document UI allowance is not directory-wide')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
 financial_account_functions_path = ROOT / 'supabase/migrations/20260724103500_1132_financial_account_functions.sql'
