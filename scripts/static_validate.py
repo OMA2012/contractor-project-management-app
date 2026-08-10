@@ -2261,11 +2261,43 @@ for forbidden in (
     require(forbidden not in completion_scope_sql,
             f'Package 11.6 scope excludes forbidden object/function: {forbidden}')
 
-flutter_completion_mentions = [
-    p for p in (ROOT / 'app/lib').glob('**/*.dart')
-    if p.is_file() and re.search(r'completion|progress|overdue|upcoming', p.read_text(encoding='utf-8', errors='ignore'), re.I)
-]
+def strip_stage_12_document_core_progress_terms(text):
+    for approved in (
+        'progressUpdateId',
+        'progress_update_id',
+        'PROGRESS_PHOTOGRAPH',
+    ):
+        text = text.replace(approved, '')
+    return text
+
+
+def stage_12_document_core_progress_ui_blocked(text):
+    return re.search(r'completion|progress|overdue|upcoming', strip_stage_12_document_core_progress_terms(text), re.I) is not None
+
+
+flutter_completion_mentions = []
+for p in (ROOT / 'app/lib').glob('**/*.dart'):
+    if not p.is_file():
+        continue
+    text = p.read_text(encoding='utf-8', errors='ignore')
+    rel = str(p.relative_to(ROOT)).replace('\\', '/')
+    searchable = strip_stage_12_document_core_progress_terms(text) if rel.startswith('app/lib/src/documents/') else text
+    if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
+        flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
+document_core_text = '\n'.join(
+    p.read_text(encoding='utf-8', errors='ignore').lower()
+    for p in (ROOT / 'app/lib/src/documents').glob('**/*.dart')
+    if p.is_file()
+)
+require(not stage_12_document_core_progress_ui_blocked('progressUpdateId progress_update_id PROGRESS_PHOTOGRAPH'),
+        'Stage 12 document core permits only approved progress context/type identifiers')
+require(stage_12_document_core_progress_ui_blocked('class ProgressDashboardScreen {}'),
+        'Stage 12 document core still blocks progress UI constructs')
+require(stage_12_document_core_progress_ui_blocked('class CompletionPanel {}'),
+        'Stage 12 document core still blocks completion UI constructs')
+require('gallery' not in document_core_text and 'camera' not in document_core_text,
+        'Stage 12 document core still excludes gallery/camera UI')
 require(not any((ROOT / 'supabase/functions').glob('*completion*')), 'no completion Edge Function added')
 
 override_schema_path = ROOT / 'supabase/migrations/20260724102200_1119_project_completion_overrides.sql'
@@ -3180,8 +3212,46 @@ for path in package_12_1_scope_files:
                 )
                 and path.name == '20260724111900_1176_storage_reconciliation_foundation.sql'
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or forbidden not in text,
+
+            def strip_stage_12_ui_core_marker_terms(marker_text, marker, rel_path):
+                if not rel_path.startswith('app/lib/src/documents/'):
+                    return marker_text
+                approved_terms = {
+                    'thumbnail': (
+                        'thumbnail, preview',
+                        "'mode': 'thumbnail'",
+                        "data['thumbnail']",
+                        'requestphotographthumbnail',
+                        'thumbnailavailable',
+                        'thumbnail_available',
+                    ),
+                    'max_file_size': (
+                        'max_file_size_bytes',
+                    ),
+                }.get(marker, ())
+                for approved in approved_terms:
+                    marker_text = marker_text.replace(approved, '')
+                return marker_text
+
+            allowed_stage_12_ui_core_marker = (
+                forbidden in (
+                    'thumbnail',
+                    'max_file_size',
+                )
+                and str(path.relative_to(ROOT)).replace('\\', '/').startswith('app/lib/src/documents/')
+                and forbidden not in strip_stage_12_ui_core_marker_terms(text, forbidden, str(path.relative_to(ROOT)).replace('\\', '/'))
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_ui_core_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
+
+require('thumbnail' not in strip_stage_12_ui_core_marker_terms("thumbnail, preview 'mode': 'thumbnail' data['thumbnail'] thumbnailavailable thumbnail_available requestphotographthumbnail", 'thumbnail', 'app/lib/src/documents/document_models.dart'),
+        'Stage 12 document core permits only approved thumbnail marker constructs')
+require('thumbnail' in strip_stage_12_ui_core_marker_terms('class thumbnailgallery {}', 'thumbnail', 'app/lib/src/documents/document_gallery.dart').lower(),
+        'Stage 12 document core still blocks unrelated thumbnail UI constructs')
+require('max_file_size' not in strip_stage_12_ui_core_marker_terms('max_file_size_bytes', 'max_file_size', 'app/lib/src/documents/document_models.dart'),
+        'Stage 12 document core permits approved max_file_size transport key')
+require('max_file_size' in strip_stage_12_ui_core_marker_terms('const unrelated_max_file_size = 1;', 'max_file_size', 'app/lib/src/documents/document_limits.dart'),
+        'Stage 12 document core still blocks unrelated max_file_size constructs')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
 financial_account_functions_path = ROOT / 'supabase/migrations/20260724103500_1132_financial_account_functions.sql'
