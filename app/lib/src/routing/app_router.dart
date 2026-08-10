@@ -10,14 +10,16 @@ import '../screens/login_screen.dart';
 import '../screens/password_reset_request_screen.dart';
 import '../screens/password_update_screen.dart';
 import '../screens/protected_shell_screen.dart';
+import '../screens/owner_admin_documents_screen.dart';
 import '../screens/role_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final session = ref.watch(authSessionProvider);
   final account = ref.watch(currentAccountProvider);
+  final initialLocation = ref.watch(routerInitialLocationProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: initialLocation,
     redirect: (context, state) => authRedirect(session, account, state.uri),
     routes: [
       GoRoute(
@@ -51,6 +53,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 const RoleHomeScreen(role: AccountRole.staff),
           ),
           GoRoute(
+            path: '/staff/documents',
+            builder: (context, state) => const OwnerAdminDocumentsScreen(),
+          ),
+          GoRoute(
+            path: '/staff/documents/upload',
+            builder: (context, state) => const OwnerAdminDocumentUploadScreen(),
+          ),
+          GoRoute(
+            path: '/staff/documents/:documentId',
+            builder: (context, state) => OwnerAdminDocumentDetailScreen(
+              documentId: state.pathParameters['documentId']!,
+            ),
+          ),
+          GoRoute(
             path: '/client',
             builder: (context, state) =>
                 const RoleHomeScreen(role: AccountRole.client),
@@ -60,6 +76,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+final routerInitialLocationProvider = Provider<String>((ref) => '/');
 
 String? authRedirect(
   AuthSessionState session,
@@ -107,11 +125,12 @@ String? authRedirect(
     return defaultHomeFor(account);
   }
 
-  if (path == '/staff' && target != TrustedAccountRouteTarget.staff) {
+  if (path.startsWith('/staff') && target != TrustedAccountRouteTarget.staff) {
     return defaultHomeFor(account);
   }
 
-  if (path == '/client' && target != TrustedAccountRouteTarget.client) {
+  if (path.startsWith('/client') &&
+      target != TrustedAccountRouteTarget.client) {
     return defaultHomeFor(account);
   }
 
