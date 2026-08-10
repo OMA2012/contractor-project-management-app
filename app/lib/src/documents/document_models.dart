@@ -19,6 +19,8 @@ enum DocumentUploadPhase {
 
 enum DocumentOperationKind { archive, restore, replacement, lifecycleHistory }
 
+enum DocumentLifecycleMutationPhase { idle, running, succeeded, failed }
+
 class DocumentFailure implements Exception {
   const DocumentFailure(this.message, {this.permissionDenied = false});
 
@@ -114,8 +116,10 @@ class OwnerAdminDocumentFilters {
 class OwnerAdminDocumentDetailState {
   const OwnerAdminDocumentDetailState._({
     required this.isLoading,
+    this.mutationPhase = DocumentLifecycleMutationPhase.idle,
     this.document,
     this.error,
+    this.mutationError,
   });
 
   const OwnerAdminDocumentDetailState.loading() : this._(isLoading: true);
@@ -127,8 +131,55 @@ class OwnerAdminDocumentDetailState {
     : this._(isLoading: false, error: error);
 
   final bool isLoading;
+  final DocumentLifecycleMutationPhase mutationPhase;
   final SafeDocument? document;
   final Object? error;
+  final Object? mutationError;
+
+  bool get isMutating =>
+      mutationPhase == DocumentLifecycleMutationPhase.running;
+
+  OwnerAdminDocumentDetailState copyWith({
+    bool? isLoading,
+    DocumentLifecycleMutationPhase? mutationPhase,
+    SafeDocument? document,
+    Object? error,
+    Object? mutationError,
+    bool clearMutationError = false,
+  }) {
+    return OwnerAdminDocumentDetailState._(
+      isLoading: isLoading ?? this.isLoading,
+      mutationPhase: mutationPhase ?? this.mutationPhase,
+      document: document ?? this.document,
+      error: error ?? this.error,
+      mutationError: clearMutationError
+          ? null
+          : mutationError ?? this.mutationError,
+    );
+  }
+}
+
+class DocumentLifecycleMutationResult {
+  const DocumentLifecycleMutationResult({
+    required this.documentId,
+    required this.status,
+    this.replacementDocumentId,
+    this.requestId,
+  });
+
+  factory DocumentLifecycleMutationResult.fromJson(Map<String, dynamic> json) {
+    return DocumentLifecycleMutationResult(
+      documentId: _requiredString(json, 'document_id', fallbackKey: 'id'),
+      status: _requiredDocumentStatus(json, 'status'),
+      replacementDocumentId: _string(json, 'replacement_document_id'),
+      requestId: _string(json, 'request_id'),
+    );
+  }
+
+  final String documentId;
+  final String status;
+  final String? replacementDocumentId;
+  final String? requestId;
 }
 
 class SafeDocument {

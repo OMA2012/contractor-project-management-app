@@ -76,7 +76,9 @@ void main() {
   testWidgets('detail shows safe metadata photograph and access states', (
     tester,
   ) async {
-    final repository = FakeOwnerAdminRepository();
+    final repository = FakeOwnerAdminRepository(
+      rows: [FakeOwnerAdminRepository.document(isSuperseded: true)],
+    );
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -119,6 +121,270 @@ void main() {
     await tester.tap(find.widgetWithText(ActionChip, 'Download'));
     await tester.pumpAndSettle();
     expect(find.text('Document access failed.'), findsOneWidget);
+  });
+
+  testWidgets('archive requires confirmation cancel and success refreshes', (
+    tester,
+  ) async {
+    final repository = FakeOwnerAdminRepository(
+      rows: [FakeOwnerAdminRepository.document()],
+    );
+    await tester.pumpWidget(detailWithRepository(repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Archive'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('not permanent deletion'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(repository.archiveCalls, isEmpty);
+
+    await tester.tap(find.text('Archive'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Archive document'));
+    await tester.pumpAndSettle();
+
+    expect(repository.archiveCalls, ['doc-1']);
+    expect(repository.detailLoads, greaterThan(1));
+    expect(repository.listLoads, greaterThan(0));
+    expect(find.text('Document archived.'), findsOneWidget);
+  });
+
+  testWidgets('restore explains private state and safe superseded denial', (
+    tester,
+  ) async {
+    final repository = FakeOwnerAdminRepository(
+      rows: [FakeOwnerAdminRepository.document(status: 'ARCHIVED')],
+    )..restoreError = const DocumentFailure('superseded restore denied');
+    await tester.pumpWidget(detailWithRepository(repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Restore'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('contractor-private'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Restore document'));
+    await tester.pumpAndSettle();
+
+    expect(repository.restoreCalls, ['doc-1']);
+    expect(
+      find.text('Superseded documents cannot be restored as current.'),
+      findsWidgets,
+    );
+    expect(find.text('Client visible'), findsOneWidget);
+  });
+
+  testWidgets('superseded archived document hides restore affordance', (
+    tester,
+  ) async {
+    final repository = FakeOwnerAdminRepository(
+      rows: [
+        FakeOwnerAdminRepository.document(
+          status: 'ARCHIVED',
+          isSuperseded: true,
+        ),
+      ],
+    );
+    await tester.pumpWidget(detailWithRepository(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Restore'), findsNothing);
+    expect(find.text('Superseded'), findsOneWidget);
+  });
+
+  testWidgets('replace uses safe selector confirmation and internal ID', (
+    tester,
+  ) async {
+    final repository = FakeOwnerAdminRepository(
+      rows: [
+        FakeOwnerAdminRepository.document(),
+        FakeOwnerAdminRepository.document(
+          id: 'doc-2',
+          number: 'DOC-002',
+          fileName: 'replacement.pdf',
+          type: 'INVOICE',
+          mime: 'application/pdf',
+        ),
+      ],
+    );
+    await tester.pumpWidget(detailWithRepository(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.text('Replace document'));
+    await tester.pumpAndSettle();
+    expect(find.text('replacement.pdf'), findsOneWidget);
+    expect(find.textContaining('DOC-002'), findsOneWidget);
+    expect(find.textContaining('doc-2'), findsNothing);
+    expect(find.text('photo.jpg'), findsOneWidget);
+
+    await tester.tap(find.text('replacement.pdf'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('will remain retained as historical'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(repository.replaceCalls, isEmpty);
+
+    await tester.tap(find.text('Replace document'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('replacement.pdf'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm replacement'));
+    await tester.pumpAndSettle();
+
+    expect(repository.replaceCalls.single, ('doc-1', 'doc-2'));
+    expect(find.text('Replacement recorded.'), findsOneWidget);
+  });
+
+  testWidgets('replace maps context mismatch and cycle errors safely', (
+    tester,
+  ) async {
+    for (final error in const [
+      DocumentFailure('context mismatch: internal detail'),
+      DocumentFailure('replacement cycle denied by backend'),
+    ]) {
+      final repository = FakeOwnerAdminRepository(
+        rows: [
+          FakeOwnerAdminRepository.document(),
+          FakeOwnerAdminRepository.document(
+            id: 'doc-2',
+            number: 'DOC-002',
+            fileName: 'replacement.pdf',
+          ),
+        ],
+      )..replaceError = error;
+      await tester.pumpWidget(detailWithRepository(repository));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Replace document'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('replacement.pdf'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Confirm replacement'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('internal'), findsNothing);
+      expect(
+        find.text(
+          error.message.contains('context')
+              ? 'The replacement document must belong to the same document context.'
+              : 'That replacement would create a replacement loop.',
+        ),
+        findsWidgets,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
+  testWidgets('replace selector loads candidates outside current list page', (
+    tester,
+  ) async {
+    final mainList = [FakeOwnerAdminRepository.document()];
+    final candidateB = FakeOwnerAdminRepository.document(
+      id: 'doc-2',
+      number: 'DOC-002',
+      fileName: 'replacement-b.pdf',
+      type: 'INVOICE',
+      mime: 'application/pdf',
+    );
+    final repository = FakeOwnerAdminRepository(
+      rows: mainList,
+      ownerAdminPages: [
+        mainList,
+        [candidateB],
+      ],
+    );
+    await tester.pumpWidget(detailWithPreloadedList(repository));
+    await tester.pumpAndSettle();
+    expect(find.text('replacement-b.pdf'), findsNothing);
+
+    await tester.tap(find.text('Replace document'));
+    await tester.pumpAndSettle();
+
+    expect(repository.listRequests.last.limit, 100);
+    expect(repository.listRequests.last.offset, 0);
+    expect(
+      repository.listRequests.last.filters,
+      const OwnerAdminDocumentFilters(),
+    );
+    expect(find.text('replacement-b.pdf'), findsOneWidget);
+    expect(find.textContaining('DOC-002'), findsOneWidget);
+    expect(find.textContaining('doc-2'), findsNothing);
+
+    await tester.tap(find.text('replacement-b.pdf'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm replacement'));
+    await tester.pumpAndSettle();
+
+    expect(repository.replaceCalls.single, ('doc-1', 'doc-2'));
+  });
+
+  testWidgets('replace selector paginates deduplicates and selects page two', (
+    tester,
+  ) async {
+    final firstPage = [
+      for (var i = 0; i < 100; i++)
+        FakeOwnerAdminRepository.document(
+          id: 'candidate-$i',
+          number: 'DOC-${(1000 + i).toString()}',
+          fileName: 'candidate-$i.pdf',
+          mime: 'application/pdf',
+          type: 'GENERAL_DOCUMENT',
+        ),
+    ];
+    final pageTwoCandidate = FakeOwnerAdminRepository.document(
+      id: 'doc-page-2',
+      number: 'DOC-2000',
+      fileName: 'page-two.pdf',
+      mime: 'application/pdf',
+      type: 'INVOICE',
+    );
+    final repository = FakeOwnerAdminRepository(
+      rows: [FakeOwnerAdminRepository.document()],
+      ownerAdminPages: [
+        firstPage,
+        [firstPage.first, pageTwoCandidate],
+      ],
+    );
+    await tester.pumpWidget(detailWithRepository(repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Replace document'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Load more documents'),
+      600,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Load more documents'), findsOneWidget);
+    await tester.tap(find.text('Load more documents'));
+    await tester.pumpAndSettle();
+
+    expect(repository.listRequests.last.limit, 100);
+    expect(repository.listRequests.last.offset, 100);
+    expect(find.text('page-two.pdf'), findsOneWidget);
+    expect(find.text('Load more documents'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('candidate-0.pdf'),
+      -600,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('candidate-0.pdf'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('page-two.pdf'),
+      600,
+      scrollable: find.byType(Scrollable).last,
+    );
+
+    await tester.tap(find.text('page-two.pdf'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm replacement'));
+    await tester.pumpAndSettle();
+
+    expect(repository.replaceCalls.single, ('doc-1', 'doc-page-2'));
   });
 
   testWidgets('upload selects real bytes and shows awaiting scan', (
@@ -399,6 +665,64 @@ Widget screenWithRepository(FakeOwnerAdminRepository repository) {
   );
 }
 
+Widget detailWithRepository(FakeOwnerAdminRepository repository) {
+  latestRepository = repository;
+  return ProviderScope(
+    overrides: [
+      initialAuthSessionProvider.overrideWithValue(
+        const AuthSessionState.authenticated(authUserId: 'user-1'),
+      ),
+      documentRepositoryProvider.overrideWithValue(repository),
+      ownerAdminDocumentAccessProvider.overrideWithValue(true),
+      documentContentPresenterProvider.overrideWithValue(repository.presenter),
+    ],
+    child: const MaterialApp(
+      home: Scaffold(body: OwnerAdminDocumentDetailScreen(documentId: 'doc-1')),
+    ),
+  );
+}
+
+Widget detailWithPreloadedList(FakeOwnerAdminRepository repository) {
+  latestRepository = repository;
+  return ProviderScope(
+    overrides: [
+      initialAuthSessionProvider.overrideWithValue(
+        const AuthSessionState.authenticated(authUserId: 'user-1'),
+      ),
+      documentRepositoryProvider.overrideWithValue(repository),
+      ownerAdminDocumentAccessProvider.overrideWithValue(true),
+      documentContentPresenterProvider.overrideWithValue(repository.presenter),
+    ],
+    child: const MaterialApp(
+      home: Scaffold(body: _PreloadedListDetailHarness()),
+    ),
+  );
+}
+
+class _PreloadedListDetailHarness extends ConsumerStatefulWidget {
+  const _PreloadedListDetailHarness();
+
+  @override
+  ConsumerState<_PreloadedListDetailHarness> createState() =>
+      _PreloadedListDetailHarnessState();
+}
+
+class _PreloadedListDetailHarnessState
+    extends ConsumerState<_PreloadedListDetailHarness> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(ownerAdminDocumentListProvider.notifier).load(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const OwnerAdminDocumentDetailScreen(documentId: 'doc-1');
+  }
+}
+
 ProviderScope appWithAccount(dynamic row, [String initialLocation = '/']) {
   return ProviderScope(
     overrides: [
@@ -470,15 +794,18 @@ List<Map<String, dynamic>> activeClientRow() => [
 class FakeOwnerAdminRepository implements DocumentRepository {
   FakeOwnerAdminRepository({
     List<SafeDocument>? rows,
+    List<List<SafeDocument>>? ownerAdminPages,
     this.failList = false,
     this.completion = const DocumentUploadResult(
       uploadId: 'upload-1',
       status: 'FINALIZED',
       reservedDocumentId: 'doc-1',
     ),
-  }) : rows = rows ?? [document()];
+  }) : rows = rows ?? [document(isSuperseded: true)],
+       ownerAdminPages = ownerAdminPages ?? const [];
 
   final List<SafeDocument> rows;
+  final List<List<SafeDocument>> ownerAdminPages;
   final bool failList;
   final DocumentUploadResult completion;
   final presenter = FakeDocumentContentPresenter();
@@ -488,13 +815,32 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   Uint8List? lastUploadedBytes;
   final uploadRequests = <DocumentUploadRequest>[];
 
-  static SafeDocument document() => SafeDocument.fromJson({
-    'id': 'doc-1',
-    'document_number': 'DOC-001',
-    'original_file_name': 'photo.jpg',
-    'mime_type': 'image/jpeg',
-    'document_type_code': 'PROGRESS_PHOTOGRAPH',
-    'status': 'ACTIVE',
+  Object? archiveError;
+  Object? restoreError;
+  Object? replaceError;
+  var detailLoads = 0;
+  var listLoads = 0;
+  final archiveCalls = <String>[];
+  final restoreCalls = <String>[];
+  final replaceCalls = <(String, String)>[];
+  final listRequests = <OwnerAdminListRequest>[];
+  var _ownerAdminPageIndex = 0;
+
+  static SafeDocument document({
+    String id = 'doc-1',
+    String number = 'DOC-001',
+    String fileName = 'photo.jpg',
+    String mime = 'image/jpeg',
+    String type = 'PROGRESS_PHOTOGRAPH',
+    String status = 'ACTIVE',
+    bool isSuperseded = false,
+  }) => SafeDocument.fromJson({
+    'id': id,
+    'document_number': number,
+    'original_file_name': fileName,
+    'mime_type': mime,
+    'document_type_code': type,
+    'status': status,
     'file_size_bytes': 2048,
     'uploaded_at': '2026-08-10T01:00:00Z',
     'client_visible': true,
@@ -502,8 +848,8 @@ class FakeOwnerAdminRepository implements DocumentRepository {
     'processing_status': 'READY',
     'thumbnail_available': true,
     'preview_available': true,
-    'is_superseded': true,
-    'superseded_by_document_id': 'doc-2',
+    'is_superseded': isSuperseded,
+    if (isSuperseded) 'superseded_by_document_id': 'doc-2',
   });
 
   @override
@@ -513,13 +859,59 @@ class FakeOwnerAdminRepository implements DocumentRepository {
     int offset = 0,
   }) async {
     lastFilters = filters;
+    listRequests.add(
+      OwnerAdminListRequest(filters: filters, limit: limit, offset: offset),
+    );
+    listLoads++;
+    if (_ownerAdminPageIndex < ownerAdminPages.length) {
+      return ownerAdminPages[_ownerAdminPageIndex++];
+    }
     if (failList) throw StateError('offline');
     return rows;
   }
 
   @override
   Future<SafeDocument> getOwnerAdminDocumentDetail(String documentId) async {
+    detailLoads++;
     return rows.first;
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> archiveOwnerAdminDocument(
+    String documentId,
+  ) async {
+    archiveCalls.add(documentId);
+    if (archiveError != null) throw archiveError!;
+    return DocumentLifecycleMutationResult(
+      documentId: documentId,
+      status: 'ARCHIVED',
+    );
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> restoreOwnerAdminDocument(
+    String documentId,
+  ) async {
+    restoreCalls.add(documentId);
+    if (restoreError != null) throw restoreError!;
+    return DocumentLifecycleMutationResult(
+      documentId: documentId,
+      status: 'ACTIVE',
+    );
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> replaceOwnerAdminDocument({
+    required String documentId,
+    required String replacementDocumentId,
+  }) async {
+    replaceCalls.add((documentId, replacementDocumentId));
+    if (replaceError != null) throw replaceError!;
+    return DocumentLifecycleMutationResult(
+      documentId: documentId,
+      replacementDocumentId: replacementDocumentId,
+      status: 'ACTIVE',
+    );
   }
 
   @override
@@ -605,6 +997,18 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   @override
   Future<SecureDocumentAccess> requestPhotographThumbnail(String documentId) =>
       requestPhotographPreview(documentId);
+}
+
+class OwnerAdminListRequest {
+  const OwnerAdminListRequest({
+    required this.filters,
+    required this.limit,
+    required this.offset,
+  });
+
+  final OwnerAdminDocumentFilters filters;
+  final int limit;
+  final int offset;
 }
 
 class FakeDocumentFilePicker implements DocumentFilePicker {

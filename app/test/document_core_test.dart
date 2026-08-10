@@ -166,6 +166,62 @@ void main() {
     },
   );
 
+  test('owner admin lifecycle mutations call approved RPCs safely', () async {
+    final calls = <Map<String, dynamic>>[];
+    final repository = SupabaseDocumentRepository(
+      rpc: (functionName, {params}) async {
+        calls.add({'function': functionName, ...?params});
+        return {
+          'document_id':
+              params?['p_document_id'] ??
+              params?['p_superseded_document_id'] ??
+              'doc-1',
+          'replacement_document_id': params?['p_replacement_document_id'],
+          'request_id': params?['p_request_identifier'],
+          'status': functionName == 'owner_admin_archive_document'
+              ? 'ARCHIVED'
+              : 'ACTIVE',
+        };
+      },
+    );
+
+    final archive = await repository.archiveOwnerAdminDocument('doc-1');
+    final restore = await repository.restoreOwnerAdminDocument('doc-1');
+    final replace = await repository.replaceOwnerAdminDocument(
+      documentId: 'doc-1',
+      replacementDocumentId: 'doc-2',
+    );
+
+    expect(archive.status, 'ARCHIVED');
+    expect(restore.requestId, isNotEmpty);
+    expect(replace.replacementDocumentId, 'doc-2');
+    expect(calls[0], {
+      'function': 'owner_admin_archive_document',
+      'p_document_id': 'doc-1',
+    });
+    expect(calls[1]['function'], 'owner_admin_restore_document');
+    expect(calls[1]['p_document_id'], 'doc-1');
+    expect(calls[1]['p_request_identifier'], isA<String>());
+    expect(calls[1].containsKey('p_request_id'), isFalse);
+    expect(calls[2]['function'], 'owner_admin_replace_document');
+    expect(calls[2]['p_superseded_document_id'], 'doc-1');
+    expect(calls[2]['p_replacement_document_id'], 'doc-2');
+    expect(calls[2]['p_request_identifier'], isA<String>());
+    expect(calls[2].containsKey('p_document_id'), isFalse);
+    expect(calls[2].containsKey('p_request_id'), isFalse);
+  });
+
+  test('malformed lifecycle mutation response fails closed', () async {
+    final repository = SupabaseDocumentRepository(
+      rpc: (_, {params}) async => {'document_id': 'doc-1'},
+    );
+
+    expect(
+      repository.archiveOwnerAdminDocument('doc-1'),
+      throwsA(isA<DocumentParseFailure>()),
+    );
+  });
+
   test('owner admin safe models do not expose technical fields', () {
     final document = SafeDocument.fromJson({
       ...validDocumentRow(),
@@ -871,6 +927,56 @@ void main() {
     },
   );
 
+  test(
+    'Owner/Admin stale lifecycle mutation cannot restore after denial',
+    () async {
+      final account = ControlledCurrentAccountRepository(accountRow());
+      final mutation = Completer<DocumentLifecycleMutationResult>();
+      final repository = FakeDocumentRepository(mutationCompleter: mutation);
+      final container = containerWith(
+        repository: repository,
+        currentAccountRepository: account,
+        overrideOwnerAdminAccess: false,
+      );
+      addTearDown(container.dispose);
+
+      container.listen(
+        ownerAdminDocumentDetailProvider('doc-1'),
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.read(currentAccountProvider);
+      await pumpProvider();
+      await container
+          .read(ownerAdminDocumentDetailProvider('doc-1').notifier)
+          .load();
+
+      final run = container
+          .read(ownerAdminDocumentDetailProvider('doc-1').notifier)
+          .archive();
+      await pumpProvider();
+      account.row = accountRow(
+        roleCode: 'project_manager',
+        accessAllowed: false,
+      );
+      await container.read(currentAccountProvider.notifier).load();
+      await pumpProvider();
+
+      mutation.complete(
+        const DocumentLifecycleMutationResult(
+          documentId: 'doc-1',
+          status: 'ARCHIVED',
+        ),
+      );
+      await run;
+
+      expect(
+        container.read(ownerAdminDocumentDetailProvider('doc-1')).document,
+        isNull,
+      );
+    },
+  );
+
   test('no service-role credential appears in Flutter document core', () {
     const sourceHints = [SupabaseDocumentRepository, SafeDocument];
 
@@ -988,6 +1094,7 @@ class FakeDocumentRepository implements DocumentRepository {
     this.ownerAdminDetailCompleters = const [],
     this.ownerAdminPages = const [],
     this.clientFallbackRows = const [],
+    this.mutationCompleter,
   });
 
   final DocumentUploadResult completion;
@@ -999,6 +1106,7 @@ class FakeDocumentRepository implements DocumentRepository {
   final List<Completer<SafeDocument>> ownerAdminDetailCompleters;
   final List<List<SafeDocument>> ownerAdminPages;
   final List<SafeDocument> clientFallbackRows;
+  final Completer<DocumentLifecycleMutationResult>? mutationCompleter;
   final ownerAdminOffsets = <int>[];
   bool uploaded = false;
   var _uploadCall = 0;
@@ -1014,6 +1122,39 @@ class FakeDocumentRepository implements DocumentRepository {
           .future;
     }
     return SafeDocument.fromJson(validDocumentRow());
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> archiveOwnerAdminDocument(
+    String documentId,
+  ) async {
+    if (mutationCompleter != null) return mutationCompleter!.future;
+    return DocumentLifecycleMutationResult(
+      documentId: documentId,
+      status: 'ARCHIVED',
+    );
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> restoreOwnerAdminDocument(
+    String documentId,
+  ) async {
+    return DocumentLifecycleMutationResult(
+      documentId: documentId,
+      status: 'ACTIVE',
+    );
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> replaceOwnerAdminDocument({
+    required String documentId,
+    required String replacementDocumentId,
+  }) async {
+    return DocumentLifecycleMutationResult(
+      documentId: documentId,
+      replacementDocumentId: replacementDocumentId,
+      status: 'ACTIVE',
+    );
   }
 
   @override

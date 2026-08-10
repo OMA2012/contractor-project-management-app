@@ -49,6 +49,19 @@ abstract class DocumentRepository {
 
   Future<SafeDocument> getOwnerAdminDocumentDetail(String documentId);
 
+  Future<DocumentLifecycleMutationResult> archiveOwnerAdminDocument(
+    String documentId,
+  );
+
+  Future<DocumentLifecycleMutationResult> restoreOwnerAdminDocument(
+    String documentId,
+  );
+
+  Future<DocumentLifecycleMutationResult> replaceOwnerAdminDocument({
+    required String documentId,
+    required String replacementDocumentId,
+  });
+
   Future<List<SafeDocument>> listClientDocuments({
     int limit = 50,
     int offset = 0,
@@ -101,6 +114,7 @@ class SupabaseDocumentRepository implements DocumentRepository {
   final AppConfig config;
   final Map<String, DocumentUploadCredential> _authorizations =
       <String, DocumentUploadCredential>{};
+  var _requestCounter = 0;
 
   SupabaseClient get client => supabaseClient ?? Supabase.instance.client;
 
@@ -127,6 +141,40 @@ class SupabaseDocumentRepository implements DocumentRepository {
       throw const DocumentFailure('Document was not found.');
     }
     return SafeDocument.fromJson(rows.single);
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> archiveOwnerAdminDocument(
+    String documentId,
+  ) async {
+    final response = await _rpc('owner_admin_archive_document', {
+      'p_document_id': documentId,
+    });
+    return _lifecycleResult(response);
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> restoreOwnerAdminDocument(
+    String documentId,
+  ) async {
+    final response = await _rpc('owner_admin_restore_document', {
+      'p_document_id': documentId,
+      'p_request_identifier': _newRequestId(),
+    });
+    return _lifecycleResult(response);
+  }
+
+  @override
+  Future<DocumentLifecycleMutationResult> replaceOwnerAdminDocument({
+    required String documentId,
+    required String replacementDocumentId,
+  }) async {
+    final response = await _rpc('owner_admin_replace_document', {
+      'p_superseded_document_id': documentId,
+      'p_replacement_document_id': replacementDocumentId,
+      'p_request_identifier': _newRequestId(),
+    });
+    return _lifecycleResult(response);
   }
 
   @override
@@ -309,6 +357,16 @@ class SupabaseDocumentRepository implements DocumentRepository {
     return const [];
   }
 
+  DocumentLifecycleMutationResult _lifecycleResult(dynamic response) {
+    final rows = _rows(response);
+    if (rows.length != 1) {
+      throw const DocumentParseFailure(
+        'Document lifecycle response was invalid.',
+      );
+    }
+    return DocumentLifecycleMutationResult.fromJson(rows.single);
+  }
+
   Map<String, dynamic> _data(dynamic envelope) {
     if (envelope is FunctionResponse) {
       return _data(envelope.data);
@@ -333,6 +391,12 @@ class SupabaseDocumentRepository implements DocumentRepository {
 
   void _rememberAuthorization(DocumentUploadCredential authorization) {
     _authorizations[authorization.session.uploadId] = authorization;
+  }
+
+  String _newRequestId() {
+    _requestCounter++;
+    final micros = DateTime.now().toUtc().microsecondsSinceEpoch;
+    return 'document-lifecycle-$micros-$_requestCounter';
   }
 
   DocumentUploadCredential _takeAuthorization(String uploadId) {

@@ -3274,9 +3274,45 @@ for path in package_12_1_scope_files:
                     and 'image_editor' not in lowered
                     and 'clientdocumentportal' not in lowered
                     and 'client_document_portal' not in lowered
-                    and 'archive document' not in lowered
-                    and 'restore document' not in lowered
-                    and 'replace document' not in lowered
+                )
+
+            def allows_stage_12_owner_admin_document_lifecycle_ui(marker_text, rel_path):
+                lowered = marker_text.lower()
+                if rel_path not in {
+                    'app/lib/src/screens/owner_admin_documents_screen.dart',
+                    'app/lib/src/documents/document_repository.dart',
+                    'app/lib/src/documents/document_providers.dart',
+                    'app/lib/src/documents/document_models.dart',
+                }:
+                    return False
+                required = (
+                    'owner_admin_archive_document',
+                    'owner_admin_restore_document',
+                    'owner_admin_replace_document',
+                    'archive document',
+                    'restore document',
+                    'replace document',
+                    'confirm replacement',
+                )
+                forbidden_lifecycle_ui = (
+                    'client lifecycle',
+                    'clientdocumentportal',
+                    'client_document_portal',
+                    'hard delete',
+                    'purge',
+                    'audit history',
+                    'lifecycle history screen',
+                    'activity-log viewer',
+                    'textfield',
+                    'uuid input',
+                    'service_role',
+                    'gallery',
+                    'camera',
+                    'image_editor',
+                )
+                return (
+                    any(term in lowered for term in required)
+                    and not any(term in lowered for term in forbidden_lifecycle_ui)
                 )
 
             allowed_stage_12_ui_core_marker = (
@@ -3305,10 +3341,16 @@ require('max_file_size' in strip_stage_12_ui_core_marker_terms('const unrelated_
         'Stage 12 document core still blocks unrelated max_file_size constructs')
 require(allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'document.photograph?.thumbnailAvailable == true', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
         'Stage 12 owner/admin document UI permits the approved thumbnail availability indicator')
-require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'thumbnailAvailable gallery camera image_editor ClientDocumentPortal Archive Document Restore Document Replace Document', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
-        'Stage 12 owner/admin document UI thumbnail allowance still blocks gallery camera client portal and lifecycle mutation constructs')
+require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'thumbnailAvailable gallery camera image_editor ClientDocumentPortal', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
+        'Stage 12 owner/admin document UI thumbnail allowance still blocks gallery camera client portal constructs')
 require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'document.photograph?.thumbnailAvailable == true', 'app/lib/src/screens/client_documents_screen.dart'),
         'Stage 12 owner/admin document UI allowance is not directory-wide')
+require(allows_stage_12_owner_admin_document_lifecycle_ui('owner_admin_archive_document owner_admin_restore_document owner_admin_replace_document Archive document Restore document Replace document Confirm replacement', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
+        'Stage 12 Owner/Admin lifecycle UI permits only approved archive restore replacement constructs')
+require(not allows_stage_12_owner_admin_document_lifecycle_ui('Client lifecycle Archive document Restore document Replace document TextField uuid input hard delete purge audit history gallery camera image_editor service_role', 'app/lib/src/screens/owner_admin_documents_screen.dart'),
+        'Stage 12 Owner/Admin lifecycle UI still blocks Client controls raw UUID input hard delete purge audit history gallery camera image editing credentials')
+require(not allows_stage_12_owner_admin_document_lifecycle_ui('owner_admin_archive_document Archive document', 'app/lib/src/screens/client_documents_screen.dart'),
+        'Stage 12 Owner/Admin lifecycle UI allowance is not directory-wide')
 
 financial_account_schema_path = ROOT / 'supabase/migrations/20260724103400_1131_financial_account_schema.sql'
 financial_account_functions_path = ROOT / 'supabase/migrations/20260724103500_1132_financial_account_functions.sql'
