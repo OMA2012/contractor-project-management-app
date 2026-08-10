@@ -1,4 +1,4 @@
-PASSED: 10058
+PASSED: 10061
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
   PASS static validation report has no UTF-16 BOM
@@ -1728,28 +1728,28 @@ PASSED: 10058
   PASS only approved shared Deno helper files exist: _shared\supabase.ts
   PASS only approved shared Deno helper files exist: _shared\token.ts
   PASS only approved shared Deno helper files exist: _shared\validation.ts
-  PASS shared helper file exists: _shared/auth.ts
-  PASS shared helper file exists: _shared/document_scan_handler_test.ts
-  PASS shared helper file exists: _shared/document_storage_handler_test.ts
-  PASS shared helper file exists: _shared/env.ts
-  PASS shared helper file exists: _shared/client_invitation_handler.ts
-  PASS shared helper file exists: _shared/document_scan_handler.ts
   PASS shared helper file exists: _shared/document_storage_handler.ts
-  PASS shared helper file exists: _shared/denied_log.ts
-  PASS shared helper file exists: _shared/helpers_test.ts
   PASS shared helper file exists: _shared/redaction.ts
+  PASS shared helper file exists: _shared/supabase.ts
+  PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
   PASS shared helper file exists: _shared/token.ts
   PASS shared helper file exists: _shared/document_image_handler_test.ts
-  PASS shared helper file exists: _shared/supabase.ts
-  PASS shared helper file exists: _shared/http.ts
-  PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
-  PASS shared helper file exists: _shared/document_image_handler.ts
-  PASS shared helper file exists: _shared/errors.ts
-  PASS shared helper file exists: _shared/validation.ts
-  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
   PASS shared helper file exists: _shared/invitation_url.ts
-  PASS shared helper file exists: _shared/client_lifecycle_handler.ts
+  PASS shared helper file exists: _shared/errors.ts
+  PASS shared helper file exists: _shared/document_scan_handler_test.ts
+  PASS shared helper file exists: _shared/document_scan_handler.ts
+  PASS shared helper file exists: _shared/env.ts
+  PASS shared helper file exists: _shared/auth.ts
+  PASS shared helper file exists: _shared/helpers_test.ts
+  PASS shared helper file exists: _shared/denied_log.ts
+  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
+  PASS shared helper file exists: _shared/http.ts
   PASS shared helper file exists: _shared/cors.ts
+  PASS shared helper file exists: _shared/client_lifecycle_handler.ts
+  PASS shared helper file exists: _shared/validation.ts
+  PASS shared helper file exists: _shared/document_image_handler.ts
+  PASS shared helper file exists: _shared/client_invitation_handler.ts
+  PASS shared helper file exists: _shared/document_storage_handler_test.ts
   PASS 09.2C3C Edge Function directory exists: accept-client-invitation
   PASS 09.2C3C Edge Function entrypoint exists: accept-client-invitation/index.ts
   PASS 09.2C3C function-level deno.json exists: accept-client-invitation/deno.json
@@ -7839,8 +7839,11 @@ PASSED: 10058
   PASS Stage 12 document core permits approved max_file_size transport key
   PASS Stage 12 document core still blocks unrelated max_file_size constructs
   PASS Stage 12 owner/admin document UI permits the approved thumbnail availability indicator
-  PASS Stage 12 owner/admin document UI thumbnail allowance still blocks gallery camera client portal and lifecycle mutation constructs
+  PASS Stage 12 owner/admin document UI thumbnail allowance still blocks gallery camera client portal constructs
   PASS Stage 12 owner/admin document UI allowance is not directory-wide
+  PASS Stage 12 Owner/Admin lifecycle UI permits only approved archive restore replacement constructs
+  PASS Stage 12 Owner/Admin lifecycle UI still blocks Client controls raw UUID input hard delete purge audit history gallery camera image editing credentials
+  PASS Stage 12 Owner/Admin lifecycle UI allowance is not directory-wide
   PASS Package 13.1 artifact exists: supabase\migrations\20260724103400_1131_financial_account_schema.sql
   PASS Package 13.1 artifact exists: supabase\migrations\20260724103500_1132_financial_account_functions.sql
   PASS Package 13.1 artifact exists: supabase\migrations\20260724103600_1133_financial_account_grants.sql
@@ -10002,6 +10005,7 @@ PASSED: 10058
   PASS no real service-role assignment in supabase\functions\_shared\supabase.ts
   PASS no real service-role assignment in supabase\functions\_shared\token.ts
   PASS no real service-role assignment in supabase\functions\_shared\validation.ts
+  PASS no real service-role assignment in scripts\__pycache__\static_validate.cpython-313.pyc
   PASS no real service-role assignment in app\.dart_tool\package_config.json
   PASS no real service-role assignment in app\.dart_tool\package_graph.json
   PASS no real service-role assignment in app\.dart_tool\version
@@ -10054,7 +10058,6 @@ PASSED: 10058
   PASS no real service-role assignment in app\build\test_cache\build\ac6bb03c0ccdeb006582a024c456901a.cache.dill.track.dill
   PASS no real service-role assignment in app\build\native_assets\windows\native_assets.json
   PASS no real service-role assignment in app\.dart_tool\dartpad\web_plugin_registrant.dart
-  PASS no real service-role assignment in app\.dart_tool\extension_discovery\vs_code.json
   PASS no real service-role assignment in app\.dart_tool\flutter_build\dart_plugin_registrant.dart
   PASS no real service-role assignment in .github\workflows\package-09-1-database.yml
 FAILED: 0

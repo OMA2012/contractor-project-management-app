@@ -266,6 +266,65 @@ class OwnerAdminDocumentDetailController
     }
   }
 
+  Future<bool> archive() => _mutate(
+    () => ref
+        .read(documentRepositoryProvider)
+        .archiveOwnerAdminDocument(_documentId),
+  );
+
+  Future<bool> restore() => _mutate(
+    () => ref
+        .read(documentRepositoryProvider)
+        .restoreOwnerAdminDocument(_documentId),
+  );
+
+  Future<bool> replaceWith(String replacementDocumentId) => _mutate(
+    () => ref
+        .read(documentRepositoryProvider)
+        .replaceOwnerAdminDocument(
+          documentId: _documentId,
+          replacementDocumentId: replacementDocumentId,
+        ),
+  );
+
+  Future<bool> _mutate(
+    Future<DocumentLifecycleMutationResult> Function() operation,
+  ) async {
+    if (!ref.read(ownerAdminDocumentAccessProvider)) {
+      _requestGeneration++;
+      state = const OwnerAdminDocumentDetailState.failure(
+        DocumentFailure('Document access requires an active staff account.'),
+      );
+      return false;
+    }
+    if (state.isMutating) return false;
+    final generation = ++_requestGeneration;
+    state = state.copyWith(
+      mutationPhase: DocumentLifecycleMutationPhase.running,
+      clearMutationError: true,
+    );
+    try {
+      await operation();
+      if (!_canApplyResult(generation)) return false;
+      final document = await ref
+          .read(documentRepositoryProvider)
+          .getOwnerAdminDocumentDetail(_documentId);
+      if (!_canApplyResult(generation)) return false;
+      state = OwnerAdminDocumentDetailState.loaded(
+        document,
+      ).copyWith(mutationPhase: DocumentLifecycleMutationPhase.succeeded);
+      await ref.read(ownerAdminDocumentListProvider.notifier).refresh();
+      return _canApplyResult(generation);
+    } catch (error) {
+      if (!_canApplyResult(generation)) return false;
+      state = state.copyWith(
+        mutationPhase: DocumentLifecycleMutationPhase.failed,
+        mutationError: error,
+      );
+      return false;
+    }
+  }
+
   bool _canApplyResult(int generation) =>
       ref.mounted &&
       generation == _requestGeneration &&

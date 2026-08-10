@@ -7,6 +7,7 @@ import '../account/current_account_provider.dart';
 import '../documents/document_file_services.dart';
 import '../documents/document_models.dart';
 import '../documents/document_providers.dart';
+import '../documents/document_repository.dart';
 
 class OwnerAdminDocumentsScreen extends ConsumerStatefulWidget {
   const OwnerAdminDocumentsScreen({super.key});
@@ -137,10 +138,14 @@ class _OwnerAdminDocumentDetailScreenState
                   .load(),
             )
           : _DetailContent(
+              state: state,
               document: state.document!,
               accessError: _accessError,
               accessMessage: _accessMessage,
               onAccess: _requestAccess,
+              onArchive: _archive,
+              onRestore: _restore,
+              onReplace: _replace,
             ),
     );
   }
@@ -174,6 +179,216 @@ class _OwnerAdminDocumentDetailScreenState
       }
     } catch (error) {
       setState(() => _accessError = error);
+    }
+  }
+
+  Future<void> _archive(SafeDocument document) async {
+    final confirmed = await _confirmLifecycle(
+      title: 'Archive document',
+      body:
+          'The document remains retained. It will no longer be current or Client-visible according to lifecycle rules. This is not permanent deletion.',
+      action: 'Archive document',
+    );
+    if (confirmed != true) return;
+    final ok = await ref
+        .read(ownerAdminDocumentDetailProvider(widget.documentId).notifier)
+        .archive();
+    if (!mounted) return;
+    _showLifecycleSnack(ok, 'Document archived.');
+  }
+
+  Future<void> _restore(SafeDocument document) async {
+    final confirmed = await _confirmLifecycle(
+      title: 'Restore document',
+      body:
+          'The restored document returns as contractor-private. Client visibility is not automatically restored.',
+      action: 'Restore document',
+    );
+    if (confirmed != true) return;
+    final ok = await ref
+        .read(ownerAdminDocumentDetailProvider(widget.documentId).notifier)
+        .restore();
+    if (!mounted) return;
+    _showLifecycleSnack(ok, 'Document restored as private.');
+  }
+
+  Future<void> _replace(SafeDocument document) async {
+    final candidate = await _selectReplacementCandidate(document);
+    if (candidate == null) return;
+    final confirmed = await _confirmLifecycle(
+      title: 'Confirm replacement',
+      body:
+          '${document.documentNumber} will remain retained as historical. ${candidate.documentNumber} becomes the approved replacement. Client visibility is not automatically inherited.',
+      action: 'Confirm replacement',
+    );
+    if (confirmed != true) return;
+    final ok = await ref
+        .read(ownerAdminDocumentDetailProvider(widget.documentId).notifier)
+        .replaceWith(candidate.id);
+    if (!mounted) return;
+    _showLifecycleSnack(ok, 'Replacement recorded.');
+  }
+
+  Future<bool?> _confirmLifecycle({
+    required String title,
+    required String body,
+    required String action,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(action),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<SafeDocument?> _selectReplacementCandidate(SafeDocument document) {
+    return showModalBottomSheet<SafeDocument>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _ReplacementCandidateSheet(
+        currentDocumentId: document.id,
+        repository: ref.read(documentRepositoryProvider),
+      ),
+    );
+  }
+
+  void _showLifecycleSnack(bool ok, String success) {
+    final message = ok
+        ? success
+        : _safeLifecycleError(
+            ref
+                .read(ownerAdminDocumentDetailProvider(widget.documentId))
+                .mutationError,
+          );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ReplacementCandidateSheet extends StatefulWidget {
+  const _ReplacementCandidateSheet({
+    required this.currentDocumentId,
+    required this.repository,
+  });
+
+  static const pageSize = 100;
+
+  final String currentDocumentId;
+  final DocumentRepository repository;
+
+  @override
+  State<_ReplacementCandidateSheet> createState() =>
+      _ReplacementCandidateSheetState();
+}
+
+class _ReplacementCandidateSheetState
+    extends State<_ReplacementCandidateSheet> {
+  final _documents = <SafeDocument>[];
+  final _seen = <String>{};
+  var _isLoading = false;
+  var _hasMore = true;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadNextPage);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(
+            'Replace document',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Choose the approved replacement. The existing document remains historical and is not deleted.',
+          ),
+          const SizedBox(height: 12),
+          if (_documents.isEmpty && _isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_documents.isEmpty && _error == null)
+            const Text('No replacement candidates are available yet.'),
+          ..._documents.map(
+            (candidate) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(candidate.safeDisplayFileName),
+              subtitle: Text(_candidateLabel(candidate)),
+              onTap: () => Navigator.of(context).pop(candidate),
+            ),
+          ),
+          if (_error != null)
+            Text(
+              'Replacement candidates could not be loaded.',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          if (_hasMore)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _loadNextPage,
+                icon: _isLoading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.expand_more),
+                label: const Text('Load more documents'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadNextPage() async {
+    if (_isLoading || !_hasMore) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final page = await widget.repository.listOwnerAdminDocuments(
+        limit: _ReplacementCandidateSheet.pageSize,
+        offset: _documents.length,
+      );
+      if (!mounted) return;
+      setState(() {
+        for (final document in page) {
+          if (document.id == widget.currentDocumentId) continue;
+          if (document.status != 'ACTIVE') continue;
+          if (_seen.add(document.id)) {
+            _documents.add(document);
+          }
+        }
+        _hasMore = page.length == _ReplacementCandidateSheet.pageSize;
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error;
+        _isLoading = false;
+      });
     }
   }
 }
@@ -403,20 +618,30 @@ class _DocumentRow extends ConsumerWidget {
 
 class _DetailContent extends StatelessWidget {
   const _DetailContent({
+    required this.state,
     required this.document,
     required this.onAccess,
+    required this.onArchive,
+    required this.onRestore,
+    required this.onReplace,
     this.accessError,
     this.accessMessage,
   });
 
+  final OwnerAdminDocumentDetailState state;
   final SafeDocument document;
   final Object? accessError;
   final String? accessMessage;
   final Future<void> Function(SafeDocument, DocumentAccessPurpose) onAccess;
+  final Future<void> Function(SafeDocument) onArchive;
+  final Future<void> Function(SafeDocument) onRestore;
+  final Future<void> Function(SafeDocument) onReplace;
 
   @override
   Widget build(BuildContext context) {
     final lifecycle = document.lifecycle;
+    final isWide = MediaQuery.sizeOf(context).width >= 720;
+    final actions = _lifecycleActions(context, isWide);
     return ListView(
       children: [
         Text(
@@ -438,8 +663,41 @@ class _DetailContent extends StatelessWidget {
               onPressed: () =>
                   onAccess(document, DocumentAccessPurpose.download),
             ),
+            if (isWide) ...actions,
+            if (!isWide && actions.isNotEmpty)
+              PopupMenuButton<String>(
+                tooltip: 'Document lifecycle actions',
+                enabled: !state.isMutating,
+                onSelected: (value) {
+                  if (value == 'archive') onArchive(document);
+                  if (value == 'restore') onRestore(document);
+                  if (value == 'replace') onReplace(document);
+                },
+                itemBuilder: (context) => [
+                  if (_canArchive)
+                    const PopupMenuItem(
+                      value: 'archive',
+                      child: Text('Archive document'),
+                    ),
+                  if (_canRestore)
+                    const PopupMenuItem(
+                      value: 'restore',
+                      child: Text('Restore document'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'replace',
+                    child: Text('Replace document'),
+                  ),
+                ],
+              ),
           ],
         ),
+        if (state.isMutating) const LinearProgressIndicator(),
+        if (state.mutationError != null)
+          Text(
+            _safeLifecycleError(state.mutationError),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         const SizedBox(height: 16),
         _Meta('Document number', document.documentNumber),
         _Meta('Type', document.documentTypeCode),
@@ -481,6 +739,33 @@ class _DetailContent extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  bool get _canArchive =>
+      document.status == 'ACTIVE' && document.lifecycle?.isSuperseded != true;
+  bool get _canRestore =>
+      document.status == 'ARCHIVED' && document.lifecycle?.isSuperseded != true;
+
+  List<Widget> _lifecycleActions(BuildContext context, bool isWide) {
+    return [
+      if (_canArchive)
+        ActionChip(
+          avatar: const Icon(Icons.archive),
+          label: const Text('Archive'),
+          onPressed: state.isMutating ? null : () => onArchive(document),
+        ),
+      if (_canRestore)
+        ActionChip(
+          avatar: const Icon(Icons.restore),
+          label: const Text('Restore'),
+          onPressed: state.isMutating ? null : () => onRestore(document),
+        ),
+      ActionChip(
+        avatar: const Icon(Icons.swap_horiz),
+        label: const Text('Replace document'),
+        onPressed: state.isMutating ? null : () => onReplace(document),
+      ),
+    ];
   }
 }
 
@@ -665,6 +950,42 @@ String _contextLabel(DocumentContext context) {
   if (context.clientPaymentId != null) return 'Payment context';
   if (context.clientId != null) return 'Client context';
   return 'Context available';
+}
+
+String _candidateLabel(SafeDocument document) {
+  return [
+    document.documentNumber,
+    document.status,
+    document.documentTypeCode,
+    _contextLabel(document.context ?? const DocumentContext()),
+  ].join(' - ');
+}
+
+String _safeLifecycleError(Object? error) {
+  final message = error?.toString().toLowerCase() ?? '';
+  if (message.contains('permission') ||
+      message.contains('authenticated') ||
+      message.contains('active staff')) {
+    return 'Document changes require an active Owner/Admin session.';
+  }
+  if (message.contains('superseded')) {
+    return 'Superseded documents cannot be restored as current.';
+  }
+  if (message.contains('cycle')) {
+    return 'That replacement would create a replacement loop.';
+  }
+  if (message.contains('context')) {
+    return 'The replacement document must belong to the same document context.';
+  }
+  if (message.contains('candidate') ||
+      message.contains('finalized') ||
+      message.contains('clean')) {
+    return 'The selected replacement document is not eligible.';
+  }
+  if (message.contains('archived') || message.contains('state')) {
+    return 'The document is not in a lifecycle state that allows that change.';
+  }
+  return 'Document lifecycle change failed. No document data was changed.';
 }
 
 String _uploadPhaseLabel(DocumentUploadPhase phase) {
