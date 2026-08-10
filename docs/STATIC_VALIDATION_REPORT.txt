@@ -1,4 +1,4 @@
-PASSED: 9768
+PASSED: 9884
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
   PASS static validation report has no UTF-16 BOM
@@ -1718,28 +1718,28 @@ PASSED: 9768
   PASS only approved shared Deno helper files exist: _shared\supabase.ts
   PASS only approved shared Deno helper files exist: _shared\token.ts
   PASS only approved shared Deno helper files exist: _shared\validation.ts
-  PASS shared helper file exists: _shared/invitation_url.ts
-  PASS shared helper file exists: _shared/document_scan_handler.ts
-  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
-  PASS shared helper file exists: _shared/supabase.ts
+  PASS shared helper file exists: _shared/http.ts
   PASS shared helper file exists: _shared/errors.ts
-  PASS shared helper file exists: _shared/auth.ts
-  PASS shared helper file exists: _shared/helpers_test.ts
-  PASS shared helper file exists: _shared/document_scan_handler_test.ts
-  PASS shared helper file exists: _shared/validation.ts
-  PASS shared helper file exists: _shared/denied_log.ts
-  PASS shared helper file exists: _shared/document_storage_handler.ts
-  PASS shared helper file exists: _shared/token.ts
-  PASS shared helper file exists: _shared/document_image_handler.ts
-  PASS shared helper file exists: _shared/client_invitation_handler.ts
-  PASS shared helper file exists: _shared/document_image_handler_test.ts
   PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
   PASS shared helper file exists: _shared/client_lifecycle_handler.ts
-  PASS shared helper file exists: _shared/cors.ts
-  PASS shared helper file exists: _shared/http.ts
-  PASS shared helper file exists: _shared/document_storage_handler_test.ts
-  PASS shared helper file exists: _shared/redaction.ts
+  PASS shared helper file exists: _shared/denied_log.ts
+  PASS shared helper file exists: _shared/document_image_handler_test.ts
   PASS shared helper file exists: _shared/env.ts
+  PASS shared helper file exists: _shared/client_invitation_handler.ts
+  PASS shared helper file exists: _shared/redaction.ts
+  PASS shared helper file exists: _shared/document_storage_handler_test.ts
+  PASS shared helper file exists: _shared/cors.ts
+  PASS shared helper file exists: _shared/document_storage_handler.ts
+  PASS shared helper file exists: _shared/supabase.ts
+  PASS shared helper file exists: _shared/helpers_test.ts
+  PASS shared helper file exists: _shared/document_image_handler.ts
+  PASS shared helper file exists: _shared/validation.ts
+  PASS shared helper file exists: _shared/auth.ts
+  PASS shared helper file exists: _shared/invitation_url.ts
+  PASS shared helper file exists: _shared/token.ts
+  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
+  PASS shared helper file exists: _shared/document_scan_handler.ts
+  PASS shared helper file exists: _shared/document_scan_handler_test.ts
   PASS 09.2C3C Edge Function directory exists: accept-client-invitation
   PASS 09.2C3C Edge Function entrypoint exists: accept-client-invitation/index.ts
   PASS 09.2C3C function-level deno.json exists: accept-client-invitation/deno.json
@@ -2012,6 +2012,10 @@ PASSED: 9768
   PASS Package 11.6 scope excludes forbidden object/function: current_site_supervisor_completion
   PASS Package 11.6 scope excludes forbidden object/function: current_accountant_completion
   PASS no Flutter completion/progress UI added
+  PASS Stage 12 document core permits only approved progress context/type identifiers
+  PASS Stage 12 document core still blocks progress UI constructs
+  PASS Stage 12 document core still blocks completion UI constructs
+  PASS Stage 12 document core still excludes gallery/camera UI
   PASS no completion Edge Function added
   PASS Package 11.7 artifact exists: supabase\migrations\20260724102200_1119_project_completion_overrides.sql
   PASS Package 11.7 artifact exists: supabase\migrations\20260724102300_1120_project_completion_override_functions.sql
@@ -7278,6 +7282,96 @@ PASSED: 9768
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\config\app_config.dart: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\config\app_config.dart: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\config\app_config.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_models.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_providers.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: scanner_policy
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\routing\app_router.dart: storage.objects
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\routing\app_router.dart: storage.buckets
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\routing\app_router.dart: create bucket
@@ -7578,6 +7672,10 @@ PASSED: 9768
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\supabase\supabase_bootstrap.dart: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\supabase\supabase_bootstrap.dart: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\supabase\supabase_bootstrap.dart: scanner_policy
+  PASS Stage 12 document core permits only approved thumbnail marker constructs
+  PASS Stage 12 document core still blocks unrelated thumbnail UI constructs
+  PASS Stage 12 document core permits approved max_file_size transport key
+  PASS Stage 12 document core still blocks unrelated max_file_size constructs
   PASS Package 13.1 artifact exists: supabase\migrations\20260724103400_1131_financial_account_schema.sql
   PASS Package 13.1 artifact exists: supabase\migrations\20260724103500_1132_financial_account_functions.sql
   PASS Package 13.1 artifact exists: supabase\migrations\20260724103600_1133_financial_account_grants.sql
@@ -9461,6 +9559,7 @@ PASSED: 9768
   PASS no real service-role assignment in FILES_MANIFEST.txt
   PASS no real service-role assignment in PACKAGE_09_1_IMPLEMENTATION_RESULT.md
   PASS no real service-role assignment in README.md
+  PASS no real service-role assignment in app\.flutter-plugins-dependencies
   PASS no real service-role assignment in app\.gitignore
   PASS no real service-role assignment in app\.metadata
   PASS no real service-role assignment in app\analysis_options.yaml
@@ -9484,8 +9583,6 @@ PASSED: 9768
   PASS no real service-role assignment in scripts\static_validate.py
   PASS no real service-role assignment in scripts\verify_environment.sh
   PASS no real service-role assignment in supabase\config.toml
-  PASS no real service-role assignment in supabase\.branches\_current_branch
-  PASS no real service-role assignment in supabase\.temp\cli-latest
   PASS no real service-role assignment in supabase\functions\deno.json
   PASS no real service-role assignment in supabase\functions\deno.lock
   PASS no real service-role assignment in supabase\migrations\20260721220100_0901_extensions_and_identity_types.sql
@@ -9736,12 +9833,16 @@ PASSED: 9768
   PASS no real service-role assignment in supabase\functions\_shared\supabase.ts
   PASS no real service-role assignment in supabase\functions\_shared\token.ts
   PASS no real service-role assignment in supabase\functions\_shared\validation.ts
+  PASS no real service-role assignment in app\.dart_tool\package_config.json
+  PASS no real service-role assignment in app\.dart_tool\package_graph.json
+  PASS no real service-role assignment in app\.dart_tool\version
   PASS no real service-role assignment in app\lib\main.dart
   PASS no real service-role assignment in app\test\app_config_test.dart
   PASS no real service-role assignment in app\test\auth_redirect_test.dart
   PASS no real service-role assignment in app\test\auth_security_test.dart
   PASS no real service-role assignment in app\test\current_account_provider_test.dart
   PASS no real service-role assignment in app\test\current_account_repository_test.dart
+  PASS no real service-role assignment in app\test\document_core_test.dart
   PASS no real service-role assignment in app\test\routing_test.dart
   PASS no real service-role assignment in app\web\favicon.png
   PASS no real service-role assignment in app\web\index.html
@@ -9756,6 +9857,9 @@ PASSED: 9768
   PASS no real service-role assignment in app\lib\src\account\current_account_repository.dart
   PASS no real service-role assignment in app\lib\src\auth\auth_session.dart
   PASS no real service-role assignment in app\lib\src\config\app_config.dart
+  PASS no real service-role assignment in app\lib\src\documents\document_models.dart
+  PASS no real service-role assignment in app\lib\src\documents\document_providers.dart
+  PASS no real service-role assignment in app\lib\src\documents\document_repository.dart
   PASS no real service-role assignment in app\lib\src\routing\app_router.dart
   PASS no real service-role assignment in app\lib\src\screens\account_loading_screen.dart
   PASS no real service-role assignment in app\lib\src\screens\inactive_account_screen.dart
@@ -9766,5 +9870,17 @@ PASSED: 9768
   PASS no real service-role assignment in app\lib\src\screens\responsive_auth_scaffold.dart
   PASS no real service-role assignment in app\lib\src\screens\role_home_screen.dart
   PASS no real service-role assignment in app\lib\src\supabase\supabase_bootstrap.dart
+  PASS no real service-role assignment in app\build\unit_test_assets\AssetManifest.bin
+  PASS no real service-role assignment in app\build\unit_test_assets\FontManifest.json
+  PASS no real service-role assignment in app\build\unit_test_assets\NativeAssetsManifest.json
+  PASS no real service-role assignment in app\build\unit_test_assets\NOTICES.Z
+  PASS no real service-role assignment in app\build\unit_test_assets\fonts\MaterialIcons-Regular.otf
+  PASS no real service-role assignment in app\build\unit_test_assets\shaders\ink_sparkle.frag
+  PASS no real service-role assignment in app\build\unit_test_assets\shaders\stretch_effect.frag
+  PASS no real service-role assignment in app\build\test_cache\build\ac6bb03c0ccdeb006582a024c456901a.cache.dill.track.dill
+  PASS no real service-role assignment in app\build\native_assets\windows\native_assets.json
+  PASS no real service-role assignment in app\.dart_tool\dartpad\web_plugin_registrant.dart
+  PASS no real service-role assignment in app\.dart_tool\extension_discovery\vs_code.json
+  PASS no real service-role assignment in app\.dart_tool\flutter_build\dart_plugin_registrant.dart
   PASS no real service-role assignment in .github\workflows\package-09-1-database.yml
 FAILED: 0
