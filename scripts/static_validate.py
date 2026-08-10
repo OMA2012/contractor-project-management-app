@@ -3212,6 +3212,11 @@ for path in package_12_1_scope_files:
                 )
                 and path.name == '20260724111900_1176_storage_reconciliation_foundation.sql'
             )
+            allowed_stage_12_owner_admin_document_gateway_marker = (
+                forbidden == 'thumbnail'
+                and path.name == '20260724112000_1177_owner_admin_document_gateways.sql'
+                and 'thumbnail_available' in text
+            )
 
             def strip_stage_12_ui_core_marker_terms(marker_text, marker, rel_path):
                 if not rel_path.startswith('app/lib/src/documents/'):
@@ -3241,7 +3246,7 @@ for path in package_12_1_scope_files:
                 and str(path.relative_to(ROOT)).replace('\\', '/').startswith('app/lib/src/documents/')
                 and forbidden not in strip_stage_12_ui_core_marker_terms(text, forbidden, str(path.relative_to(ROOT)).replace('\\', '/'))
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_ui_core_marker or forbidden not in text,
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_ui_core_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 require('thumbnail' not in strip_stage_12_ui_core_marker_terms("thumbnail, preview 'mode': 'thumbnail' data['thumbnail'] thumbnailavailable thumbnail_available requestphotographthumbnail", 'thumbnail', 'app/lib/src/documents/document_models.dart'),
