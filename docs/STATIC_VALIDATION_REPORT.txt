@@ -1,4 +1,4 @@
-PASSED: 9884
+PASSED: 9920
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
   PASS static validation report has no UTF-16 BOM
@@ -183,6 +183,7 @@ PASSED: 9884
   PASS PostgreSQL syntax parsed: 20260724111700_1174_document_lifecycle_completion_functions.sql
   PASS PostgreSQL syntax parsed: 20260724111800_1175_document_lifecycle_completion_grants.sql
   PASS PostgreSQL syntax parsed: 20260724111900_1176_storage_reconciliation_foundation.sql
+  PASS PostgreSQL syntax parsed: 20260724112000_1177_owner_admin_document_gateways.sql
   PASS pgTAP SQL syntax parsed: 00_package_09_1_schema.test.sql
   PASS pgTAP plan exists: 00_package_09_1_schema.test.sql
   PASS pgTAP plan matches 51 assertions: 00_package_09_1_schema.test.sql
@@ -213,6 +214,12 @@ PASSED: 9884
   PASS pgTAP SQL syntax parsed: 09_package_09_2_identity_mutations.test.sql
   PASS pgTAP plan exists: 09_package_09_2_identity_mutations.test.sql
   PASS pgTAP plan matches 53 assertions: 09_package_09_2_identity_mutations.test.sql
+  PASS pgTAP SQL syntax parsed: 100_stage_12_owner_admin_document_gateways_security.test.sql
+  PASS pgTAP plan exists: 100_stage_12_owner_admin_document_gateways_security.test.sql
+  PASS pgTAP plan matches 9 assertions: 100_stage_12_owner_admin_document_gateways_security.test.sql
+  PASS pgTAP SQL syntax parsed: 101_stage_12_owner_admin_document_gateways_operations.test.sql
+  PASS pgTAP plan exists: 101_stage_12_owner_admin_document_gateways_operations.test.sql
+  PASS pgTAP plan matches 39 assertions: 101_stage_12_owner_admin_document_gateways_operations.test.sql
   PASS pgTAP SQL syntax parsed: 10_package_09_2_identity_service_context.test.sql
   PASS pgTAP plan exists: 10_package_09_2_identity_service_context.test.sql
   PASS pgTAP plan matches 31 assertions: 10_package_09_2_identity_service_context.test.sql
@@ -480,6 +487,9 @@ PASSED: 9884
   PASS pgTAP SQL syntax parsed: 98_stage_12_storage_reconciliation_operations.test.sql
   PASS pgTAP plan exists: 98_stage_12_storage_reconciliation_operations.test.sql
   PASS pgTAP plan matches 32 assertions: 98_stage_12_storage_reconciliation_operations.test.sql
+  PASS pgTAP SQL syntax parsed: 99_stage_12_owner_admin_document_gateways_schema.test.sql
+  PASS pgTAP plan exists: 99_stage_12_owner_admin_document_gateways_schema.test.sql
+  PASS pgTAP plan matches 39 assertions: 99_stage_12_owner_admin_document_gateways_schema.test.sql
   PASS required object present: create table app.contractor_profiles
   PASS required object present: create table app.users
   PASS required object present: create table app.user_profiles
@@ -1718,28 +1728,28 @@ PASSED: 9884
   PASS only approved shared Deno helper files exist: _shared\supabase.ts
   PASS only approved shared Deno helper files exist: _shared\token.ts
   PASS only approved shared Deno helper files exist: _shared\validation.ts
-  PASS shared helper file exists: _shared/http.ts
-  PASS shared helper file exists: _shared/errors.ts
-  PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
-  PASS shared helper file exists: _shared/client_lifecycle_handler.ts
-  PASS shared helper file exists: _shared/denied_log.ts
-  PASS shared helper file exists: _shared/document_image_handler_test.ts
-  PASS shared helper file exists: _shared/env.ts
   PASS shared helper file exists: _shared/client_invitation_handler.ts
-  PASS shared helper file exists: _shared/redaction.ts
-  PASS shared helper file exists: _shared/document_storage_handler_test.ts
-  PASS shared helper file exists: _shared/cors.ts
-  PASS shared helper file exists: _shared/document_storage_handler.ts
-  PASS shared helper file exists: _shared/supabase.ts
-  PASS shared helper file exists: _shared/helpers_test.ts
-  PASS shared helper file exists: _shared/document_image_handler.ts
-  PASS shared helper file exists: _shared/validation.ts
-  PASS shared helper file exists: _shared/auth.ts
+  PASS shared helper file exists: _shared/denied_log.ts
   PASS shared helper file exists: _shared/invitation_url.ts
-  PASS shared helper file exists: _shared/token.ts
-  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
-  PASS shared helper file exists: _shared/document_scan_handler.ts
+  PASS shared helper file exists: _shared/http.ts
+  PASS shared helper file exists: _shared/env.ts
   PASS shared helper file exists: _shared/document_scan_handler_test.ts
+  PASS shared helper file exists: _shared/client_lifecycle_handler_test.ts
+  PASS shared helper file exists: _shared/errors.ts
+  PASS shared helper file exists: _shared/token.ts
+  PASS shared helper file exists: _shared/document_image_handler_test.ts
+  PASS shared helper file exists: _shared/document_storage_handler_test.ts
+  PASS shared helper file exists: _shared/supabase.ts
+  PASS shared helper file exists: _shared/cors.ts
+  PASS shared helper file exists: _shared/document_image_handler.ts
+  PASS shared helper file exists: _shared/redaction.ts
+  PASS shared helper file exists: _shared/client_lifecycle_handler.ts
+  PASS shared helper file exists: _shared/document_scan_handler.ts
+  PASS shared helper file exists: _shared/validation.ts
+  PASS shared helper file exists: _shared/helpers_test.ts
+  PASS shared helper file exists: _shared/client_invitation_handler_test.ts
+  PASS shared helper file exists: _shared/auth.ts
+  PASS shared helper file exists: _shared/document_storage_handler.ts
   PASS 09.2C3C Edge Function directory exists: accept-client-invitation
   PASS 09.2C3C Edge Function entrypoint exists: accept-client-invitation/index.ts
   PASS 09.2C3C function-level deno.json exists: accept-client-invitation/deno.json
@@ -5602,6 +5612,36 @@ PASSED: 9884
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql: scanner_policy
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: storage.objects
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: storage.buckets
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: create bucket
@@ -9583,6 +9623,8 @@ PASSED: 9884
   PASS no real service-role assignment in scripts\static_validate.py
   PASS no real service-role assignment in scripts\verify_environment.sh
   PASS no real service-role assignment in supabase\config.toml
+  PASS no real service-role assignment in supabase\.branches\_current_branch
+  PASS no real service-role assignment in supabase\.temp\cli-latest
   PASS no real service-role assignment in supabase\functions\deno.json
   PASS no real service-role assignment in supabase\functions\deno.lock
   PASS no real service-role assignment in supabase\migrations\20260721220100_0901_extensions_and_identity_types.sql
@@ -9687,6 +9729,7 @@ PASSED: 9884
   PASS no real service-role assignment in supabase\migrations\20260724111700_1174_document_lifecycle_completion_functions.sql
   PASS no real service-role assignment in supabase\migrations\20260724111800_1175_document_lifecycle_completion_grants.sql
   PASS no real service-role assignment in supabase\migrations\20260724111900_1176_storage_reconciliation_foundation.sql
+  PASS no real service-role assignment in supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql
   PASS no real service-role assignment in supabase\tests\00_package_09_1_schema.test.sql
   PASS no real service-role assignment in supabase\tests\01_package_09_1_constraints.test.sql
   PASS no real service-role assignment in supabase\tests\02_package_09_1_default_deny.test.sql
@@ -9697,6 +9740,8 @@ PASSED: 9884
   PASS no real service-role assignment in supabase\tests\07_package_09_2_identity_private_functions.test.sql
   PASS no real service-role assignment in supabase\tests\08_package_09_2_identity_gateways.test.sql
   PASS no real service-role assignment in supabase\tests\09_package_09_2_identity_mutations.test.sql
+  PASS no real service-role assignment in supabase\tests\100_stage_12_owner_admin_document_gateways_security.test.sql
+  PASS no real service-role assignment in supabase\tests\101_stage_12_owner_admin_document_gateways_operations.test.sql
   PASS no real service-role assignment in supabase\tests\10_package_09_2_identity_service_context.test.sql
   PASS no real service-role assignment in supabase\tests\11_package_09_2_first_owner_delivery_recovery.test.sql
   PASS no real service-role assignment in supabase\tests\12_package_10_1_client_records_schema.test.sql
@@ -9786,6 +9831,7 @@ PASSED: 9884
   PASS no real service-role assignment in supabase\tests\96_stage_12_storage_reconciliation_schema.test.sql
   PASS no real service-role assignment in supabase\tests\97_stage_12_storage_reconciliation_security.test.sql
   PASS no real service-role assignment in supabase\tests\98_stage_12_storage_reconciliation_operations.test.sql
+  PASS no real service-role assignment in supabase\tests\99_stage_12_owner_admin_document_gateways_schema.test.sql
   PASS no real service-role assignment in supabase\functions\accept-client-invitation\deno.json
   PASS no real service-role assignment in supabase\functions\accept-client-invitation\index.ts
   PASS no real service-role assignment in supabase\functions\create-client-invitation\deno.json
@@ -9870,17 +9916,7 @@ PASSED: 9884
   PASS no real service-role assignment in app\lib\src\screens\responsive_auth_scaffold.dart
   PASS no real service-role assignment in app\lib\src\screens\role_home_screen.dart
   PASS no real service-role assignment in app\lib\src\supabase\supabase_bootstrap.dart
-  PASS no real service-role assignment in app\build\unit_test_assets\AssetManifest.bin
-  PASS no real service-role assignment in app\build\unit_test_assets\FontManifest.json
-  PASS no real service-role assignment in app\build\unit_test_assets\NativeAssetsManifest.json
-  PASS no real service-role assignment in app\build\unit_test_assets\NOTICES.Z
-  PASS no real service-role assignment in app\build\unit_test_assets\fonts\MaterialIcons-Regular.otf
-  PASS no real service-role assignment in app\build\unit_test_assets\shaders\ink_sparkle.frag
-  PASS no real service-role assignment in app\build\unit_test_assets\shaders\stretch_effect.frag
-  PASS no real service-role assignment in app\build\test_cache\build\ac6bb03c0ccdeb006582a024c456901a.cache.dill.track.dill
-  PASS no real service-role assignment in app\build\native_assets\windows\native_assets.json
   PASS no real service-role assignment in app\.dart_tool\dartpad\web_plugin_registrant.dart
   PASS no real service-role assignment in app\.dart_tool\extension_discovery\vs_code.json
-  PASS no real service-role assignment in app\.dart_tool\flutter_build\dart_plugin_registrant.dart
   PASS no real service-role assignment in .github\workflows\package-09-1-database.yml
 FAILED: 0
