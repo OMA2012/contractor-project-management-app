@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../account/current_account.dart';
 import '../account/current_account_provider.dart';
@@ -23,6 +24,18 @@ class ProtectedShellScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Contractor Projects'),
         actions: [
+          if (account.routeTarget == TrustedAccountRouteTarget.staff)
+            IconButton(
+              tooltip: 'Photographs',
+              onPressed: () => context.go('/staff/photographs'),
+              icon: const Icon(Icons.photo_library),
+            ),
+          if (account.routeTarget == TrustedAccountRouteTarget.client)
+            IconButton(
+              tooltip: 'Photographs',
+              onPressed: () => context.go('/client/photographs'),
+              icon: const Icon(Icons.photo_library),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Center(

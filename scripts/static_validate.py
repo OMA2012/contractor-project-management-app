@@ -1835,7 +1835,7 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_5_functions and relative.name in {'index.ts', 'deno.json', 'magick.wasm'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
-    for name in allowed_shared_files:
+    for name in sorted(allowed_shared_files):
         require((functions_dir / '_shared' / name).exists(), f'shared helper file exists: _shared/{name}')
     for function_name in sorted(stage_09_2c3c_functions):
         function_dir = functions_dir / function_name
@@ -2266,6 +2266,9 @@ def strip_stage_12_document_core_progress_terms(text):
         'progressUpdateId',
         'progress_update_id',
         'PROGRESS_PHOTOGRAPH',
+        'OwnerAdminPhotographCategory.progress',
+        'progress, taskImage',
+        'isProgressPhotograph',
     ):
         text = text.replace(approved, '')
     return text
@@ -2294,6 +2297,22 @@ def stage_12_document_core_progress_ui_blocked(text):
     return re.search(r'completion|progress|overdue|upcoming', strip_stage_12_document_core_progress_terms(text), re.I) is not None
 
 
+def strip_stage_12_photograph_gallery_progress_terms(text, rel_path):
+    if rel_path != 'app/lib/src/screens/photograph_gallery_screen.dart':
+        return text
+    for approved in (
+        'Progress photograph',
+        'Progress photographs',
+        "'Progress'",
+        'CircularProgressIndicator',
+        'PROGRESS_PHOTOGRAPH',
+        'isProgressPhotograph',
+        'OwnerAdminPhotographCategory.progress',
+    ):
+        text = re.sub(re.escape(approved), '', text, flags=re.I)
+    return text
+
+
 flutter_completion_mentions = []
 for p in (ROOT / 'app/lib').glob('**/*.dart'):
     if not p.is_file():
@@ -2302,6 +2321,7 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
     rel = str(p.relative_to(ROOT)).replace('\\', '/')
     searchable = strip_stage_12_document_core_progress_terms(text) if rel.startswith('app/lib/src/documents/') else text
     searchable = strip_stage_12_owner_admin_document_ui_progress_terms(searchable, rel)
+    searchable = strip_stage_12_photograph_gallery_progress_terms(searchable, rel)
     if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
         flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
@@ -2320,7 +2340,21 @@ require('progress' not in strip_stage_12_owner_admin_document_ui_progress_terms(
         'Stage 12 owner/admin document UI permits approved read-only progress labels')
 require('progress' in strip_stage_12_owner_admin_document_ui_progress_terms('class ProgressDashboardScreen {}', 'app/lib/src/screens/project_progress_screen.dart').lower(),
         'Stage 12 owner/admin document UI allowance does not permit unrelated progress UI')
-require('gallery' not in document_core_text and 'camera' not in document_core_text,
+require('progress' not in strip_stage_12_photograph_gallery_progress_terms('Progress photograph PROGRESS_PHOTOGRAPH OwnerAdminPhotographCategory.progress', 'app/lib/src/screens/photograph_gallery_screen.dart').lower(),
+        'Stage 12 photograph gallery permits approved progress photograph labels')
+require('progress' in strip_stage_12_photograph_gallery_progress_terms('class ProgressDashboardScreen {}', 'app/lib/src/screens/photograph_gallery_screen.dart').lower(),
+        'Stage 12 photograph gallery still blocks unrelated progress UI constructs')
+document_core_gallery_text = document_core_text
+for approved in (
+    'photographgallery',
+    'photographgalleryaudience',
+    'owneradminphotographcategory',
+    'photographgalleryitem',
+    'photographgallerypage',
+    'photographgallerystate',
+):
+    document_core_gallery_text = document_core_gallery_text.replace(approved, '')
+require('gallery' not in document_core_gallery_text and 'camera' not in document_core_text,
         'Stage 12 document core still excludes gallery/camera UI')
 require(not any((ROOT / 'supabase/functions').glob('*completion*')), 'no completion Edge Function added')
 
@@ -3293,6 +3327,21 @@ for path in package_12_1_scope_files:
                     and 'client_document_portal' not in lowered
                 )
 
+            def allows_stage_12_photograph_gallery_ui_marker(marker, marker_text, rel_path):
+                lowered = marker_text.lower()
+                return (
+                    marker == 'thumbnail'
+                    and rel_path == 'app/lib/src/screens/photograph_gallery_screen.dart'
+                    and 'requestphotographthumbnail' in lowered
+                    and 'thumbnailavailable' in lowered
+                    and 'storage' not in lowered
+                    and 'signed_url' not in lowered
+                    and 'camera' not in lowered
+                    and 'imageeditor' not in lowered
+                    and 'image_editor' not in lowered
+                    and 'public link' not in lowered
+                )
+
             def allows_stage_12_owner_admin_document_lifecycle_ui(marker_text, rel_path):
                 lowered = marker_text.lower()
                 if rel_path not in {
@@ -3345,7 +3394,12 @@ for path in package_12_1_scope_files:
                 text,
                 str(path.relative_to(ROOT)).replace('\\', '/'),
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_client_photograph_gateway_marker or allowed_stage_12_owner_admin_photograph_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or forbidden not in text,
+            allowed_stage_12_photograph_gallery_ui_marker = allows_stage_12_photograph_gallery_ui_marker(
+                forbidden,
+                text,
+                str(path.relative_to(ROOT)).replace('\\', '/'),
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_client_photograph_gateway_marker or allowed_stage_12_owner_admin_photograph_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or allowed_stage_12_photograph_gallery_ui_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 require('thumbnail' not in strip_stage_12_ui_core_marker_terms("thumbnail, preview 'mode': 'thumbnail' data['thumbnail'] thumbnailavailable thumbnail_available requestphotographthumbnail", 'thumbnail', 'app/lib/src/documents/document_models.dart'),
@@ -3362,6 +3416,12 @@ require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'thumbna
         'Stage 12 owner/admin document UI thumbnail allowance still blocks gallery camera client portal constructs')
 require(not allows_stage_12_owner_admin_document_ui_marker('thumbnail', 'document.photograph?.thumbnailAvailable == true', 'app/lib/src/screens/client_documents_screen.dart'),
         'Stage 12 owner/admin document UI allowance is not directory-wide')
+require(allows_stage_12_photograph_gallery_ui_marker('thumbnail', 'requestPhotographThumbnail thumbnailAvailable', 'app/lib/src/screens/photograph_gallery_screen.dart'),
+        'Stage 12 photograph gallery UI permits approved secure thumbnail rendering')
+require(not allows_stage_12_photograph_gallery_ui_marker('thumbnail', 'requestPhotographThumbnail thumbnailAvailable storage signed_url camera image_editor', 'app/lib/src/screens/photograph_gallery_screen.dart'),
+        'Stage 12 photograph gallery UI thumbnail allowance still blocks storage URLs camera and editing')
+require(not allows_stage_12_photograph_gallery_ui_marker('thumbnail', 'requestPhotographThumbnail thumbnailAvailable', 'app/lib/src/screens/client_documents_screen.dart'),
+        'Stage 12 photograph gallery UI allowance is file-scoped')
 require(not (
     'thumbnail' == 'thumbnail'
     and '20260724112100_1178_client_photograph_gallery_gateway.sql' == '20260724112100_1178_client_photograph_gallery_gateway.sql'
@@ -6014,9 +6074,9 @@ for path in ROOT.rglob('*'):
 
 print(f'PASSED: {len(passes)}')
 for item in passes:
-    print(f'  PASS {item}')
+    print(f'  PASS {item}'.rstrip())
 print(f'FAILED: {len(errors)}')
 for item in errors:
-    print(f'  FAIL {item}')
+    print(f'  FAIL {item}'.rstrip())
 
 sys.exit(1 if errors else 0)

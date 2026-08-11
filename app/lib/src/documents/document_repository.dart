@@ -67,6 +67,17 @@ abstract class DocumentRepository {
     int offset = 0,
   });
 
+  Future<PhotographGalleryPage> listClientPhotographs({
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<PhotographGalleryPage> listOwnerAdminPhotographs({
+    required OwnerAdminPhotographCategory category,
+    int limit = 50,
+    int offset = 0,
+  });
+
   Future<SecureDocumentAccess> requestDocumentAccess(
     String documentId,
     DocumentAccessPurpose purpose,
@@ -187,6 +198,47 @@ class SupabaseDocumentRepository implements DocumentRepository {
       'p_offset': offset,
     });
     return _rows(response).map(SafeDocument.fromJson).toList(growable: false);
+  }
+
+  @override
+  Future<PhotographGalleryPage> listClientPhotographs({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _rpc('current_client_photograph_list', {
+      'p_limit': limit,
+      'p_offset': offset,
+    });
+    final rows = _rows(response);
+    return PhotographGalleryPage(
+      rawCount: rows.length,
+      items: rows
+          .map(PhotographGalleryItem.fromClientJson)
+          .toList(growable: false),
+    );
+  }
+
+  @override
+  Future<PhotographGalleryPage> listOwnerAdminPhotographs({
+    required OwnerAdminPhotographCategory category,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _rpc('owner_admin_photograph_list', {
+      'p_document_type_code': switch (category) {
+        OwnerAdminPhotographCategory.progress => 'PROGRESS_PHOTOGRAPH',
+        OwnerAdminPhotographCategory.taskImage => 'TASK_ATTACHMENT',
+      },
+      'p_limit': limit,
+      'p_offset': offset,
+    });
+    final rows = _rows(response);
+    return PhotographGalleryPage(
+      rawCount: rows.length,
+      items: rows
+          .map(PhotographGalleryItem.fromOwnerAdminJson)
+          .toList(growable: false),
+    );
   }
 
   @override
