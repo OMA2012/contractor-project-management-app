@@ -1,4 +1,4 @@
-PASSED: 10171
+PASSED: 10197
 FAILED: 0
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
@@ -187,6 +187,7 @@ FAILED: 0
   PASS PostgreSQL syntax parsed: 20260724112000_1177_owner_admin_document_gateways.sql
   PASS PostgreSQL syntax parsed: 20260724112100_1178_client_photograph_gallery_gateway.sql
   PASS PostgreSQL syntax parsed: 20260724112200_1179_owner_admin_photograph_gallery_gateway.sql
+  PASS PostgreSQL syntax parsed: 20260724112300_1180_stage_12_context_file_gateway.sql
   PASS pgTAP SQL syntax parsed: 00_package_09_1_schema.test.sql
   PASS pgTAP plan exists: 00_package_09_1_schema.test.sql
   PASS pgTAP plan matches 51 assertions: 00_package_09_1_schema.test.sql
@@ -229,6 +230,9 @@ FAILED: 0
   PASS pgTAP SQL syntax parsed: 103_stage_12_owner_admin_photograph_gallery_gateway.test.sql
   PASS pgTAP plan exists: 103_stage_12_owner_admin_photograph_gallery_gateway.test.sql
   PASS pgTAP plan matches 27 assertions: 103_stage_12_owner_admin_photograph_gallery_gateway.test.sql
+  PASS pgTAP SQL syntax parsed: 104_stage_12_context_file_gateway.test.sql
+  PASS pgTAP plan exists: 104_stage_12_context_file_gateway.test.sql
+  PASS pgTAP plan matches 38 assertions: 104_stage_12_context_file_gateway.test.sql
   PASS pgTAP SQL syntax parsed: 10_package_09_2_identity_service_context.test.sql
   PASS pgTAP plan exists: 10_package_09_2_identity_service_context.test.sql
   PASS pgTAP plan matches 31 assertions: 10_package_09_2_identity_service_context.test.sql
@@ -5715,6 +5719,36 @@ FAILED: 0
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112200_1179_owner_admin_photograph_gallery_gateway.sql: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112200_1179_owner_admin_photograph_gallery_gateway.sql: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112200_1179_owner_admin_photograph_gallery_gateway.sql: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql: scanner_policy
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: storage.objects
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: storage.buckets
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from supabase\functions\_shared\auth.ts: create bucket
@@ -9856,6 +9890,7 @@ FAILED: 0
   PASS no real service-role assignment in scripts\static_validate.py
   PASS no real service-role assignment in scripts\verify_environment.sh
   PASS no real service-role assignment in supabase\config.toml
+  PASS no real service-role assignment in supabase\.temp\cli-latest
   PASS no real service-role assignment in supabase\functions\deno.json
   PASS no real service-role assignment in supabase\functions\deno.lock
   PASS no real service-role assignment in supabase\migrations\20260721220100_0901_extensions_and_identity_types.sql
@@ -9963,6 +9998,7 @@ FAILED: 0
   PASS no real service-role assignment in supabase\migrations\20260724112000_1177_owner_admin_document_gateways.sql
   PASS no real service-role assignment in supabase\migrations\20260724112100_1178_client_photograph_gallery_gateway.sql
   PASS no real service-role assignment in supabase\migrations\20260724112200_1179_owner_admin_photograph_gallery_gateway.sql
+  PASS no real service-role assignment in supabase\migrations\20260724112300_1180_stage_12_context_file_gateway.sql
   PASS no real service-role assignment in supabase\tests\00_package_09_1_schema.test.sql
   PASS no real service-role assignment in supabase\tests\01_package_09_1_constraints.test.sql
   PASS no real service-role assignment in supabase\tests\02_package_09_1_default_deny.test.sql
@@ -9977,6 +10013,7 @@ FAILED: 0
   PASS no real service-role assignment in supabase\tests\101_stage_12_owner_admin_document_gateways_operations.test.sql
   PASS no real service-role assignment in supabase\tests\102_stage_12_client_photograph_gallery_gateway.test.sql
   PASS no real service-role assignment in supabase\tests\103_stage_12_owner_admin_photograph_gallery_gateway.test.sql
+  PASS no real service-role assignment in supabase\tests\104_stage_12_context_file_gateway.test.sql
   PASS no real service-role assignment in supabase\tests\10_package_09_2_identity_service_context.test.sql
   PASS no real service-role assignment in supabase\tests\11_package_09_2_first_owner_delivery_recovery.test.sql
   PASS no real service-role assignment in supabase\tests\12_package_10_1_client_records_schema.test.sql
@@ -10158,16 +10195,7 @@ FAILED: 0
   PASS no real service-role assignment in app\lib\src\screens\responsive_auth_scaffold.dart
   PASS no real service-role assignment in app\lib\src\screens\role_home_screen.dart
   PASS no real service-role assignment in app\lib\src\supabase\supabase_bootstrap.dart
-  PASS no real service-role assignment in app\build\unit_test_assets\AssetManifest.bin
-  PASS no real service-role assignment in app\build\unit_test_assets\FontManifest.json
-  PASS no real service-role assignment in app\build\unit_test_assets\NativeAssetsManifest.json
-  PASS no real service-role assignment in app\build\unit_test_assets\NOTICES.Z
-  PASS no real service-role assignment in app\build\unit_test_assets\fonts\MaterialIcons-Regular.otf
-  PASS no real service-role assignment in app\build\unit_test_assets\shaders\ink_sparkle.frag
-  PASS no real service-role assignment in app\build\unit_test_assets\shaders\stretch_effect.frag
-  PASS no real service-role assignment in app\build\test_cache\build\ac6bb03c0ccdeb006582a024c456901a.cache.dill.track.dill
-  PASS no real service-role assignment in app\build\native_assets\windows\native_assets.json
   PASS no real service-role assignment in app\.dart_tool\dartpad\web_plugin_registrant.dart
   PASS no real service-role assignment in app\.dart_tool\extension_discovery\vs_code.json
-  PASS no real service-role assignment in app\.dart_tool\flutter_build\dart_plugin_registrant.dart
   PASS no real service-role assignment in .github\workflows\package-09-1-database.yml
+FAILED: 0
