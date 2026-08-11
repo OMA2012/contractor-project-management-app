@@ -5,6 +5,8 @@ import '../account/current_account.dart';
 import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 import '../screens/account_loading_screen.dart';
+import '../screens/client_project_detail_screen.dart';
+import '../screens/client_project_list_screen.dart';
 import '../screens/inactive_account_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/password_reset_request_screen.dart';
@@ -76,6 +78,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/client',
             builder: (context, state) =>
                 const RoleHomeScreen(role: AccountRole.client),
+          ),
+          GoRoute(
+            path: '/client/projects',
+            builder: (context, state) => const ClientProjectListScreen(),
+          ),
+          GoRoute(
+            path: '/client/projects/:projectId',
+            builder: (context, state) => ClientProjectDetailScreen(
+              projectId: state.pathParameters['projectId']!,
+            ),
           ),
           GoRoute(
             path: '/client/photographs',

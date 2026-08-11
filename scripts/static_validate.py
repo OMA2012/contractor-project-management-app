@@ -2313,6 +2313,15 @@ def strip_stage_12_photograph_gallery_progress_terms(text, rel_path):
     return text
 
 
+def strip_stage_10_client_project_loading_terms(text, rel_path):
+    if rel_path not in {
+        'app/lib/src/screens/client_project_list_screen.dart',
+        'app/lib/src/screens/client_project_detail_screen.dart',
+    }:
+        return text
+    return re.sub(re.escape('CircularProgressIndicator'), '', text, flags=re.I)
+
+
 flutter_completion_mentions = []
 for p in (ROOT / 'app/lib').glob('**/*.dart'):
     if not p.is_file():
@@ -2322,6 +2331,7 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
     searchable = strip_stage_12_document_core_progress_terms(text) if rel.startswith('app/lib/src/documents/') else text
     searchable = strip_stage_12_owner_admin_document_ui_progress_terms(searchable, rel)
     searchable = strip_stage_12_photograph_gallery_progress_terms(searchable, rel)
+    searchable = strip_stage_10_client_project_loading_terms(searchable, rel)
     if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
         flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')

@@ -38,6 +38,14 @@ class RoleHomeScreen extends StatelessWidget {
                       label: const Text('Documents'),
                     ),
                   ],
+                  if (role == AccountRole.client) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => context.go('/client/projects'),
+                      icon: const Icon(Icons.business_center),
+                      label: const Text('Projects'),
+                    ),
+                  ],
                 ],
               ),
             ),
