@@ -32,6 +32,12 @@ class ProtectedShellScreen extends ConsumerWidget {
             ),
           if (account.routeTarget == TrustedAccountRouteTarget.client)
             IconButton(
+              tooltip: 'Projects',
+              onPressed: () => context.go('/client/projects'),
+              icon: const Icon(Icons.business_center),
+            ),
+          if (account.routeTarget == TrustedAccountRouteTarget.client)
+            IconButton(
               tooltip: 'Photographs',
               onPressed: () => context.go('/client/photographs'),
               icon: const Icon(Icons.photo_library),
