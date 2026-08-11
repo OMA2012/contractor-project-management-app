@@ -3292,6 +3292,18 @@ for path in package_12_1_scope_files:
                 }
                 and 'thumbnail_available' in text
             )
+            allowed_stage_12_context_file_gateway_marker = (
+                forbidden == 'thumbnail'
+                and path.name in {
+                    '20260724112300_1180_stage_12_context_file_gateway.sql',
+                    '104_stage_12_context_file_gateway.test.sql',
+                }
+                and 'thumbnail_available' in text
+                and (
+                    path.name == '20260724112300_1180_stage_12_context_file_gateway.sql'
+                    or 'thumbnail_storage_object_key' not in text
+                )
+            )
 
             def strip_stage_12_ui_core_marker_terms(marker_text, marker, rel_path):
                 if not rel_path.startswith('app/lib/src/documents/'):
@@ -3399,7 +3411,7 @@ for path in package_12_1_scope_files:
                 text,
                 str(path.relative_to(ROOT)).replace('\\', '/'),
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_client_photograph_gateway_marker or allowed_stage_12_owner_admin_photograph_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or allowed_stage_12_photograph_gallery_ui_marker or forbidden not in text,
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_client_photograph_gateway_marker or allowed_stage_12_owner_admin_photograph_gateway_marker or allowed_stage_12_context_file_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or allowed_stage_12_photograph_gallery_ui_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 require('thumbnail' not in strip_stage_12_ui_core_marker_terms("thumbnail, preview 'mode': 'thumbnail' data['thumbnail'] thumbnailavailable thumbnail_available requestphotographthumbnail", 'thumbnail', 'app/lib/src/documents/document_models.dart'),
