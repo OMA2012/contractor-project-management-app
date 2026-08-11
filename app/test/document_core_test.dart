@@ -86,6 +86,111 @@ void main() {
     expect(documents.single.safeDisplayFileName, 'invoice.pdf');
   });
 
+  test(
+    'client photograph list calls approved RPC with limit and offset',
+    () async {
+      final calls = <Map<String, dynamic>>[];
+      final repository = SupabaseDocumentRepository(
+        rpc: (functionName, {params}) async {
+          calls.add({'function': functionName, ...?params});
+          return [validClientPhotographRow()];
+        },
+      );
+
+      final page = await repository.listClientPhotographs(
+        limit: 25,
+        offset: 50,
+      );
+
+      expect(calls.single, {
+        'function': 'current_client_photograph_list',
+        'p_limit': 25,
+        'p_offset': 50,
+      });
+      expect(page.rawCount, 1);
+      expect(page.items.single.safeDisplayFileName, 'client_photo.jpg');
+      expect(page.items.single.thumbnailAvailable, isTrue);
+    },
+  );
+
+  test(
+    'owner admin photograph list calls authoritative RPC with narrow projection',
+    () async {
+      final calls = <Map<String, dynamic>>[];
+      final repository = SupabaseDocumentRepository(
+        rpc: (functionName, {params}) async {
+          calls.add({'function': functionName, ...?params});
+          return [
+            validOwnerAdminPhotographRow(
+              id: 'task-pdf-authoritative',
+              type: 'TASK_ATTACHMENT',
+              mime: 'application/pdf',
+            ),
+          ];
+        },
+      );
+
+      final page = await repository.listOwnerAdminPhotographs(
+        category: OwnerAdminPhotographCategory.taskImage,
+        limit: 25,
+        offset: 50,
+      );
+
+      expect(calls.single, {
+        'function': 'owner_admin_photograph_list',
+        'p_document_type_code': 'TASK_ATTACHMENT',
+        'p_limit': 25,
+        'p_offset': 50,
+      });
+      expect(page.rawCount, 1);
+      expect(page.items.single.id, 'task-pdf-authoritative');
+      expect(page.items.single.mimeType, 'application/pdf');
+      expect(page.items.single.isTaskImage, isTrue);
+    },
+  );
+
+  test('owner admin progress photograph list uses progress category', () async {
+    final calls = <Map<String, dynamic>>[];
+    final repository = SupabaseDocumentRepository(
+      rpc: (functionName, {params}) async {
+        calls.add({'function': functionName, ...?params});
+        return [validOwnerAdminPhotographRow(type: 'PROGRESS_PHOTOGRAPH')];
+      },
+    );
+
+    await repository.listOwnerAdminPhotographs(
+      category: OwnerAdminPhotographCategory.progress,
+      limit: 10,
+      offset: 0,
+    );
+
+    expect(calls.single, {
+      'function': 'owner_admin_photograph_list',
+      'p_document_type_code': 'PROGRESS_PHOTOGRAPH',
+      'p_limit': 10,
+      'p_offset': 0,
+    });
+  });
+
+  test(
+    'client photograph DTO fails closed and marks missing derivatives unavailable',
+    () {
+      final item = PhotographGalleryItem.fromClientJson(
+        validClientPhotographRow(thumbnail: false, preview: false),
+      );
+      expect(item.thumbnailAvailable, isFalse);
+      expect(item.previewAvailable, isFalse);
+
+      expect(
+        () => PhotographGalleryItem.fromClientJson({
+          ...validClientPhotographRow(),
+          'document_number': null,
+        }),
+        throwsA(isA<DocumentParseFailure>()),
+      );
+    },
+  );
+
   test('owner admin list maps filters and pagination to safe RPC', () async {
     final calls = <Map<String, dynamic>>[];
     final repository = SupabaseDocumentRepository(
@@ -416,6 +521,136 @@ void main() {
     'Client original photograph request is impossible through client API',
     () {
       expect(PhotographDerivativeKind.values, isNot(contains('original')));
+    },
+  );
+
+  test('Client photograph gallery paginates by raw returned rows', () async {
+    final repository = FakeDocumentRepository(
+      clientPhotographPages: [
+        PhotographGalleryPage(
+          rawCount: 3,
+          items: [clientItem('a'), clientItem('b'), clientItem('a')],
+        ),
+        PhotographGalleryPage(rawCount: 1, items: [clientItem('c')]),
+      ],
+    );
+    final container = containerWith(
+      repository: repository,
+      currentAccountRepository: ControlledCurrentAccountRepository(
+        accountRow(userType: 'CLIENT', roleCode: 'client'),
+      ),
+    );
+    addTearDown(container.dispose);
+    await container.read(currentAccountProvider.notifier).load();
+
+    await container
+        .read(clientPhotographGalleryProvider.notifier)
+        .load(limit: 3);
+    await container.read(clientPhotographGalleryProvider.notifier).loadMore();
+
+    expect(repository.clientPhotographOffsets, [0, 3]);
+    expect(
+      container.read(clientPhotographGalleryProvider).items.map((e) => e.id),
+      ['a', 'b', 'c'],
+    );
+    expect(container.read(clientPhotographGalleryProvider).hasMore, isFalse);
+  });
+
+  test(
+    'Owner/Admin photograph gallery keeps category pagination separate',
+    () async {
+      final repository = FakeDocumentRepository(
+        ownerAdminPhotographPages: [
+          PhotographGalleryPage(
+            rawCount: 1,
+            items: [ownerAdminPhotoItem('progress', 'PROGRESS_PHOTOGRAPH')],
+          ),
+          PhotographGalleryPage(
+            rawCount: 2,
+            items: [
+              ownerAdminPhotoItem('pdf', 'TASK_ATTACHMENT', 'application/pdf'),
+              ownerAdminPhotoItem('task-image', 'TASK_ATTACHMENT', 'image/png'),
+            ],
+          ),
+        ],
+      );
+      final container = containerWith(repository: repository);
+      addTearDown(container.dispose);
+
+      await container
+          .read(ownerAdminPhotographGalleryProvider.notifier)
+          .load(limit: 2);
+      await container
+          .read(ownerAdminPhotographGalleryProvider.notifier)
+          .selectCategory(OwnerAdminPhotographCategory.taskImage);
+
+      expect(repository.ownerAdminPhotographCategories, [
+        OwnerAdminPhotographCategory.progress,
+        OwnerAdminPhotographCategory.taskImage,
+      ]);
+      expect(repository.ownerAdminOffsets, [0, 0]);
+      expect(
+        container
+            .read(ownerAdminPhotographGalleryProvider)
+            .items
+            .map((e) => e.id),
+        ['pdf', 'task-image'],
+      );
+
+      await container
+          .read(ownerAdminPhotographGalleryProvider.notifier)
+          .selectCategory(OwnerAdminPhotographCategory.progress);
+      expect(
+        container
+            .read(ownerAdminPhotographGalleryProvider)
+            .items
+            .map((e) => e.id),
+        ['progress'],
+      );
+    },
+  );
+
+  test(
+    'Owner/Admin photograph gallery paginates by raw rows and deduplicates display',
+    () async {
+      final repository = FakeDocumentRepository(
+        ownerAdminPhotographPages: [
+          PhotographGalleryPage(
+            rawCount: 3,
+            items: [
+              ownerAdminPhotoItem('a', 'PROGRESS_PHOTOGRAPH'),
+              ownerAdminPhotoItem('b', 'PROGRESS_PHOTOGRAPH'),
+              ownerAdminPhotoItem('a', 'PROGRESS_PHOTOGRAPH'),
+            ],
+          ),
+          PhotographGalleryPage(
+            rawCount: 1,
+            items: [ownerAdminPhotoItem('c', 'PROGRESS_PHOTOGRAPH')],
+          ),
+        ],
+      );
+      final container = containerWith(repository: repository);
+      addTearDown(container.dispose);
+
+      await container
+          .read(ownerAdminPhotographGalleryProvider.notifier)
+          .load(limit: 3);
+      await container
+          .read(ownerAdminPhotographGalleryProvider.notifier)
+          .loadMore();
+
+      expect(repository.ownerAdminOffsets, [0, 3]);
+      expect(
+        container
+            .read(ownerAdminPhotographGalleryProvider)
+            .items
+            .map((e) => e.id),
+        ['a', 'b', 'c'],
+      );
+      expect(
+        container.read(ownerAdminPhotographGalleryProvider).hasMore,
+        isFalse,
+      );
     },
   );
 
@@ -1011,17 +1246,74 @@ ProviderContainer containerWith({
 Map<String, dynamic> validDocumentRow({
   String id = 'doc-1',
   String status = 'ACTIVE',
+  String type = 'INVOICE',
+  String mime = 'application/pdf',
 }) {
   return {
     'id': id,
     'document_number': 'DOC-001',
     'original_file_name': 'invoice.pdf',
-    'mime_type': 'application/pdf',
-    'document_type_code': 'INVOICE',
+    'mime_type': mime,
+    'document_type_code': type,
     'status': status,
     'uploaded_at': '2026-08-10T01:00:00Z',
+    if (mime.startsWith('image/')) 'processing_status': 'READY',
+    if (mime.startsWith('image/')) 'thumbnail_available': true,
+    if (mime.startsWith('image/')) 'preview_available': true,
   };
 }
+
+Map<String, dynamic> validClientPhotographRow({
+  String id = 'client-photo-1',
+  bool thumbnail = true,
+  bool preview = true,
+}) {
+  return {
+    'id': id,
+    'document_number': 'PHOTO-001',
+    'original_file_name': 'client/photo.jpg',
+    'mime_type': 'image/jpeg',
+    'file_size_bytes': 1200,
+    'document_type_code': 'PROGRESS_PHOTOGRAPH',
+    'uploaded_at': '2026-08-10T01:00:00Z',
+    'photograph_processing_status': thumbnail || preview ? 'READY' : 'PENDING',
+    'thumbnail_available': thumbnail,
+    'preview_available': preview,
+  };
+}
+
+Map<String, dynamic> validOwnerAdminPhotographRow({
+  String id = 'owner-photo-1',
+  String type = 'PROGRESS_PHOTOGRAPH',
+  String mime = 'image/jpeg',
+  bool thumbnail = true,
+  bool preview = true,
+}) {
+  return {
+    'id': id,
+    'document_number': 'PHOTO-001',
+    'original_file_name': 'owner/photo.jpg',
+    'mime_type': mime,
+    'file_size_bytes': 1200,
+    'document_type_code': type,
+    'uploaded_at': '2026-08-10T01:00:00Z',
+    'client_visible': true,
+    'photograph_processing_status': thumbnail || preview ? 'READY' : 'PENDING',
+    'thumbnail_available': thumbnail,
+    'preview_available': preview,
+  };
+}
+
+PhotographGalleryItem clientItem(String id) =>
+    PhotographGalleryItem.fromClientJson(validClientPhotographRow(id: id));
+
+PhotographGalleryItem ownerAdminPhotoItem(
+  String id,
+  String type, [
+  String mime = 'image/jpeg',
+]) => PhotographGalleryItem.fromOwnerAdminJson(
+  validOwnerAdminPhotographRow(id: id, type: type, mime: mime),
+);
 
 List<Map<String, dynamic>> accountRow({
   String roleCode = 'owner_admin',
@@ -1093,6 +1385,8 @@ class FakeDocumentRepository implements DocumentRepository {
     this.ownerAdminCompleters = const [],
     this.ownerAdminDetailCompleters = const [],
     this.ownerAdminPages = const [],
+    this.ownerAdminPhotographPages = const [],
+    this.clientPhotographPages = const [],
     this.clientFallbackRows = const [],
     this.mutationCompleter,
   });
@@ -1105,15 +1399,22 @@ class FakeDocumentRepository implements DocumentRepository {
   final List<Completer<List<SafeDocument>>> ownerAdminCompleters;
   final List<Completer<SafeDocument>> ownerAdminDetailCompleters;
   final List<List<SafeDocument>> ownerAdminPages;
+  final List<PhotographGalleryPage> ownerAdminPhotographPages;
+  final List<PhotographGalleryPage> clientPhotographPages;
   final List<SafeDocument> clientFallbackRows;
   final Completer<DocumentLifecycleMutationResult>? mutationCompleter;
   final ownerAdminOffsets = <int>[];
+  final ownerAdminFilters = <OwnerAdminDocumentFilters>[];
+  final ownerAdminPhotographCategories = <OwnerAdminPhotographCategory>[];
+  final clientPhotographOffsets = <int>[];
   bool uploaded = false;
   var _uploadCall = 0;
   var _listCall = 0;
   var _ownerAdminListCall = 0;
+  var _ownerAdminPhotographCall = 0;
   var _ownerAdminCompleterCall = 0;
   var _ownerAdminDetailCompleterCall = 0;
+  var _clientPhotographCall = 0;
 
   @override
   Future<SafeDocument> getOwnerAdminDocumentDetail(String documentId) async {
@@ -1164,6 +1465,7 @@ class FakeDocumentRepository implements DocumentRepository {
     int offset = 0,
   }) async {
     ownerAdminOffsets.add(offset);
+    ownerAdminFilters.add(filters);
     if (_ownerAdminListCall < ownerAdminPages.length) {
       return ownerAdminPages[_ownerAdminListCall++];
     }
@@ -1172,6 +1474,30 @@ class FakeDocumentRepository implements DocumentRepository {
     }
     if (failList) throw StateError('offline');
     return [SafeDocument.fromJson(validDocumentRow())];
+  }
+
+  @override
+  Future<PhotographGalleryPage> listOwnerAdminPhotographs({
+    required OwnerAdminPhotographCategory category,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    ownerAdminOffsets.add(offset);
+    ownerAdminPhotographCategories.add(category);
+    if (_ownerAdminPhotographCall < ownerAdminPhotographPages.length) {
+      return ownerAdminPhotographPages[_ownerAdminPhotographCall++];
+    }
+    return PhotographGalleryPage(
+      rawCount: 1,
+      items: [
+        ownerAdminPhotoItem(
+          'owner-photo',
+          category == OwnerAdminPhotographCategory.progress
+              ? 'PROGRESS_PHOTOGRAPH'
+              : 'TASK_ATTACHMENT',
+        ),
+      ],
+    );
   }
 
   @override
@@ -1185,6 +1511,24 @@ class FakeDocumentRepository implements DocumentRepository {
     if (failList) throw StateError('offline');
     if (clientFallbackRows.isNotEmpty) return clientFallbackRows;
     return const [];
+  }
+
+  @override
+  Future<PhotographGalleryPage> listClientPhotographs({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    clientPhotographOffsets.add(offset);
+    if (_clientPhotographCall < clientPhotographPages.length) {
+      return clientPhotographPages[_clientPhotographCall++];
+    }
+    final documents = await listClientDocuments(limit: limit, offset: offset);
+    return PhotographGalleryPage(
+      rawCount: documents.length,
+      items: documents
+          .map(PhotographGalleryItem.fromOwnerAdminDocument)
+          .toList(growable: false),
+    );
   }
 
   @override

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:contractor_project_management/src/account/current_account.dart';
 import 'package:contractor_project_management/src/app.dart';
 import 'package:contractor_project_management/src/auth/auth_session.dart';
 import 'package:contractor_project_management/src/account/current_account_repository.dart';
@@ -10,6 +12,7 @@ import 'package:contractor_project_management/src/documents/document_providers.d
 import 'package:contractor_project_management/src/documents/document_repository.dart';
 import 'package:contractor_project_management/src/routing/app_router.dart';
 import 'package:contractor_project_management/src/screens/owner_admin_documents_screen.dart';
+import 'package:contractor_project_management/src/screens/photograph_gallery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -646,6 +649,161 @@ void main() {
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Owner/Admin Documents'), findsNothing);
   });
+
+  testWidgets('photograph gallery renders responsive states and load more', (
+    tester,
+  ) async {
+    final repository = FakeOwnerAdminRepository(
+      ownerAdminPhotographPages: [
+        PhotographGalleryPage(
+          rawCount: 50,
+          items: [
+            galleryItem('progress-a', 'PROGRESS_PHOTOGRAPH'),
+            galleryItem('progress-b', 'PROGRESS_PHOTOGRAPH'),
+          ],
+        ),
+        PhotographGalleryPage(
+          rawCount: 1,
+          items: [galleryItem('progress-c', 'PROGRESS_PHOTOGRAPH')],
+        ),
+      ],
+    );
+    await tester.binding.setSurfaceSize(const Size(1024, 800));
+    await tester.pumpWidget(galleryWithRepository(repository));
+    await pumpGallery(tester);
+
+    expect(find.text('Photograph Gallery'), findsOneWidget);
+    expect(find.text('progress-a.jpg'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Load more'));
+    await pumpGallery(tester);
+    expect(repository.photographRequests.map((r) => r.offset), [0, 50]);
+    expect(find.text('progress-c.jpg'), findsOneWidget);
+
+    await tester.binding.setSurfaceSize(const Size(390, 800));
+    await tester.pumpWidget(galleryWithRepository(FakeOwnerAdminRepository()));
+    await pumpGallery(tester);
+    expect(find.text('Photograph Gallery'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('photograph gallery category empty error and thumbnail states', (
+    tester,
+  ) async {
+    final repository = FakeOwnerAdminRepository(
+      ownerAdminPhotographPages: [
+        const PhotographGalleryPage(rawCount: 0, items: []),
+        PhotographGalleryPage(
+          rawCount: 1,
+          items: [
+            galleryItem(
+              'task-pdf',
+              'TASK_ATTACHMENT',
+              mime: 'application/pdf',
+              thumbnail: false,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(galleryWithRepository(repository));
+    await pumpGallery(tester);
+    expect(find.text('No progress photographs yet.'), findsOneWidget);
+
+    await tester.tap(find.text('Task images'));
+    await pumpGallery(tester);
+    expect(find.text('task-pdf.jpg'), findsOneWidget);
+    expect(find.text('Unavailable'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pumpWidget(
+      galleryWithRepository(FakeOwnerAdminRepository(failPhotographList: true)),
+    );
+    await pumpGallery(tester);
+    expect(find.text('Photographs could not be loaded.'), findsOneWidget);
+    expect(find.textContaining('offline'), findsNothing);
+  });
+
+  testWidgets('stale preview bytes do not render or enable download', (
+    tester,
+  ) async {
+    final account = MutableCurrentAccountRepository(activeStaffRow());
+    final preview = Completer<SecureDocumentAccess>();
+    final repository = FakeOwnerAdminRepository(
+      previewCompleters: [preview],
+      ownerAdminPhotographPages: [
+        PhotographGalleryPage(
+          rawCount: 1,
+          items: [galleryItem('preview-a', 'PROGRESS_PHOTOGRAPH')],
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      galleryWithRepository(repository, currentAccountRepository: account),
+    );
+    await pumpGallery(tester);
+
+    await tester.tap(find.text('preview-a.jpg'));
+    await tester.pump();
+    expect(repository.previewRequests, ['preview-a']);
+
+    account.row = activeClientRow();
+    await ProviderScope.containerOf(
+      tester.element(find.byType(PhotographGalleryScreen)),
+    ).read(currentAccountProvider.notifier).load();
+    await tester.pump();
+    preview.complete(
+      SecureDocumentAccess(
+        bytes: Uint8List.fromList([9, 9, 9]),
+        mimeType: 'image/webp',
+        safeFileName: 'stale.webp',
+      ),
+    );
+    await pumpGallery(tester);
+
+    expect(find.text('Preview is unavailable.'), findsOneWidget);
+    final download = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, 'Download'),
+    );
+    expect(download.enabled, isFalse);
+    expect(repository.presenter.downloads, isEmpty);
+  });
+
+  testWidgets('photograph gallery route access is role scoped', (tester) async {
+    await tester.pumpWidget(
+      appWithAccount(activeStaffRow(), '/staff/photographs'),
+    );
+    await pumpGallery(tester);
+    expect(find.text('Photograph Gallery'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pumpWidget(
+      appWithAccount(activeClientRow(), '/staff/photographs'),
+    );
+    await pumpGallery(tester);
+    expect(find.text('Client workspace'), findsOneWidget);
+    expect(find.text('Photograph Gallery'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pumpWidget(
+      appWithAccount(activeClientRow(), '/client/photographs'),
+    );
+    await pumpGallery(tester);
+    expect(find.text('Photographs'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.pumpWidget(
+      appWithAccount(activeStaffRow(), '/client/photographs'),
+    );
+    await pumpGallery(tester);
+    expect(find.text('Staff workspace'), findsOneWidget);
+    expect(find.text('Photographs'), findsNothing);
+  });
 }
 
 FakeOwnerAdminRepository? latestRepository;
@@ -697,6 +855,36 @@ Widget detailWithPreloadedList(FakeOwnerAdminRepository repository) {
       home: Scaffold(body: _PreloadedListDetailHarness()),
     ),
   );
+}
+
+Widget galleryWithRepository(
+  FakeOwnerAdminRepository repository, {
+  CurrentAccountRepository? currentAccountRepository,
+}) {
+  latestRepository = repository;
+  return ProviderScope(
+    overrides: [
+      initialAuthSessionProvider.overrideWithValue(
+        const AuthSessionState.authenticated(authUserId: 'user-1'),
+      ),
+      currentAccountRepositoryProvider.overrideWithValue(
+        currentAccountRepository ??
+            MutableCurrentAccountRepository(activeStaffRow()),
+      ),
+      ownerAdminDocumentAccessProvider.overrideWithValue(true),
+      documentRepositoryProvider.overrideWithValue(repository),
+      documentContentPresenterProvider.overrideWithValue(repository.presenter),
+    ],
+    child: const MaterialApp(
+      home: Scaffold(body: PhotographGalleryScreen.ownerAdmin()),
+    ),
+  );
+}
+
+Future<void> pumpGallery(WidgetTester tester) async {
+  for (var i = 0; i < 20; i++) {
+    await tester.pump(const Duration(milliseconds: 20));
+  }
 }
 
 class _PreloadedListDetailHarness extends ConsumerStatefulWidget {
@@ -795,18 +983,26 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   FakeOwnerAdminRepository({
     List<SafeDocument>? rows,
     List<List<SafeDocument>>? ownerAdminPages,
+    List<PhotographGalleryPage>? ownerAdminPhotographPages,
+    List<Completer<SecureDocumentAccess>>? previewCompleters,
     this.failList = false,
+    this.failPhotographList = false,
     this.completion = const DocumentUploadResult(
       uploadId: 'upload-1',
       status: 'FINALIZED',
       reservedDocumentId: 'doc-1',
     ),
   }) : rows = rows ?? [document(isSuperseded: true)],
-       ownerAdminPages = ownerAdminPages ?? const [];
+       ownerAdminPages = ownerAdminPages ?? const [],
+       ownerAdminPhotographPages = ownerAdminPhotographPages ?? const [],
+       previewCompleters = previewCompleters ?? const [];
 
   final List<SafeDocument> rows;
   final List<List<SafeDocument>> ownerAdminPages;
+  final List<PhotographGalleryPage> ownerAdminPhotographPages;
+  final List<Completer<SecureDocumentAccess>> previewCompleters;
   final bool failList;
+  final bool failPhotographList;
   final DocumentUploadResult completion;
   final presenter = FakeDocumentContentPresenter();
   var failAccess = false;
@@ -824,7 +1020,11 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   final restoreCalls = <String>[];
   final replaceCalls = <(String, String)>[];
   final listRequests = <OwnerAdminListRequest>[];
+  final photographRequests = <PhotographListRequest>[];
+  final previewRequests = <String>[];
   var _ownerAdminPageIndex = 0;
+  var _ownerAdminPhotographPageIndex = 0;
+  var _previewIndex = 0;
 
   static SafeDocument document({
     String id = 'doc-1',
@@ -868,6 +1068,27 @@ class FakeOwnerAdminRepository implements DocumentRepository {
     }
     if (failList) throw StateError('offline');
     return rows;
+  }
+
+  @override
+  Future<PhotographGalleryPage> listOwnerAdminPhotographs({
+    required OwnerAdminPhotographCategory category,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    photographRequests.add(
+      PhotographListRequest(category: category, limit: limit, offset: offset),
+    );
+    if (_ownerAdminPhotographPageIndex < ownerAdminPhotographPages.length) {
+      return ownerAdminPhotographPages[_ownerAdminPhotographPageIndex++];
+    }
+    if (failPhotographList) throw StateError('offline backend detail');
+    return PhotographGalleryPage(
+      rawCount: rows.length,
+      items: rows
+          .map(PhotographGalleryItem.fromOwnerAdminDocument)
+          .toList(growable: false),
+    );
   }
 
   @override
@@ -931,6 +1152,10 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   Future<SecureDocumentAccess> requestPhotographPreview(
     String documentId,
   ) async {
+    previewRequests.add(documentId);
+    if (_previewIndex < previewCompleters.length) {
+      return previewCompleters[_previewIndex++].future;
+    }
     if (failAccess) throw const DocumentFailure('Access denied');
     return SecureDocumentAccess(
       bytes: Uint8List.fromList([1]),
@@ -981,6 +1206,14 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   }
 
   @override
+  Future<PhotographGalleryPage> listClientPhotographs({
+    int limit = 50,
+    int offset = 0,
+  }) {
+    throw const DocumentFailure('No Client photograph path.');
+  }
+
+  @override
   Future<PhotographSummary> processPhotograph(String documentId) async {
     return const PhotographSummary(
       processingState: 'READY',
@@ -996,7 +1229,13 @@ class FakeOwnerAdminRepository implements DocumentRepository {
 
   @override
   Future<SecureDocumentAccess> requestPhotographThumbnail(String documentId) =>
-      requestPhotographPreview(documentId);
+      Future.value(
+        SecureDocumentAccess(
+          bytes: tinyPngBytes(),
+          mimeType: 'image/png',
+          safeFileName: 'photo.png',
+        ),
+      );
 }
 
 class OwnerAdminListRequest {
@@ -1009,6 +1248,52 @@ class OwnerAdminListRequest {
   final OwnerAdminDocumentFilters filters;
   final int limit;
   final int offset;
+}
+
+class PhotographListRequest {
+  const PhotographListRequest({
+    required this.category,
+    required this.limit,
+    required this.offset,
+  });
+
+  final OwnerAdminPhotographCategory category;
+  final int limit;
+  final int offset;
+}
+
+PhotographGalleryItem galleryItem(
+  String id,
+  String type, {
+  String mime = 'image/jpeg',
+  bool thumbnail = true,
+  bool preview = true,
+}) {
+  return PhotographGalleryItem.fromOwnerAdminJson({
+    'id': id,
+    'document_number': 'PHOTO-$id',
+    'original_file_name': '$id.jpg',
+    'mime_type': mime,
+    'file_size_bytes': 2048,
+    'document_type_code': type,
+    'uploaded_at': '2026-08-10T01:00:00Z',
+    'client_visible': true,
+    'photograph_processing_status': thumbnail || preview ? 'READY' : 'PENDING',
+    'thumbnail_available': thumbnail,
+    'preview_available': preview,
+  });
+}
+
+class MutableCurrentAccountRepository extends CurrentAccountRepository {
+  MutableCurrentAccountRepository(this.row);
+
+  List<Map<String, dynamic>> row;
+
+  @override
+  Future<CurrentAccount?> loadCurrentAccount() async {
+    if (row.isEmpty) return null;
+    return CurrentAccount.fromJson(row.single);
+  }
 }
 
 class FakeDocumentFilePicker implements DocumentFilePicker {
@@ -1049,3 +1334,74 @@ class FakeDocumentContentPresenter implements DocumentContentPresenter {
     downloads.add(content);
   }
 }
+
+Uint8List tinyPngBytes() => Uint8List.fromList(const [
+  137,
+  80,
+  78,
+  71,
+  13,
+  10,
+  26,
+  10,
+  0,
+  0,
+  0,
+  13,
+  73,
+  72,
+  68,
+  82,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  1,
+  8,
+  6,
+  0,
+  0,
+  0,
+  31,
+  21,
+  196,
+  137,
+  0,
+  0,
+  0,
+  13,
+  73,
+  68,
+  65,
+  84,
+  120,
+  156,
+  99,
+  248,
+  15,
+  4,
+  0,
+  9,
+  251,
+  3,
+  253,
+  167,
+  180,
+  129,
+  193,
+  0,
+  0,
+  0,
+  0,
+  73,
+  69,
+  78,
+  68,
+  174,
+  66,
+  96,
+  130,
+]);

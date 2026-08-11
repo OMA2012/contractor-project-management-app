@@ -38,6 +38,22 @@ final documentUploadProvider =
       DocumentUploadController.new,
     );
 
+final clientPhotographGalleryProvider =
+    NotifierProvider<ClientPhotographGalleryController, PhotographGalleryState>(
+      ClientPhotographGalleryController.new,
+    );
+
+final ownerAdminPhotographCategoryProvider =
+    StateProvider<OwnerAdminPhotographCategory>(
+      (ref) => OwnerAdminPhotographCategory.progress,
+    );
+
+final ownerAdminPhotographGalleryProvider =
+    NotifierProvider<
+      OwnerAdminPhotographGalleryController,
+      PhotographGalleryState
+    >(OwnerAdminPhotographGalleryController.new);
+
 class ClientDocumentListController extends Notifier<DocumentListState> {
   var _requestGeneration = 0;
   String? _activeAuthUserId;
@@ -431,4 +447,251 @@ final ownerAdminDocumentAccessProvider = Provider<bool>((ref) {
 
 bool _hasOwnerAdminDocumentAccess(CurrentAccountState account) {
   return account.routeTarget == TrustedAccountRouteTarget.staff;
+}
+
+class ClientPhotographGalleryController
+    extends Notifier<PhotographGalleryState> {
+  static const defaultLimit = 50;
+
+  var _generation = 0;
+  var _offset = 0;
+  var _limit = defaultLimit;
+  var _seen = <String>{};
+  String? _authUserId;
+
+  @override
+  PhotographGalleryState build() {
+    ref.listen<AuthSessionState>(authSessionProvider, (_, session) {
+      if (session.status != AuthSessionStatus.authenticated ||
+          session.authUserId != _authUserId) {
+        _clear();
+      }
+    }, fireImmediately: true);
+    final session = ref.watch(authSessionProvider);
+    final account = ref.watch(currentAccountProvider);
+    if (session.status != AuthSessionStatus.authenticated ||
+        account.routeTarget != TrustedAccountRouteTarget.client) {
+      _clear();
+      return const PhotographGalleryState(hasMore: false);
+    }
+    _authUserId = session.authUserId;
+    return const PhotographGalleryState(isLoading: true);
+  }
+
+  Future<void> load({int limit = defaultLimit}) async {
+    final session = ref.read(authSessionProvider);
+    if (!_hasClientAccess(session)) {
+      _clear();
+      state = const PhotographGalleryState(hasMore: false);
+      return;
+    }
+    _limit = limit.clamp(1, 100);
+    _offset = 0;
+    _seen = <String>{};
+    _authUserId = session.authUserId;
+    final generation = ++_generation;
+    state = const PhotographGalleryState(isLoading: true);
+    await _loadPage(generation, session.authUserId, append: false);
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+    final session = ref.read(authSessionProvider);
+    if (!_hasClientAccess(session)) {
+      _clear();
+      state = const PhotographGalleryState(hasMore: false);
+      return;
+    }
+    _authUserId = session.authUserId;
+    final generation = ++_generation;
+    state = state.copyWith(isLoadingMore: true, clearError: true);
+    await _loadPage(generation, session.authUserId, append: true);
+  }
+
+  Future<void> _loadPage(
+    int generation,
+    String? authUserId, {
+    required bool append,
+  }) async {
+    try {
+      final page = await ref
+          .read(documentRepositoryProvider)
+          .listClientPhotographs(limit: _limit, offset: _offset);
+      if (!_canApply(generation, authUserId)) return;
+      _offset += page.rawCount;
+      final items = append ? [...state.items] : <PhotographGalleryItem>[];
+      for (final item in page.items) {
+        if (_seen.add(item.id)) items.add(item);
+      }
+      state = PhotographGalleryState(
+        items: items,
+        hasMore: page.rawCount == _limit,
+      );
+    } catch (error) {
+      if (!_canApply(generation, authUserId)) return;
+      state = PhotographGalleryState(
+        items: append ? state.items : [],
+        error: error,
+      );
+    }
+  }
+
+  bool _hasClientAccess(AuthSessionState session) =>
+      session.status == AuthSessionStatus.authenticated &&
+      ref.read(currentAccountProvider).routeTarget ==
+          TrustedAccountRouteTarget.client;
+
+  bool _canApply(int generation, String? authUserId) =>
+      ref.mounted &&
+      generation == _generation &&
+      _hasClientAccess(ref.read(authSessionProvider)) &&
+      ref.read(authSessionProvider).authUserId == authUserId &&
+      _authUserId == authUserId;
+
+  void _clear() {
+    _generation++;
+    _offset = 0;
+    _seen = <String>{};
+    _authUserId = null;
+  }
+}
+
+class OwnerAdminPhotographGalleryController
+    extends Notifier<PhotographGalleryState> {
+  static const defaultLimit = 50;
+
+  final _offsets = <OwnerAdminPhotographCategory, int>{};
+  final _seen = <OwnerAdminPhotographCategory, Set<String>>{};
+  final _states = <OwnerAdminPhotographCategory, PhotographGalleryState>{};
+  var _generation = 0;
+  var _limit = defaultLimit;
+  String? _authUserId;
+
+  @override
+  PhotographGalleryState build() {
+    ref.listen<bool>(ownerAdminDocumentAccessProvider, (_, hasAccess) {
+      if (!hasAccess) _clearAll();
+    }, fireImmediately: true);
+    final session = ref.watch(authSessionProvider);
+    final category = ref.watch(ownerAdminPhotographCategoryProvider);
+    if (session.status != AuthSessionStatus.authenticated ||
+        !ref.watch(ownerAdminDocumentAccessProvider)) {
+      _clearAll();
+      return const PhotographGalleryState(hasMore: false);
+    }
+    if (_authUserId != session.authUserId) _clearAll();
+    _authUserId = session.authUserId;
+    return _states[category] ?? const PhotographGalleryState(isLoading: true);
+  }
+
+  Future<void> selectCategory(OwnerAdminPhotographCategory category) async {
+    ref.read(ownerAdminPhotographCategoryProvider.notifier).state = category;
+    if (!_states.containsKey(category)) {
+      await load();
+    }
+  }
+
+  Future<void> load({int limit = defaultLimit}) async {
+    final session = ref.read(authSessionProvider);
+    if (!_hasAccess(session)) {
+      _clearAll();
+      state = const PhotographGalleryState(hasMore: false);
+      return;
+    }
+    _limit = limit.clamp(1, 100);
+    final category = ref.read(ownerAdminPhotographCategoryProvider);
+    _offsets[category] = 0;
+    _seen[category] = <String>{};
+    _authUserId = session.authUserId;
+    final generation = ++_generation;
+    _setCategoryState(category, const PhotographGalleryState(isLoading: true));
+    await _loadPage(category, generation, session.authUserId, append: false);
+  }
+
+  Future<void> loadMore() async {
+    final category = ref.read(ownerAdminPhotographCategoryProvider);
+    final current = _states[category] ?? state;
+    if (current.isLoading || current.isLoadingMore || !current.hasMore) return;
+    final session = ref.read(authSessionProvider);
+    if (!_hasAccess(session)) {
+      _clearAll();
+      state = const PhotographGalleryState(hasMore: false);
+      return;
+    }
+    _authUserId = session.authUserId;
+    final generation = ++_generation;
+    _setCategoryState(
+      category,
+      current.copyWith(isLoadingMore: true, clearError: true),
+    );
+    await _loadPage(category, generation, session.authUserId, append: true);
+  }
+
+  Future<void> _loadPage(
+    OwnerAdminPhotographCategory category,
+    int generation,
+    String? authUserId, {
+    required bool append,
+  }) async {
+    try {
+      final page = await ref
+          .read(documentRepositoryProvider)
+          .listOwnerAdminPhotographs(
+            category: category,
+            limit: _limit,
+            offset: _offsets[category] ?? 0,
+          );
+      if (!_canApply(generation, authUserId)) return;
+      _offsets[category] = (_offsets[category] ?? 0) + page.rawCount;
+      final seen = _seen.putIfAbsent(category, () => <String>{});
+      final base = append
+          ? [...(_states[category]?.items ?? const <PhotographGalleryItem>[])]
+          : <PhotographGalleryItem>[];
+      for (final item in page.items) {
+        if (seen.add(item.id)) base.add(item);
+      }
+      _setCategoryState(
+        category,
+        PhotographGalleryState(items: base, hasMore: page.rawCount == _limit),
+      );
+    } catch (error) {
+      if (!_canApply(generation, authUserId)) return;
+      _setCategoryState(
+        category,
+        PhotographGalleryState(
+          items: append ? _states[category]?.items ?? const [] : const [],
+          error: error,
+        ),
+      );
+    }
+  }
+
+  void _setCategoryState(
+    OwnerAdminPhotographCategory category,
+    PhotographGalleryState next,
+  ) {
+    _states[category] = next;
+    if (ref.read(ownerAdminPhotographCategoryProvider) == category) {
+      state = next;
+    }
+  }
+
+  bool _hasAccess(AuthSessionState session) =>
+      session.status == AuthSessionStatus.authenticated &&
+      ref.read(ownerAdminDocumentAccessProvider);
+
+  bool _canApply(int generation, String? authUserId) =>
+      ref.mounted &&
+      generation == _generation &&
+      _hasAccess(ref.read(authSessionProvider)) &&
+      ref.read(authSessionProvider).authUserId == authUserId &&
+      _authUserId == authUserId;
+
+  void _clearAll() {
+    _generation++;
+    _offsets.clear();
+    _seen.clear();
+    _states.clear();
+    _authUserId = null;
+  }
 }

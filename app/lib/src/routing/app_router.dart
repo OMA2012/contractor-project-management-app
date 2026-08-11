@@ -11,6 +11,7 @@ import '../screens/password_reset_request_screen.dart';
 import '../screens/password_update_screen.dart';
 import '../screens/protected_shell_screen.dart';
 import '../screens/owner_admin_documents_screen.dart';
+import '../screens/photograph_gallery_screen.dart';
 import '../screens/role_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -57,6 +58,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const OwnerAdminDocumentsScreen(),
           ),
           GoRoute(
+            path: '/staff/photographs',
+            builder: (context, state) =>
+                const PhotographGalleryScreen.ownerAdmin(),
+          ),
+          GoRoute(
             path: '/staff/documents/upload',
             builder: (context, state) => const OwnerAdminDocumentUploadScreen(),
           ),
@@ -70,6 +76,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/client',
             builder: (context, state) =>
                 const RoleHomeScreen(role: AccountRole.client),
+          ),
+          GoRoute(
+            path: '/client/photographs',
+            builder: (context, state) => const PhotographGalleryScreen.client(),
           ),
         ],
       ),

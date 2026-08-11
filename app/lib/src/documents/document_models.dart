@@ -21,6 +21,10 @@ enum DocumentOperationKind { archive, restore, replacement, lifecycleHistory }
 
 enum DocumentLifecycleMutationPhase { idle, running, succeeded, failed }
 
+enum PhotographGalleryAudience { ownerAdmin, client }
+
+enum OwnerAdminPhotographCategory { progress, taskImage }
+
 class DocumentFailure implements Exception {
   const DocumentFailure(this.message, {this.permissionDenied = false});
 
@@ -56,6 +60,141 @@ class DocumentListState {
   final Object? error;
 
   bool get isEmpty => !isLoading && error == null && documents.isEmpty;
+}
+
+class PhotographGalleryItem {
+  const PhotographGalleryItem({
+    required this.id,
+    required this.documentNumber,
+    required this.safeDisplayFileName,
+    required this.mimeType,
+    required this.documentTypeCode,
+    required this.uploadedAt,
+    required this.processingState,
+    required this.thumbnailAvailable,
+    required this.previewAvailable,
+    this.fileSizeBytes,
+    this.status,
+    this.clientVisible,
+    this.isSuperseded = false,
+  });
+
+  factory PhotographGalleryItem.fromClientJson(Map<String, dynamic> json) {
+    return PhotographGalleryItem(
+      id: _requiredString(json, 'id'),
+      documentNumber: _requiredString(json, 'document_number'),
+      safeDisplayFileName: _sanitizeFileName(
+        _requiredString(json, 'original_file_name'),
+      ),
+      mimeType: _requiredString(json, 'mime_type'),
+      fileSizeBytes: _int(json, 'file_size_bytes'),
+      documentTypeCode: _requiredString(json, 'document_type_code'),
+      uploadedAt: _date(json, 'uploaded_at'),
+      processingState:
+          _string(json, 'photograph_processing_status') ?? 'UNKNOWN',
+      thumbnailAvailable: json['thumbnail_available'] == true,
+      previewAvailable: json['preview_available'] == true,
+    );
+  }
+
+  factory PhotographGalleryItem.fromOwnerAdminJson(Map<String, dynamic> json) {
+    return PhotographGalleryItem(
+      id: _requiredString(json, 'id'),
+      documentNumber: _requiredString(json, 'document_number'),
+      safeDisplayFileName: _sanitizeFileName(
+        _requiredString(json, 'original_file_name'),
+      ),
+      mimeType: _requiredString(json, 'mime_type'),
+      fileSizeBytes: _int(json, 'file_size_bytes'),
+      documentTypeCode: _requiredString(json, 'document_type_code'),
+      uploadedAt: _date(json, 'uploaded_at'),
+      processingState:
+          _string(json, 'photograph_processing_status') ?? 'UNKNOWN',
+      thumbnailAvailable: json['thumbnail_available'] == true,
+      previewAvailable: json['preview_available'] == true,
+      clientVisible: json['client_visible'] is bool
+          ? json['client_visible'] as bool
+          : null,
+    );
+  }
+
+  factory PhotographGalleryItem.fromOwnerAdminDocument(SafeDocument document) {
+    final photograph = document.photograph;
+    return PhotographGalleryItem(
+      id: document.id,
+      documentNumber: document.documentNumber,
+      safeDisplayFileName: document.safeDisplayFileName,
+      mimeType: document.mimeType,
+      fileSizeBytes: document.fileSizeBytes,
+      documentTypeCode: document.documentTypeCode,
+      uploadedAt: document.createdAt,
+      processingState: photograph?.processingState ?? 'UNKNOWN',
+      thumbnailAvailable: photograph?.thumbnailAvailable == true,
+      previewAvailable: photograph?.previewAvailable == true,
+      status: document.status,
+      clientVisible: document.clientVisible,
+      isSuperseded: document.lifecycle?.isSuperseded == true,
+    );
+  }
+
+  final String id;
+  final String documentNumber;
+  final String safeDisplayFileName;
+  final String mimeType;
+  final String documentTypeCode;
+  final DateTime? uploadedAt;
+  final String processingState;
+  final bool thumbnailAvailable;
+  final bool previewAvailable;
+  final int? fileSizeBytes;
+  final String? status;
+  final bool? clientVisible;
+  final bool isSuperseded;
+
+  bool get isTaskImage => documentTypeCode == 'TASK_ATTACHMENT';
+  bool get isProgressPhotograph => documentTypeCode == 'PROGRESS_PHOTOGRAPH';
+}
+
+class PhotographGalleryPage {
+  const PhotographGalleryPage({required this.rawCount, required this.items});
+
+  final int rawCount;
+  final List<PhotographGalleryItem> items;
+}
+
+class PhotographGalleryState {
+  const PhotographGalleryState({
+    this.items = const [],
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  final List<PhotographGalleryItem> items;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final Object? error;
+
+  bool get isEmpty => !isLoading && error == null && items.isEmpty;
+
+  PhotographGalleryState copyWith({
+    List<PhotographGalleryItem>? items,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    Object? error,
+    bool clearError = false,
+  }) {
+    return PhotographGalleryState(
+      items: items ?? this.items,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      error: clearError ? null : error ?? this.error,
+    );
+  }
 }
 
 class OwnerAdminDocumentFilters {
@@ -243,7 +382,7 @@ class SafeDocument {
 
   bool get isPhotograph =>
       documentTypeCode == 'PROGRESS_PHOTOGRAPH' ||
-      documentTypeCode == 'TASK_ATTACHMENT' && mimeType.startsWith('image/');
+      documentTypeCode == 'TASK_ATTACHMENT' && photograph != null;
 }
 
 class DocumentContext {
