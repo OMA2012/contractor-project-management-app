@@ -15,6 +15,14 @@ abstract class ProjectRepository {
   });
 
   Future<ClientProject?> getClientProject(String projectId);
+
+  Future<ClientProjectCompletion?> getClientProjectCompletion(String projectId);
+
+  Future<ClientProgressUpdatePage> listClientProgressUpdates(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  });
 }
 
 class SupabaseProjectRepository implements ProjectRepository {
@@ -49,6 +57,36 @@ class SupabaseProjectRepository implements ProjectRepository {
     final rows = _rows(response);
     if (rows.isEmpty) return null;
     return ClientProject.fromJson(rows.single);
+  }
+
+  @override
+  Future<ClientProjectCompletion?> getClientProjectCompletion(
+    String projectId,
+  ) async {
+    final response = await _rpc('current_client_project_completion', {
+      'p_project_id': projectId,
+    });
+    final rows = _rows(response);
+    if (rows.isEmpty) return null;
+    return ClientProjectCompletion.fromJson(rows.single);
+  }
+
+  @override
+  Future<ClientProgressUpdatePage> listClientProgressUpdates(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _rpc('current_client_progress_update_list', {
+      'p_project_id': projectId,
+      'p_limit': limit,
+      'p_offset': offset,
+    });
+    final rows = _rows(response);
+    return ClientProgressUpdatePage(
+      rawCount: rows.length,
+      items: rows.map(ClientProgressUpdate.fromJson).toList(growable: false),
+    );
   }
 
   Future<dynamic> _rpc(String functionName, Map<String, dynamic> params) {

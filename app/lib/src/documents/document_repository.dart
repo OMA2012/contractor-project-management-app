@@ -67,6 +67,26 @@ abstract class DocumentRepository {
     int offset = 0,
   });
 
+  Future<DocumentPage> listClientContextFiles({
+    required String contextType,
+    required String contextId,
+    required String contentKind,
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<DocumentPage> listClientProjectDocuments(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  });
+
+  Future<PhotographGalleryPage> listClientProjectPhotographs(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  });
+
   Future<PhotographGalleryPage> listClientPhotographs({
     int limit = 50,
     int offset = 0,
@@ -201,11 +221,72 @@ class SupabaseDocumentRepository implements DocumentRepository {
   }
 
   @override
+  Future<DocumentPage> listClientContextFiles({
+    required String contextType,
+    required String contextId,
+    required String contentKind,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _rpc('current_client_context_file_list', {
+      'p_context_type': contextType,
+      'p_context_id': contextId,
+      'p_content_kind': contentKind,
+      'p_limit': limit,
+      'p_offset': offset,
+    });
+    final rows = _rows(response);
+    return DocumentPage(
+      rawCount: rows.length,
+      documents: rows
+          .map(SafeDocument.fromClientContextJson)
+          .toList(growable: false),
+    );
+  }
+
+  @override
+  Future<DocumentPage> listClientProjectDocuments(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return listClientContextFiles(
+      contextType: 'PROJECT',
+      contextId: projectId,
+      contentKind: 'DOCUMENT',
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  @override
   Future<PhotographGalleryPage> listClientPhotographs({
     int limit = 50,
     int offset = 0,
   }) async {
     final response = await _rpc('current_client_photograph_list', {
+      'p_limit': limit,
+      'p_offset': offset,
+    });
+    final rows = _rows(response);
+    return PhotographGalleryPage(
+      rawCount: rows.length,
+      items: rows
+          .map(PhotographGalleryItem.fromClientJson)
+          .toList(growable: false),
+    );
+  }
+
+  @override
+  Future<PhotographGalleryPage> listClientProjectPhotographs(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _rpc('current_client_context_file_list', {
+      'p_context_type': 'PROJECT',
+      'p_context_id': projectId,
+      'p_content_kind': 'PHOTOGRAPH',
       'p_limit': limit,
       'p_offset': offset,
     });
