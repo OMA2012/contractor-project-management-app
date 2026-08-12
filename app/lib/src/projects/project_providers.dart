@@ -38,6 +38,13 @@ final clientProjectProgressUpdatesProvider =
       String
     >((projectId) => ClientProjectProgressUpdatesController(projectId));
 
+final clientProjectPhaseTasksProvider =
+    NotifierProvider.family<
+      ClientProjectPhaseTasksController,
+      ClientProjectPhaseTaskState,
+      String
+    >((projectId) => ClientProjectPhaseTasksController(projectId));
+
 final clientProjectDocumentsProvider =
     NotifierProvider.family<
       ClientProjectDocumentsController,
@@ -477,6 +484,119 @@ class ClientProjectProgressUpdatesController
     _generation++;
     _offset = 0;
     _seen = <String>{};
+    _accessContext = null;
+  }
+}
+
+class ClientProjectPhaseTasksController
+    extends Notifier<ClientProjectPhaseTaskState> {
+  ClientProjectPhaseTasksController(this._projectId);
+
+  final String _projectId;
+  var _generation = 0;
+  ClientProjectAccessContext? _accessContext;
+
+  @override
+  ClientProjectPhaseTaskState build() {
+    ref.listen<ClientProjectAccessContext?>(
+      clientProjectAccessContextProvider,
+      (_, accessContext) {
+        if (accessContext == null || accessContext != _accessContext) _clear();
+      },
+      fireImmediately: true,
+    );
+    return ref.watch(clientProjectAccessContextProvider) == null
+        ? const ClientProjectPhaseTaskState()
+        : const ClientProjectPhaseTaskState(isLoading: true);
+  }
+
+  Future<void> load() async {
+    final accessContext = ref.read(clientProjectAccessContextProvider);
+    if (accessContext == null) {
+      _clear();
+      state = const ClientProjectPhaseTaskState();
+      return;
+    }
+    _accessContext = accessContext;
+    final generation = ++_generation;
+    state = const ClientProjectPhaseTaskState(isLoading: true);
+    try {
+      final repository = ref.read(projectRepositoryProvider);
+      final results = await Future.wait([
+        repository.getClientProjectPhases(_projectId),
+        repository.getClientProjectTasks(_projectId),
+      ]);
+      if (!_canApply(generation, accessContext)) return;
+      final phases = [...results[0] as List<ClientProjectPhase>]
+        ..sort((a, b) {
+          final sequence = (a.sequenceNo ?? 1 << 30).compareTo(
+            b.sequenceNo ?? 1 << 30,
+          );
+          return sequence == 0 ? a.name.compareTo(b.name) : sequence;
+        });
+      final tasks = results[1] as List<ClientProjectTask>;
+      state = ClientProjectPhaseTaskState(phases: phases, tasks: tasks);
+      await _loadCompletions(generation, accessContext, phases);
+    } catch (error) {
+      if (!_canApply(generation, accessContext)) return;
+      state = ClientProjectPhaseTaskState(error: error);
+    }
+  }
+
+  Future<void> _loadCompletions(
+    int generation,
+    ClientProjectAccessContext accessContext,
+    List<ClientProjectPhase> phases,
+  ) async {
+    final repository = ref.read(projectRepositoryProvider);
+    final completions = <String, ClientProjectPhaseCompletion>{};
+    final failures = <String>{};
+    await Future.wait(
+      phases.map((phase) async {
+        try {
+          final completion = await repository.getClientProjectPhaseCompletion(
+            phase.id,
+          );
+          if (!_canApplyPhase(generation, accessContext, phase.id, phases)) {
+            return;
+          }
+          if (completion != null && completion.phaseId == phase.id) {
+            completions[phase.id] = completion;
+          }
+        } catch (_) {
+          if (_canApplyPhase(generation, accessContext, phase.id, phases)) {
+            failures.add(phase.id);
+          }
+        }
+      }),
+    );
+    if (!_canApply(generation, accessContext)) return;
+    state = ClientProjectPhaseTaskState(
+      phases: phases,
+      tasks: state.tasks,
+      completions: completions,
+      completionFailures: failures,
+    );
+  }
+
+  bool _canApplyPhase(
+    int generation,
+    ClientProjectAccessContext accessContext,
+    String phaseId,
+    List<ClientProjectPhase> phases,
+  ) {
+    return phases.any((phase) => phase.id == phaseId) &&
+        _canApply(generation, accessContext);
+  }
+
+  bool _canApply(int generation, ClientProjectAccessContext accessContext) =>
+      ref.mounted &&
+      generation == _generation &&
+      ref.read(clientProjectAccessContextProvider) == accessContext &&
+      _accessContext == accessContext;
+
+  void _clear() {
+    _generation++;
     _accessContext = null;
   }
 }

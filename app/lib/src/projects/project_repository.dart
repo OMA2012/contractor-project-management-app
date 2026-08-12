@@ -18,6 +18,14 @@ abstract class ProjectRepository {
 
   Future<ClientProjectCompletion?> getClientProjectCompletion(String projectId);
 
+  Future<List<ClientProjectPhase>> getClientProjectPhases(String projectId);
+
+  Future<ClientProjectPhaseCompletion?> getClientProjectPhaseCompletion(
+    String phaseId,
+  );
+
+  Future<List<ClientProjectTask>> getClientProjectTasks(String projectId);
+
   Future<ClientProgressUpdatePage> listClientProgressUpdates(
     String projectId, {
     int limit = 50,
@@ -69,6 +77,40 @@ class SupabaseProjectRepository implements ProjectRepository {
     final rows = _rows(response);
     if (rows.isEmpty) return null;
     return ClientProjectCompletion.fromJson(rows.single);
+  }
+
+  @override
+  Future<List<ClientProjectPhase>> getClientProjectPhases(
+    String projectId,
+  ) async {
+    final response = await _rpc('current_client_project_phases', {
+      'p_project_id': projectId,
+    });
+    final rows = _rows(response);
+    return rows.map(ClientProjectPhase.fromJson).toList(growable: false);
+  }
+
+  @override
+  Future<ClientProjectPhaseCompletion?> getClientProjectPhaseCompletion(
+    String phaseId,
+  ) async {
+    final response = await _rpc('current_client_project_phase_completion', {
+      'p_phase_id': phaseId,
+    });
+    final rows = _rows(response);
+    if (rows.isEmpty) return null;
+    return ClientProjectPhaseCompletion.fromJson(rows.single);
+  }
+
+  @override
+  Future<List<ClientProjectTask>> getClientProjectTasks(
+    String projectId,
+  ) async {
+    final response = await _rpc('current_client_project_tasks', {
+      'p_project_id': projectId,
+    });
+    final rows = _rows(response);
+    return rows.map(ClientProjectTask.fromJson).toList(growable: false);
   }
 
   @override

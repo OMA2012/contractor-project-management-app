@@ -121,6 +121,126 @@ class ClientProgressUpdatePage {
   final List<ClientProgressUpdate> items;
 }
 
+class ClientProjectPhase {
+  const ClientProjectPhase({
+    required this.id,
+    required this.projectId,
+    required this.name,
+    this.description,
+    this.sequenceNo,
+    this.startDate,
+    this.endDate,
+  });
+
+  factory ClientProjectPhase.fromJson(Map<String, dynamic> json) {
+    return ClientProjectPhase(
+      id: _requiredString(json, 'id'),
+      projectId: _requiredString(json, 'project_id'),
+      name: _requiredString(json, 'name'),
+      description: _string(json, 'description'),
+      sequenceNo: _int(json, 'sequence_no'),
+      startDate: _date(json, 'start_date'),
+      endDate: _date(json, 'end_date'),
+    );
+  }
+
+  final String id;
+  final String projectId;
+  final String name;
+  final String? description;
+  final int? sequenceNo;
+  final DateTime? startDate;
+  final DateTime? endDate;
+}
+
+class ClientProjectPhaseCompletion {
+  const ClientProjectPhaseCompletion({
+    required this.projectId,
+    required this.phaseId,
+    this.calculatedCompletionPercent,
+  });
+
+  factory ClientProjectPhaseCompletion.fromJson(Map<String, dynamic> json) {
+    return ClientProjectPhaseCompletion(
+      projectId: _requiredString(json, 'project_id'),
+      phaseId: _requiredString(json, 'phase_id'),
+      calculatedCompletionPercent: _num(json, 'calculated_completion_percent'),
+    );
+  }
+
+  final String projectId;
+  final String phaseId;
+  final num? calculatedCompletionPercent;
+}
+
+class ClientProjectTask {
+  const ClientProjectTask({
+    required this.id,
+    required this.projectId,
+    required this.title,
+    this.phaseId,
+    this.milestoneId,
+    this.taskNumber,
+    this.clientSummary,
+    this.status,
+    this.completionPercent,
+    this.startDate,
+    this.dueDate,
+    this.completedAt,
+  });
+
+  factory ClientProjectTask.fromJson(Map<String, dynamic> json) {
+    return ClientProjectTask(
+      id: _requiredString(json, 'id'),
+      projectId: _requiredString(json, 'project_id'),
+      phaseId: _string(json, 'phase_id'),
+      milestoneId: _string(json, 'milestone_id'),
+      taskNumber: _string(json, 'task_number'),
+      title: _requiredString(json, 'title'),
+      clientSummary: _string(json, 'client_summary'),
+      status: _string(json, 'status'),
+      completionPercent: _num(json, 'completion_percent'),
+      startDate: _date(json, 'start_date'),
+      dueDate: _date(json, 'due_date'),
+      completedAt: _date(json, 'completed_at'),
+    );
+  }
+
+  final String id;
+  final String projectId;
+  final String? phaseId;
+  final String? milestoneId;
+  final String? taskNumber;
+  final String title;
+  final String? clientSummary;
+  final String? status;
+  final num? completionPercent;
+  final DateTime? startDate;
+  final DateTime? dueDate;
+  final DateTime? completedAt;
+}
+
+class ClientProjectPhaseTaskState {
+  const ClientProjectPhaseTaskState({
+    this.phases = const [],
+    this.tasks = const [],
+    this.completions = const {},
+    this.completionFailures = const {},
+    this.isLoading = false,
+    this.error,
+  });
+
+  final List<ClientProjectPhase> phases;
+  final List<ClientProjectTask> tasks;
+  final Map<String, ClientProjectPhaseCompletion> completions;
+  final Set<String> completionFailures;
+  final bool isLoading;
+  final Object? error;
+
+  bool get isEmpty =>
+      !isLoading && error == null && phases.isEmpty && tasks.isEmpty;
+}
+
 class ClientProjectListState {
   const ClientProjectListState({
     this.projects = const [],
@@ -251,6 +371,14 @@ num? _num(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is num) return value;
   if (value is String) return num.tryParse(value);
+  return null;
+}
+
+int? _int(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
   return null;
 }
 

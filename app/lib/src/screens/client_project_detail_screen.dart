@@ -47,6 +47,9 @@ class _ClientProjectDetailScreenState
           .read(clientProjectProgressUpdatesProvider(widget.projectId).notifier)
           .load();
       ref
+          .read(clientProjectPhaseTasksProvider(widget.projectId).notifier)
+          .load();
+      ref
           .read(clientProjectDocumentsProvider(widget.projectId).notifier)
           .load();
       ref
@@ -153,6 +156,8 @@ class _ProjectDetailState extends ConsumerState<_ProjectDetail> {
             ],
             const SizedBox(height: 24),
             _CompletionSection(projectId: widget.projectId),
+            const SizedBox(height: 24),
+            _PhaseTasksSection(projectId: widget.projectId),
             const SizedBox(height: 24),
             _ProgressUpdatesSection(projectId: widget.projectId),
             const SizedBox(height: 24),
@@ -266,6 +271,204 @@ class _CompletionSection extends ConsumerWidget {
                 ],
               ],
             ),
+    );
+  }
+}
+
+class _PhaseTasksSection extends ConsumerWidget {
+  const _PhaseTasksSection({required this.projectId});
+
+  final String projectId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(clientProjectPhaseTasksProvider(projectId));
+    final phaseIds = state.phases.map((phase) => phase.id).toSet();
+    final unphasedTasks = state.tasks
+        .where(
+          (task) => task.phaseId == null || !phaseIds.contains(task.phaseId),
+        )
+        .toList(growable: false);
+    return _Section(
+      title: 'Project phases',
+      child: state.isLoading
+          ? const _SectionLoading()
+          : state.error != null
+          ? const Text('Project phases could not be loaded.')
+          : state.isEmpty
+          ? const Text('No project phases or tasks are available yet.')
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...state.phases.map(
+                  (phase) => _PhaseGroup(
+                    phase: phase,
+                    completion: state.completions[phase.id],
+                    completionFailed: state.completionFailures.contains(
+                      phase.id,
+                    ),
+                    tasks: state.tasks
+                        .where((task) => task.phaseId == phase.id)
+                        .toList(growable: false),
+                  ),
+                ),
+                if (unphasedTasks.isNotEmpty)
+                  _TaskGroup(title: 'Other tasks', tasks: unphasedTasks),
+              ],
+            ),
+    );
+  }
+}
+
+class _PhaseGroup extends StatelessWidget {
+  const _PhaseGroup({
+    required this.phase,
+    required this.completion,
+    required this.completionFailed,
+    required this.tasks,
+  });
+
+  final ClientProjectPhase phase;
+  final ClientProjectPhaseCompletion? completion;
+  final bool completionFailed;
+  final List<ClientProjectTask> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = completion?.calculatedCompletionPercent;
+    final percentText = completionFailed || percent == null
+        ? 'Completion unavailable'
+        : _formatPercent(percent);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              phase.name,
+              style: Theme.of(context).textTheme.titleSmall,
+              softWrap: true,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: [
+                _DetailMeta('Calculated completion', percentText),
+                if (phase.startDate != null)
+                  _DetailMeta('Start date', _formatDate(phase.startDate)),
+                if (phase.endDate != null)
+                  _DetailMeta('End date', _formatDate(phase.endDate)),
+              ],
+            ),
+            if (!completionFailed && percent != null) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                label: 'Phase completion ${_formatPercent(percent)}',
+                child: LinearProgressIndicator(
+                  value: _visualPercent(percent) / 100,
+                ),
+              ),
+            ],
+            if (phase.description != null) ...[
+              const SizedBox(height: 8),
+              Text(phase.description!, softWrap: true),
+            ],
+            if (tasks.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ...tasks.map(_TaskSummary.new),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskGroup extends StatelessWidget {
+  const _TaskGroup({required this.title, required this.tasks});
+
+  final String title;
+  final List<ClientProjectTask> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          ...tasks.map(_TaskSummary.new),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskSummary extends StatelessWidget {
+  const _TaskSummary(this.task);
+
+  final ClientProjectTask task;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (task.taskNumber != null)
+                Text(
+                  task.taskNumber!,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              Text(
+                task.title,
+                style: Theme.of(context).textTheme.titleSmall,
+                softWrap: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 16,
+            runSpacing: 6,
+            children: [
+              if (task.status != null)
+                _DetailMeta('Status', task.status!.replaceAll('_', ' ')),
+              _DetailMeta(
+                'Task completion',
+                _formatPercent(task.completionPercent),
+              ),
+              if (task.startDate != null)
+                _DetailMeta('Start date', _formatDate(task.startDate)),
+              if (task.dueDate != null)
+                _DetailMeta('Due date', _formatDate(task.dueDate)),
+              if (task.completedAt != null)
+                _DetailMeta('Completed date', _formatDate(task.completedAt)),
+            ],
+          ),
+          if (task.clientSummary != null) ...[
+            const SizedBox(height: 8),
+            Text(task.clientSummary!, softWrap: true),
+          ],
+        ],
+      ),
     );
   }
 }
