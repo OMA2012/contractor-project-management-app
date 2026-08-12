@@ -1,5 +1,7 @@
-PASSED: 10363
+PASSED: 10362
 FAILED: 0
+
+PASSED: 10362
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
   PASS static validation report has no UTF-16 BOM
@@ -10360,5 +10362,6 @@ FAILED: 0
   PASS no real service-role assignment in app\build\test_cache\build\ac6bb03c0ccdeb006582a024c456901a.cache.dill.track.dill
   PASS no real service-role assignment in app\build\native_assets\windows\native_assets.json
   PASS no real service-role assignment in app\.dart_tool\dartpad\web_plugin_registrant.dart
+  PASS no real service-role assignment in app\.dart_tool\extension_discovery\vs_code.json
   PASS no real service-role assignment in app\.dart_tool\flutter_build\dart_plugin_registrant.dart
   PASS no real service-role assignment in .github\workflows\package-09-1-database.yml

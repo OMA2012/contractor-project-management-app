@@ -85,7 +85,7 @@ class _PhotographGalleryScreenState
               ],
               const SizedBox(height: 12),
               Expanded(
-                child: _GalleryBody(
+                child: PhotographGalleryBody(
                   state: state,
                   columns: columns,
                   emptyText: isOwner
@@ -164,7 +164,7 @@ class _PhotographGalleryScreenState
   Future<void> _openPreview(PhotographGalleryItem item) {
     return showDialog<void>(
       context: context,
-      builder: (context) => _PhotographPreviewDialog(
+      builder: (context) => PhotographPreviewDialog(
         item: item,
         repository: ref.read(documentRepositoryProvider),
         presenter: ref.read(documentContentPresenterProvider),
@@ -176,14 +176,16 @@ class _PhotographGalleryScreenState
   }
 }
 
-class _GalleryBody extends StatelessWidget {
-  const _GalleryBody({
+class PhotographGalleryBody extends StatelessWidget {
+  const PhotographGalleryBody({
     required this.state,
     required this.columns,
     required this.emptyText,
     required this.ownerAdmin,
     required this.thumbnailFor,
     required this.onOpen,
+    this.shrinkWrap = false,
+    super.key,
   });
 
   final PhotographGalleryState state;
@@ -192,6 +194,7 @@ class _GalleryBody extends StatelessWidget {
   final bool ownerAdmin;
   final AsyncValue<Uint8List> Function(PhotographGalleryItem) thumbnailFor;
   final ValueChanged<PhotographGalleryItem> onOpen;
+  final bool shrinkWrap;
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +206,8 @@ class _GalleryBody extends StatelessWidget {
     }
     if (state.items.isEmpty) return Center(child: Text(emptyText));
     return GridView.builder(
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         mainAxisSpacing: 12,
@@ -210,7 +215,7 @@ class _GalleryBody extends StatelessWidget {
         childAspectRatio: .78,
       ),
       itemCount: state.items.length,
-      itemBuilder: (context, index) => _PhotoTile(
+      itemBuilder: (context, index) => PhotographGalleryTile(
         item: state.items[index],
         ownerAdmin: ownerAdmin,
         thumbnail: thumbnailFor(state.items[index]),
@@ -220,12 +225,13 @@ class _GalleryBody extends StatelessWidget {
   }
 }
 
-class _PhotoTile extends StatelessWidget {
-  const _PhotoTile({
+class PhotographGalleryTile extends StatelessWidget {
+  const PhotographGalleryTile({
     required this.item,
     required this.ownerAdmin,
     required this.thumbnail,
     required this.onTap,
+    super.key,
   });
 
   final PhotographGalleryItem item;
@@ -310,14 +316,15 @@ class _PhotoPlaceholder extends StatelessWidget {
   }
 }
 
-class _PhotographPreviewDialog extends StatefulWidget {
-  const _PhotographPreviewDialog({
+class PhotographPreviewDialog extends StatefulWidget {
+  const PhotographPreviewDialog({
     required this.item,
     required this.repository,
     required this.presenter,
     required this.ownerAdmin,
     required this.generation,
     required this.currentGeneration,
+    super.key,
   });
 
   final PhotographGalleryItem item;
@@ -328,11 +335,11 @@ class _PhotographPreviewDialog extends StatefulWidget {
   final String Function() currentGeneration;
 
   @override
-  State<_PhotographPreviewDialog> createState() =>
+  State<PhotographPreviewDialog> createState() =>
       _PhotographPreviewDialogState();
 }
 
-class _PhotographPreviewDialogState extends State<_PhotographPreviewDialog> {
+class _PhotographPreviewDialogState extends State<PhotographPreviewDialog> {
   late final Future<SecureDocumentAccess?> _preview;
 
   @override

@@ -2321,6 +2321,60 @@ def strip_stage_10_client_project_loading_terms(text, rel_path):
         return text
     return re.sub(re.escape('CircularProgressIndicator'), '', text, flags=re.I)
 
+def strip_client_project_detail_progress_terms(text, rel_path):
+    if rel_path not in {
+        'app/lib/src/projects/project_models.dart',
+        'app/lib/src/projects/project_providers.dart',
+        'app/lib/src/projects/project_repository.dart',
+        'app/lib/src/screens/client_project_detail_screen.dart',
+    }:
+        return text
+    for approved in (
+        'Project progress',
+        'Project progress could not be loaded.',
+        'Project progress is not available yet.',
+        'Official progress:',
+        'Calculated progress:',
+        'Reported completion',
+        'Recent progress updates',
+        'Progress updates could not be loaded.',
+        'No progress updates are available yet.',
+        'ClientProjectCompletion',
+        'ClientProjectCompletionController',
+        'ClientProjectCompletionState',
+        'clientProjectCompletionProvider',
+        'ClientProgressUpdate',
+        'ClientProgressUpdatePage',
+        'ClientProgressUpdateListState',
+        'ClientProjectProgressUpdatesController',
+        'clientProjectProgressUpdatesProvider',
+        'current_client_project_completion',
+        'current_client_progress_update_list',
+        'calculated_completion_percent',
+        'official_completion_percent',
+        'reported_completion_percent',
+        'getClientProjectCompletion',
+        'listClientProgressUpdates',
+        '_CompletionSection',
+        '_ProgressUpdatesSection',
+        '_ProgressUpdateCard',
+        'final completion = await',
+        'final completion = state.completion',
+        'completion: completion',
+        'state.completion',
+        'this.completion',
+        'final ? completion;',
+        'completion == null',
+        'completion.',
+        'LinearProgressIndicator',
+        'officialCompletionPercent',
+        'calculatedCompletionPercent',
+        'reportedCompletionPercent',
+        'isOverridden',
+    ):
+        text = re.sub(re.escape(approved), '', text, flags=re.I)
+    return text
+
 
 flutter_completion_mentions = []
 for p in (ROOT / 'app/lib').glob('**/*.dart'):
@@ -2332,6 +2386,7 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
     searchable = strip_stage_12_owner_admin_document_ui_progress_terms(searchable, rel)
     searchable = strip_stage_12_photograph_gallery_progress_terms(searchable, rel)
     searchable = strip_stage_10_client_project_loading_terms(searchable, rel)
+    searchable = strip_client_project_detail_progress_terms(searchable, rel)
     if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
         flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
@@ -3364,6 +3419,21 @@ for path in package_12_1_scope_files:
                     and 'public link' not in lowered
                 )
 
+            def allows_client_project_detail_photograph_marker(marker, marker_text, rel_path):
+                lowered = marker_text.lower()
+                return (
+                    marker == 'thumbnail'
+                    and rel_path == 'app/lib/src/screens/client_project_detail_screen.dart'
+                    and 'requestphotographthumbnail' in lowered
+                    and 'thumbnailavailable' in lowered
+                    and 'storage' not in lowered
+                    and 'signed_url' not in lowered
+                    and 'camera' not in lowered
+                    and 'imageeditor' not in lowered
+                    and 'image_editor' not in lowered
+                    and 'public link' not in lowered
+                )
+
             def allows_stage_12_owner_admin_document_lifecycle_ui(marker_text, rel_path):
                 lowered = marker_text.lower()
                 if rel_path not in {
@@ -3421,7 +3491,12 @@ for path in package_12_1_scope_files:
                 text,
                 str(path.relative_to(ROOT)).replace('\\', '/'),
             )
-            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_client_photograph_gateway_marker or allowed_stage_12_owner_admin_photograph_gateway_marker or allowed_stage_12_context_file_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or allowed_stage_12_photograph_gallery_ui_marker or forbidden not in text,
+            allowed_client_project_detail_photograph_marker = allows_client_project_detail_photograph_marker(
+                forbidden,
+                text,
+                str(path.relative_to(ROOT)).replace('\\', '/'),
+            )
+            require(allowed_stage_15_expense_marker or allowed_stage_17_exchange_marker or allowed_stage_12_2_storage_marker or allowed_stage_12_3_scan_marker or allowed_stage_12_4_financial_document_marker or allowed_stage_12_5_image_marker or allowed_stage_12_lifecycle_marker or allowed_stage_12_reconciliation_marker or allowed_stage_12_owner_admin_document_gateway_marker or allowed_stage_12_client_photograph_gateway_marker or allowed_stage_12_owner_admin_photograph_gateway_marker or allowed_stage_12_context_file_gateway_marker or allowed_stage_12_ui_core_marker or allowed_stage_12_owner_admin_document_ui_marker or allowed_stage_12_photograph_gallery_ui_marker or allowed_client_project_detail_photograph_marker or forbidden not in text,
                     f'Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from {path.relative_to(ROOT)}: {forbidden}')
 
 require('thumbnail' not in strip_stage_12_ui_core_marker_terms("thumbnail, preview 'mode': 'thumbnail' data['thumbnail'] thumbnailavailable thumbnail_available requestphotographthumbnail", 'thumbnail', 'app/lib/src/documents/document_models.dart'),

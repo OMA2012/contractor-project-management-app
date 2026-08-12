@@ -114,6 +114,61 @@ void main() {
   );
 
   test(
+    'client project context file wrappers call exact RPC parameters',
+    () async {
+      final calls = <Map<String, dynamic>>[];
+      final repository = SupabaseDocumentRepository(
+        rpc: (functionName, {params}) async {
+          calls.add({'function': functionName, ...?params});
+          return [
+            {
+              ...validDocumentRow(id: 'context-1'),
+              'related_context_type': 'PROJECT',
+              'project_number': 'PRJ-2026-0001',
+              'project_name': 'Kitchen Renovation',
+              'thumbnail_available': true,
+              'preview_available': true,
+              'photograph_processing_status': 'READY',
+            },
+          ];
+        },
+      );
+
+      final documents = await repository.listClientProjectDocuments(
+        'project-1',
+        limit: 10,
+        offset: 20,
+      );
+      final photographs = await repository.listClientProjectPhotographs(
+        'project-1',
+        limit: 12,
+        offset: 24,
+      );
+
+      expect(calls[0], {
+        'function': 'current_client_context_file_list',
+        'p_context_type': 'PROJECT',
+        'p_context_id': 'project-1',
+        'p_content_kind': 'DOCUMENT',
+        'p_limit': 10,
+        'p_offset': 20,
+      });
+      expect(calls[1], {
+        'function': 'current_client_context_file_list',
+        'p_context_type': 'PROJECT',
+        'p_context_id': 'project-1',
+        'p_content_kind': 'PHOTOGRAPH',
+        'p_limit': 12,
+        'p_offset': 24,
+      });
+      expect(documents.rawCount, 1);
+      expect(documents.documents.single.safeDisplayFileName, 'invoice.pdf');
+      expect(photographs.items.single.thumbnailAvailable, isTrue);
+      expect(photographs.items.single.previewAvailable, isTrue);
+    },
+  );
+
+  test(
     'owner admin photograph list calls authoritative RPC with narrow projection',
     () async {
       final calls = <Map<String, dynamic>>[];
@@ -1514,6 +1569,33 @@ class FakeDocumentRepository implements DocumentRepository {
   }
 
   @override
+  Future<DocumentPage> listClientContextFiles({
+    required String contextType,
+    required String contextId,
+    required String contentKind,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final documents = await listClientDocuments(limit: limit, offset: offset);
+    return DocumentPage(rawCount: documents.length, documents: documents);
+  }
+
+  @override
+  Future<DocumentPage> listClientProjectDocuments(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return listClientContextFiles(
+      contextType: 'PROJECT',
+      contextId: projectId,
+      contentKind: 'DOCUMENT',
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  @override
   Future<PhotographGalleryPage> listClientPhotographs({
     int limit = 50,
     int offset = 0,
@@ -1529,6 +1611,15 @@ class FakeDocumentRepository implements DocumentRepository {
           .map(PhotographGalleryItem.fromOwnerAdminDocument)
           .toList(growable: false),
     );
+  }
+
+  @override
+  Future<PhotographGalleryPage> listClientProjectPhotographs(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return listClientPhotographs(limit: limit, offset: offset);
   }
 
   @override

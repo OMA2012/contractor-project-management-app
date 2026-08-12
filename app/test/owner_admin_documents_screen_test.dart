@@ -1206,11 +1206,40 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   }
 
   @override
+  Future<DocumentPage> listClientContextFiles({
+    required String contextType,
+    required String contextId,
+    required String contentKind,
+    int limit = 50,
+    int offset = 0,
+  }) {
+    throw const DocumentFailure('No Client context path.');
+  }
+
+  @override
+  Future<DocumentPage> listClientProjectDocuments(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    throw const DocumentFailure('No Client project document path.');
+  }
+
+  @override
   Future<PhotographGalleryPage> listClientPhotographs({
     int limit = 50,
     int offset = 0,
   }) {
     throw const DocumentFailure('No Client photograph path.');
+  }
+
+  @override
+  Future<PhotographGalleryPage> listClientProjectPhotographs(
+    String projectId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    throw const DocumentFailure('No Client project photograph path.');
   }
 
   @override

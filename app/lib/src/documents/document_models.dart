@@ -62,6 +62,48 @@ class DocumentListState {
   bool get isEmpty => !isLoading && error == null && documents.isEmpty;
 }
 
+class DocumentPage {
+  const DocumentPage({required this.rawCount, required this.documents});
+
+  final int rawCount;
+  final List<SafeDocument> documents;
+}
+
+class DocumentPageState {
+  const DocumentPageState({
+    this.documents = const [],
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  final List<SafeDocument> documents;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final Object? error;
+
+  bool get isEmpty => !isLoading && error == null && documents.isEmpty;
+
+  DocumentPageState copyWith({
+    List<SafeDocument>? documents,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    Object? error,
+    bool clearError = false,
+  }) {
+    return DocumentPageState(
+      documents: documents ?? this.documents,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      error: clearError ? null : error ?? this.error,
+    );
+  }
+}
+
 class PhotographGalleryItem {
   const PhotographGalleryItem({
     required this.id,
@@ -364,6 +406,14 @@ class SafeDocument {
       context: DocumentContext.maybeFromJson(json),
       photograph: PhotographSummary.maybeFromJson(json),
     );
+  }
+
+  factory SafeDocument.fromClientContextJson(Map<String, dynamic> json) {
+    return SafeDocument.fromJson({
+      'status': 'ACTIVE',
+      ...json,
+      if (!json.containsKey('status')) 'status': 'ACTIVE',
+    });
   }
 
   final String id;

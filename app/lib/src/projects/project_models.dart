@@ -59,6 +59,68 @@ class ClientProjectPage {
   final List<ClientProject> projects;
 }
 
+class ClientProjectCompletion {
+  const ClientProjectCompletion({
+    required this.projectId,
+    this.calculatedCompletionPercent,
+    this.officialCompletionPercent,
+    this.isOverridden = false,
+  });
+
+  factory ClientProjectCompletion.fromJson(Map<String, dynamic> json) {
+    return ClientProjectCompletion(
+      projectId: _requiredString(json, 'project_id'),
+      calculatedCompletionPercent: _num(json, 'calculated_completion_percent'),
+      officialCompletionPercent: _num(json, 'official_completion_percent'),
+      isOverridden: json['is_overridden'] == true,
+    );
+  }
+
+  final String projectId;
+  final num? calculatedCompletionPercent;
+  final num? officialCompletionPercent;
+  final bool isOverridden;
+}
+
+class ClientProgressUpdate {
+  const ClientProgressUpdate({
+    required this.id,
+    required this.projectId,
+    required this.title,
+    this.milestoneId,
+    this.summary,
+    this.reportedCompletionPercent,
+    this.publishedAt,
+  });
+
+  factory ClientProgressUpdate.fromJson(Map<String, dynamic> json) {
+    return ClientProgressUpdate(
+      id: _requiredString(json, 'id'),
+      projectId: _requiredString(json, 'project_id'),
+      milestoneId: _string(json, 'milestone_id'),
+      title: _requiredString(json, 'title'),
+      summary: _string(json, 'summary'),
+      reportedCompletionPercent: _num(json, 'reported_completion_percent'),
+      publishedAt: _date(json, 'published_at'),
+    );
+  }
+
+  final String id;
+  final String projectId;
+  final String? milestoneId;
+  final String title;
+  final String? summary;
+  final num? reportedCompletionPercent;
+  final DateTime? publishedAt;
+}
+
+class ClientProgressUpdatePage {
+  const ClientProgressUpdatePage({required this.rawCount, required this.items});
+
+  final int rawCount;
+  final List<ClientProgressUpdate> items;
+}
+
 class ClientProjectListState {
   const ClientProjectListState({
     this.projects = const [],
@@ -119,6 +181,53 @@ class ClientProjectDetailState {
   final bool unavailable;
 }
 
+class ClientProjectCompletionState {
+  const ClientProjectCompletionState({
+    this.completion,
+    this.isLoading = false,
+    this.error,
+  });
+
+  final ClientProjectCompletion? completion;
+  final bool isLoading;
+  final Object? error;
+}
+
+class ClientProgressUpdateListState {
+  const ClientProgressUpdateListState({
+    this.items = const [],
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  final List<ClientProgressUpdate> items;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final Object? error;
+
+  bool get isEmpty => !isLoading && error == null && items.isEmpty;
+
+  ClientProgressUpdateListState copyWith({
+    List<ClientProgressUpdate>? items,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    Object? error,
+    bool clearError = false,
+  }) {
+    return ClientProgressUpdateListState(
+      items: items ?? this.items,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      error: clearError ? null : error ?? this.error,
+    );
+  }
+}
+
 String? _string(Map<String, dynamic> json, String key) {
   final value = json[key];
   return value is String && value.trim().isNotEmpty ? value.trim() : null;
@@ -136,6 +245,13 @@ DateTime? _date(Map<String, dynamic> json, String key) {
   final value = json[key];
   if (value is DateTime) return value;
   return value is String ? DateTime.tryParse(value) : null;
+}
+
+num? _num(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is num) return value;
+  if (value is String) return num.tryParse(value);
+  return null;
 }
 
 String _requiredProjectStatus(Map<String, dynamic> json, String key) {
