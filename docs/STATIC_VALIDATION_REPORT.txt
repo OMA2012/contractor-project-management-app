@@ -1,7 +1,5 @@
 PASSED: 10362
 FAILED: 0
-
-PASSED: 10362
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
   PASS static validation report has no UTF-16 BOM
@@ -10302,7 +10300,6 @@ PASSED: 10362
   PASS no real service-role assignment in supabase\functions\_shared\supabase.ts
   PASS no real service-role assignment in supabase\functions\_shared\token.ts
   PASS no real service-role assignment in supabase\functions\_shared\validation.ts
-  PASS no real service-role assignment in scripts\__pycache__\static_validate.cpython-313.pyc
   PASS no real service-role assignment in app\.dart_tool\package_config.json
   PASS no real service-role assignment in app\.dart_tool\package_graph.json
   PASS no real service-role assignment in app\.dart_tool\version

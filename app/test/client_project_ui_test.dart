@@ -50,6 +50,44 @@ void main() {
             },
           ];
         }
+        if (functionName == 'current_client_project_phases') {
+          return [
+            {
+              'id': 'phase-2',
+              'project_id': params!['p_project_id'],
+              'name': 'Finishes',
+              'description': 'Visible finish work.',
+              'sequence_no': 2,
+              'start_date': '2026-09-01',
+              'end_date': null,
+            },
+          ];
+        }
+        if (functionName == 'current_client_project_phase_completion') {
+          return {
+            'project_id': 'project-1',
+            'phase_id': params!['p_phase_id'],
+            'calculated_completion_percent': '55',
+          };
+        }
+        if (functionName == 'current_client_project_tasks') {
+          return [
+            {
+              'id': 'task-1',
+              'project_id': params!['p_project_id'],
+              'phase_id': 'phase-2',
+              'milestone_id': null,
+              'task_number': 'T-001',
+              'title': 'Install cabinetry',
+              'client_summary': 'Visible task summary.',
+              'status': 'IN_PROGRESS',
+              'completion_percent': '45',
+              'start_date': '2026-09-02',
+              'due_date': null,
+              'completed_at': null,
+            },
+          ];
+        }
         return [projectRow()];
       },
     );
@@ -62,6 +100,11 @@ void main() {
       limit: 10,
       offset: 20,
     );
+    final phases = await repository.getClientProjectPhases('project-1');
+    final phaseCompletion = await repository.getClientProjectPhaseCompletion(
+      'phase-2',
+    );
+    final tasks = await repository.getClientProjectTasks('project-1');
     final missing = await SupabaseProjectRepository(
       rpc: (_, {params}) async => <Map<String, dynamic>>[],
     ).getClientProject('missing');
@@ -85,11 +128,29 @@ void main() {
       'p_limit': 10,
       'p_offset': 20,
     });
+    expect(calls[4], {
+      'function': 'current_client_project_phases',
+      'p_project_id': 'project-1',
+    });
+    expect(calls[5], {
+      'function': 'current_client_project_phase_completion',
+      'p_phase_id': 'phase-2',
+    });
+    expect(calls[6], {
+      'function': 'current_client_project_tasks',
+      'p_project_id': 'project-1',
+    });
     expect(page.rawCount, 1);
     expect(page.projects.single.projectNumber, 'PRJ-2026-0001');
     expect(detail?.name, 'Kitchen Renovation');
     expect(completion?.projectId, 'project-1');
     expect(updates.items.single.title, 'Week 1 update');
+    expect(phases.single.name, 'Finishes');
+    expect(phases.single.sequenceNo, 2);
+    expect(phaseCompletion?.calculatedCompletionPercent, 55);
+    expect(tasks.single.title, 'Install cabinetry');
+    expect(tasks.single.completionPercent, 45);
+    expect(tasks.single.dueDate, isNull);
     expect(missing, isNull);
   });
 
@@ -139,6 +200,46 @@ void main() {
     expect(update.summary, 'Visible summary');
     expect(update.reportedCompletionPercent, 44);
     expect(update.toString(), isNot(contains('approved_by')));
+  });
+
+  test('phase and task models map only approved fields', () {
+    final phase = ClientProjectPhase.fromJson({
+      'id': 'phase-hidden',
+      'project_id': 'project-hidden',
+      'name': 'Planning',
+      'description': 'Visible phase summary',
+      'sequence_no': '1',
+      'start_date': null,
+      'end_date': '2026-08-30',
+      'private_notes': 'hidden',
+    });
+    final task = ClientProjectTask.fromJson({
+      'id': 'task-hidden',
+      'project_id': 'project-hidden',
+      'phase_id': 'phase-hidden',
+      'milestone_id': 'milestone-hidden',
+      'task_number': 'T-100',
+      'title': 'Long visible task',
+      'client_summary': null,
+      'status': 'BLOCKED',
+      'completion_percent': 12,
+      'start_date': null,
+      'due_date': '2026-09-10',
+      'completed_at': null,
+      'task_weight': 99,
+      'assignment_ids': ['hidden'],
+      'staff_name': 'hidden',
+      'private_notes': 'hidden',
+    });
+
+    expect(phase.name, 'Planning');
+    expect(phase.sequenceNo, 1);
+    expect(task.taskNumber, 'T-100');
+    expect(task.clientSummary, isNull);
+    expect(task.milestoneId, 'milestone-hidden');
+    expect(task.toString(), isNot(contains('task_weight')));
+    expect(task.toString(), isNot(contains('staff')));
+    expect(task.toString(), isNot(contains('private_notes')));
   });
 
   test(
@@ -533,6 +634,8 @@ void main() {
     expect(find.text('68%'), findsOneWidget);
     expect(find.text('Calculated progress: 64%'), findsOneWidget);
     expect(find.textContaining('progress update title'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -250));
+    await tester.pumpAndSettle();
     expect(find.text('DOC-001'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
@@ -711,6 +814,8 @@ void main() {
 
       await tester.pumpWidget(detailScreenFromContainer(container));
       await tester.pump();
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
       await tester.tap(find.widgetWithText(OutlinedButton, 'Preview'));
       await tester.pump();
       expect(documents.accessRequests, [
@@ -748,11 +853,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    if (find.widgetWithText(OutlinedButton, 'Download').evaluate().isEmpty) {
-      await tester.drag(find.byType(ListView), const Offset(0, -400));
+    final downloadButton = find.widgetWithText(OutlinedButton, 'Download');
+    if (downloadButton.evaluate().isEmpty) {
+      await tester.drag(find.byType(ListView), const Offset(0, -700));
       await tester.pump();
     }
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Download'));
+    await tester.ensureVisible(downloadButton);
+    await tester.pump();
+    await tester.tap(downloadButton);
     await tester.pump();
     expect(documents.accessRequests.last, (
       'doc-1',
@@ -792,6 +900,227 @@ void main() {
       }
     },
   );
+
+  testWidgets('detail renders phases tasks grouping and safe values', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 900));
+    await tester.pumpWidget(
+      detailScreen(
+        FakeProjectRepository(
+          phases: [
+            phase('phase-b', name: 'Second phase', sequenceNo: 2),
+            phase(
+              'phase-a',
+              name:
+                  'A very long first phase name that wraps without exposing ids',
+              sequenceNo: 1,
+            ),
+          ],
+          phaseCompletions: {
+            'phase-a': const ClientProjectPhaseCompletion(
+              projectId: 'project-1',
+              phaseId: 'phase-a',
+              calculatedCompletionPercent: 33,
+            ),
+            'phase-b': const ClientProjectPhaseCompletion(
+              projectId: 'project-1',
+              phaseId: 'phase-b',
+              calculatedCompletionPercent: 120,
+            ),
+          },
+          tasks: [
+            task('task-a', phaseId: 'phase-a', title: 'Install tile'),
+            task('task-b', phaseId: null, title: 'Unphased delivery'),
+            task(
+              'task-c',
+              phaseId: 'phase-not-visible',
+              title: 'Visible orphaned task',
+              milestoneId: 'milestone-hidden',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Project phases'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.textContaining('A very long first phase')).dy,
+      lessThan(tester.getTopLeft(find.text('Second phase')).dy),
+    );
+    expect(find.text('33%'), findsOneWidget);
+    expect(find.text('120%'), findsOneWidget);
+    expect(find.text('Install tile'), findsOneWidget);
+    expect(find.text('Other tasks'), findsOneWidget);
+    expect(find.text('Unphased delivery'), findsOneWidget);
+    expect(find.text('Visible orphaned task'), findsOneWidget);
+    expect(find.textContaining('phase-a'), findsNothing);
+    expect(find.textContaining('phase-not-visible'), findsNothing);
+    expect(find.textContaining('milestone-hidden'), findsNothing);
+    expect(find.textContaining('task-a'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'phase task states isolate errors and keep surrounding detail sections',
+    (tester) async {
+      await tester.pumpWidget(
+        detailScreen(
+          FakeProjectRepository(failPhases: true),
+          documentRepository: FakeProjectDocumentRepository(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Kitchen Renovation'), findsOneWidget);
+      expect(find.text('Project progress'), findsOneWidget);
+      expect(find.text('Project phases could not be loaded.'), findsOneWidget);
+      expect(find.text('Recent progress updates'), findsOneWidget);
+      expect(find.text('Project documents'), findsOneWidget);
+      await tester.drag(find.byType(ListView), const Offset(0, -700));
+      await tester.pumpAndSettle();
+      expect(find.text('Project photographs'), findsOneWidget);
+      expect(find.textContaining('SQL'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        detailScreen(
+          FakeProjectRepository(
+            phases: [
+              phase('phase-a', name: 'Phase A', sequenceNo: 1),
+              phase('phase-b', name: 'Phase B', sequenceNo: 2),
+            ],
+            failPhaseCompletionIds: {'phase-a'},
+            phaseCompletions: {
+              'phase-b': const ClientProjectPhaseCompletion(
+                projectId: 'project-1',
+                phaseId: 'phase-b',
+                calculatedCompletionPercent: 70,
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Phase A'), findsOneWidget);
+      expect(find.text('Completion unavailable'), findsOneWidget);
+      expect(find.text('Phase B'), findsOneWidget);
+      expect(find.text('70%'), findsOneWidget);
+    },
+  );
+
+  testWidgets('phase task section renders loading empty and null optional fields', (
+    tester,
+  ) async {
+    final phases = Completer<List<ClientProjectPhase>>();
+    final tasks = Completer<List<ClientProjectTask>>();
+    await tester.pumpWidget(
+      detailScreen(
+        FakeProjectRepository(
+          phaseCompleters: [phases],
+          taskCompleters: [tasks],
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    phases.complete(const []);
+    tasks.complete(const []);
+    await tester.pumpAndSettle();
+    expect(
+      find.text('No project phases or tasks are available yet.'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(
+      detailScreen(
+        FakeProjectRepository(
+          phases: [phase('phase-empty', name: 'Phase with no tasks')],
+          tasks: [
+            task(
+              'task-null',
+              phaseId: null,
+              title:
+                  'Very long task name that wraps cleanly on mobile and laptop layouts',
+              clientSummary:
+                  'Very long task summary that remains client visible and wraps without overflow.',
+              status: null,
+              completionPercent: null,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Phase with no tasks'), findsOneWidget);
+    expect(find.text('Other tasks'), findsOneWidget);
+    expect(find.text('Task completion'), findsOneWidget);
+    expect(find.text('Not available'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('phase task stale results and errors are discarded', () async {
+    final account = MutableCurrentAccountRepository(clientRow(id: 'client-a'));
+    final phasesA = Completer<List<ClientProjectPhase>>();
+    final tasksA = Completer<List<ClientProjectTask>>();
+    final completionA = Completer<ClientProjectPhaseCompletion?>();
+    final phasesB = Completer<List<ClientProjectPhase>>();
+    final tasksB = Completer<List<ClientProjectTask>>();
+    final repository = FakeProjectRepository(
+      phaseCompleters: [phasesA, phasesB],
+      taskCompleters: [tasksA, tasksB],
+      phaseCompletionCompleters: [completionA],
+    );
+    final container = clientContainer(repository, accountRepository: account);
+    addTearDown(container.dispose);
+    container.listen(
+      clientProjectPhaseTasksProvider('project-a'),
+      (_, _) {},
+      fireImmediately: true,
+    );
+    await container.read(currentAccountProvider.notifier).load();
+    final loadA = container
+        .read(clientProjectPhaseTasksProvider('project-a').notifier)
+        .load();
+    await pumpProvider();
+    account.row = clientRow(id: 'client-b');
+    await container.read(currentAccountProvider.notifier).load();
+    await pumpProvider();
+    phasesA.complete([phase('phase-stale', name: 'Stale phase')]);
+    tasksA.complete([task('task-stale', phaseId: 'phase-stale')]);
+    await loadA;
+    expect(
+      container.read(clientProjectPhaseTasksProvider('project-a')).phases,
+      isEmpty,
+    );
+
+    final loadB = container
+        .read(clientProjectPhaseTasksProvider('project-b').notifier)
+        .load();
+    phasesB.complete([phase('phase-b', projectId: 'project-b', name: 'Fresh')]);
+    tasksB.complete([
+      task('task-b', projectId: 'project-b', phaseId: 'phase-b'),
+    ]);
+    await pumpProvider();
+    container.read(authSessionProvider.notifier).signOut();
+    completionA.complete(
+      const ClientProjectPhaseCompletion(
+        projectId: 'project-b',
+        phaseId: 'phase-b',
+        calculatedCompletionPercent: 88,
+      ),
+    );
+    await loadB;
+    expect(
+      container.read(clientProjectPhaseTasksProvider('project-b')).phases,
+      isEmpty,
+    );
+    expect(
+      container.read(clientProjectPhaseTasksProvider('project-b')).error,
+      isNull,
+    );
+  });
 }
 
 ProviderContainer clientContainer(
@@ -934,6 +1263,49 @@ ProviderScope appWithoutSession(String initialLocation) {
 
 ClientProject project(String id, {String name = 'Kitchen Renovation'}) {
   return ClientProject.fromJson(projectRow(id: id, name: name));
+}
+
+ClientProjectPhase phase(
+  String id, {
+  String projectId = 'project-1',
+  String name = 'Planning',
+  int? sequenceNo = 1,
+}) {
+  return ClientProjectPhase(
+    id: id,
+    projectId: projectId,
+    name: name,
+    description: 'Visible phase description.',
+    sequenceNo: sequenceNo,
+    startDate: DateTime.utc(2026, 8),
+    endDate: DateTime.utc(2026, 9),
+  );
+}
+
+ClientProjectTask task(
+  String id, {
+  String projectId = 'project-1',
+  String? phaseId,
+  String? milestoneId,
+  String title = 'Client-visible task',
+  String? clientSummary = 'Visible task summary.',
+  String? status = 'IN_PROGRESS',
+  num? completionPercent = 20,
+}) {
+  return ClientProjectTask(
+    id: id,
+    projectId: projectId,
+    phaseId: phaseId,
+    milestoneId: milestoneId,
+    taskNumber: 'T-001',
+    title: title,
+    clientSummary: clientSummary,
+    status: status,
+    completionPercent: completionPercent,
+    startDate: DateTime.utc(2026, 8, 2),
+    dueDate: DateTime.utc(2026, 8, 20),
+    completedAt: null,
+  );
 }
 
 Map<String, dynamic> projectRow({
@@ -1101,11 +1473,20 @@ class FakeProjectRepository implements ProjectRepository {
     this.detailCompleters = const [],
     this.detailProject,
     this.completion,
+    this.phases = const [],
+    this.tasks = const [],
+    this.phaseCompletions = const {},
+    this.phaseCompleters = const [],
+    this.taskCompleters = const [],
+    this.phaseCompletionCompleters = const [],
     this.progressPages = const [],
     this.detailUnavailable = false,
     this.failList = false,
     this.failDetail = false,
     this.failCompletion = false,
+    this.failPhases = false,
+    this.failTasks = false,
+    this.failPhaseCompletionIds = const {},
     this.failProgress = false,
   });
 
@@ -1114,18 +1495,34 @@ class FakeProjectRepository implements ProjectRepository {
   final List<Completer<ClientProject?>> detailCompleters;
   final ClientProject? detailProject;
   final ClientProjectCompletion? completion;
+  final List<ClientProjectPhase> phases;
+  final List<ClientProjectTask> tasks;
+  final Map<String, ClientProjectPhaseCompletion?> phaseCompletions;
+  final List<Completer<List<ClientProjectPhase>>> phaseCompleters;
+  final List<Completer<List<ClientProjectTask>>> taskCompleters;
+  final List<Completer<ClientProjectPhaseCompletion?>>
+  phaseCompletionCompleters;
   final List<ClientProgressUpdatePage> progressPages;
   final bool detailUnavailable;
   final bool failList;
   final bool failDetail;
   final bool failCompletion;
+  final bool failPhases;
+  final bool failTasks;
+  final Set<String> failPhaseCompletionIds;
   final bool failProgress;
   final listOffsets = <int>[];
   final detailIds = <String>[];
+  final phaseProjectIds = <String>[];
+  final taskProjectIds = <String>[];
+  final phaseCompletionIds = <String>[];
   final progressOffsets = <int>[];
   var _pageIndex = 0;
   var _listCompleterIndex = 0;
   var _detailCompleterIndex = 0;
+  var _phaseCompleterIndex = 0;
+  var _taskCompleterIndex = 0;
+  var _phaseCompletionCompleterIndex = 0;
 
   @override
   Future<ClientProjectPage> listClientProjects({
@@ -1158,6 +1555,48 @@ class FakeProjectRepository implements ProjectRepository {
   ) async {
     if (failCompletion) throw StateError('SQL backend detail');
     return completion ?? ClientProjectCompletion(projectId: projectId);
+  }
+
+  @override
+  Future<List<ClientProjectPhase>> getClientProjectPhases(
+    String projectId,
+  ) async {
+    phaseProjectIds.add(projectId);
+    if (_phaseCompleterIndex < phaseCompleters.length) {
+      return phaseCompleters[_phaseCompleterIndex++].future;
+    }
+    if (failPhases) throw StateError('SQL backend detail');
+    return phases;
+  }
+
+  @override
+  Future<ClientProjectPhaseCompletion?> getClientProjectPhaseCompletion(
+    String phaseId,
+  ) async {
+    phaseCompletionIds.add(phaseId);
+    if (_phaseCompletionCompleterIndex < phaseCompletionCompleters.length) {
+      return phaseCompletionCompleters[_phaseCompletionCompleterIndex++].future;
+    }
+    if (failPhaseCompletionIds.contains(phaseId)) {
+      throw StateError('SQL backend detail');
+    }
+    if (phaseCompletions.containsKey(phaseId)) return phaseCompletions[phaseId];
+    return ClientProjectPhaseCompletion(
+      projectId: 'project-1',
+      phaseId: phaseId,
+    );
+  }
+
+  @override
+  Future<List<ClientProjectTask>> getClientProjectTasks(
+    String projectId,
+  ) async {
+    taskProjectIds.add(projectId);
+    if (_taskCompleterIndex < taskCompleters.length) {
+      return taskCompleters[_taskCompleterIndex++].future;
+    }
+    if (failTasks) throw StateError('SQL backend detail');
+    return tasks;
   }
 
   @override
