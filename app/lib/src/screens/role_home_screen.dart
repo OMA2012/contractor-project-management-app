@@ -40,10 +40,27 @@ class RoleHomeScreen extends StatelessWidget {
                   ],
                   if (role == AccountRole.client) ...[
                     const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => context.go('/client/projects'),
-                      icon: const Icon(Icons.business_center),
-                      label: const Text('Projects'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => context.go('/client/projects'),
+                          icon: const Icon(Icons.business_center),
+                          label: const Text('Projects'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () => context.go('/client/payments'),
+                          icon: const Icon(Icons.payments),
+                          label: const Text('Payments'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              context.go('/client/payment-requests'),
+                          icon: const Icon(Icons.request_quote),
+                          label: const Text('Payment requests'),
+                        ),
+                      ],
                     ),
                   ],
                 ],

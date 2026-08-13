@@ -5,6 +5,7 @@ import '../account/current_account.dart';
 import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 import '../screens/account_loading_screen.dart';
+import '../screens/client_financial_screens.dart';
 import '../screens/client_project_detail_screen.dart';
 import '../screens/client_project_list_screen.dart';
 import '../screens/inactive_account_screen.dart';
@@ -87,6 +88,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/client/projects/:projectId',
             builder: (context, state) => ClientProjectDetailScreen(
               projectId: state.pathParameters['projectId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/payments',
+            builder: (context, state) => const ClientPaymentsScreen(),
+          ),
+          GoRoute(
+            path: '/client/payments/submit',
+            builder: (context, state) => const ClientSubmitPaymentScreen(),
+          ),
+          GoRoute(
+            path: '/client/payments/:paymentId',
+            builder: (context, state) => ClientPaymentDetailScreen(
+              paymentId: state.pathParameters['paymentId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/payment-requests',
+            builder: (context, state) => const ClientPaymentRequestsScreen(),
+          ),
+          GoRoute(
+            path: '/client/payment-requests/:requestId',
+            builder: (context, state) => ClientPaymentRequestDetailScreen(
+              requestId: state.pathParameters['requestId']!,
             ),
           ),
           GoRoute(

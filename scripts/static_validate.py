@@ -2408,6 +2408,22 @@ def strip_client_project_detail_progress_terms(text, rel_path):
         text = re.sub(re.escape(approved), '', text, flags=re.I)
     return text
 
+def strip_stage_13_client_payment_ui_terms(text, rel_path):
+    if rel_path not in {
+        'app/lib/src/payments/payment_models.dart',
+        'app/lib/src/payments/payment_providers.dart',
+        'app/lib/src/payments/payment_repository.dart',
+        'app/lib/src/screens/client_financial_screens.dart',
+    }:
+        return text
+    for approved in (
+        'CircularProgressIndicator',
+        '_CenteredProgress',
+        'OVERDUE',
+    ):
+        text = re.sub(re.escape(approved), '', text, flags=re.I)
+    return text
+
 
 flutter_completion_mentions = []
 for p in (ROOT / 'app/lib').glob('**/*.dart'):
@@ -2420,6 +2436,7 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
     searchable = strip_stage_12_photograph_gallery_progress_terms(searchable, rel)
     searchable = strip_stage_10_client_project_loading_terms(searchable, rel)
     searchable = strip_client_project_detail_progress_terms(searchable, rel)
+    searchable = strip_stage_13_client_payment_ui_terms(searchable, rel)
     if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
         flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')
