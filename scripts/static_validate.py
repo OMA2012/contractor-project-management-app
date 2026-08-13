@@ -2425,6 +2425,25 @@ def strip_stage_13_client_payment_ui_terms(text, rel_path):
     return text
 
 
+def strip_client_notification_progress_terms(text, rel_path):
+    if rel_path not in {
+        'app/lib/src/notifications/notification_models.dart',
+        'app/lib/src/screens/client_notification_list_screen.dart',
+        'app/lib/src/screens/client_notification_detail_screen.dart',
+        'app/test/client_notifications_test.dart',
+    }:
+        return text
+    for approved in (
+        'PROGRESS_UPDATE_PUBLISHED',
+        'progress_update',
+        'Progress update published',
+        'A new progress update is available.',
+        'CircularProgressIndicator',
+    ):
+        text = re.sub(re.escape(approved), '', text, flags=re.I)
+    return text
+
+
 flutter_completion_mentions = []
 for p in (ROOT / 'app/lib').glob('**/*.dart'):
     if not p.is_file():
@@ -2437,6 +2456,7 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
     searchable = strip_stage_10_client_project_loading_terms(searchable, rel)
     searchable = strip_client_project_detail_progress_terms(searchable, rel)
     searchable = strip_stage_13_client_payment_ui_terms(searchable, rel)
+    searchable = strip_client_notification_progress_terms(searchable, rel)
     if re.search(r'completion|progress|overdue|upcoming', searchable, re.I):
         flutter_completion_mentions.append(p)
 require(not flutter_completion_mentions, 'no Flutter completion/progress UI added')

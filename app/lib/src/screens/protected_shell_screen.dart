@@ -31,16 +31,33 @@ class ProtectedShellScreen extends ConsumerWidget {
               icon: const Icon(Icons.photo_library),
             ),
           if (account.routeTarget == TrustedAccountRouteTarget.client)
-            IconButton(
-              tooltip: 'Projects',
-              onPressed: () => context.go('/client/projects'),
-              icon: const Icon(Icons.business_center),
-            ),
-          if (account.routeTarget == TrustedAccountRouteTarget.client)
-            IconButton(
-              tooltip: 'Photographs',
-              onPressed: () => context.go('/client/photographs'),
-              icon: const Icon(Icons.photo_library),
+            PopupMenuButton<String>(
+              tooltip: 'Client navigation',
+              icon: const Icon(Icons.menu),
+              onSelected: context.go,
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: '/client/projects',
+                  child: ListTile(
+                    leading: Icon(Icons.business_center),
+                    title: Text('Projects'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: '/client/photographs',
+                  child: ListTile(
+                    leading: Icon(Icons.photo_library),
+                    title: Text('Photographs'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: '/client/notifications',
+                  child: ListTile(
+                    leading: Icon(Icons.notifications),
+                    title: Text('Notifications'),
+                  ),
+                ),
+              ],
             ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),

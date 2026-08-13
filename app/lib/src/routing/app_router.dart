@@ -6,6 +6,8 @@ import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 import '../screens/account_loading_screen.dart';
 import '../screens/client_financial_screens.dart';
+import '../screens/client_notification_detail_screen.dart';
+import '../screens/client_notification_list_screen.dart';
 import '../screens/client_project_detail_screen.dart';
 import '../screens/client_project_list_screen.dart';
 import '../screens/inactive_account_screen.dart';
@@ -88,6 +90,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/client/projects/:projectId',
             builder: (context, state) => ClientProjectDetailScreen(
               projectId: state.pathParameters['projectId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/client/notifications',
+            builder: (context, state) => const ClientNotificationListScreen(),
+          ),
+          GoRoute(
+            path: '/client/notifications/:notificationId',
+            builder: (context, state) => ClientNotificationDetailScreen(
+              notificationId: state.pathParameters['notificationId']!,
             ),
           ),
           GoRoute(
