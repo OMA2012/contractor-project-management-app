@@ -1,4 +1,4 @@
-PASSED: 10487
+PASSED: 10643
 FAILED: 0
   PASS static validation report contains no NUL bytes
   PASS static validation report has no UTF-8 BOM
@@ -7609,6 +7609,96 @@ FAILED: 0
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\documents\document_repository.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_models.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_providers.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\notifications\notification_repository.dart: scanner_policy
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\payments\payment_models.dart: storage.objects
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\payments\payment_models.dart: storage.buckets
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\payments\payment_models.dart: create bucket
@@ -7879,6 +7969,66 @@ FAILED: 0
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_financial_screens.dart: retention_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_financial_screens.dart: quarantine_period
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_financial_screens.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_detail_screen.dart: scanner_policy
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: storage.objects
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: storage.buckets
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create storage bucket
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: upload_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: document_upload
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: download_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: document_download
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: signed_url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: signed url
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create signed
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: scanner
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: thumbnail
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create table app.document_scans
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create table app.document_thumbnails
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create table app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: create table app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: references app.project_expenses
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: references app.currency_exchanges
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: current_project_manager_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: current_accountant_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: current_site_supervisor_document
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: project_manager%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: accountant%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: site_supervisor%access_allowed%true
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: mime_type in (
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: max_file_size
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: retention_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: quarantine_period
+  PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_notification_list_screen.dart: scanner_policy
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_project_detail_screen.dart: storage.objects
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_project_detail_screen.dart: storage.buckets
   PASS Package 12.1 global exclusion marker absent outside approved Package 15.1 expense or Package 17.1 exchange files from app\lib\src\screens\client_project_detail_screen.dart: create bucket
@@ -10427,6 +10577,7 @@ FAILED: 0
   PASS no real service-role assignment in app\test\app_config_test.dart
   PASS no real service-role assignment in app\test\auth_redirect_test.dart
   PASS no real service-role assignment in app\test\auth_security_test.dart
+  PASS no real service-role assignment in app\test\client_notifications_test.dart
   PASS no real service-role assignment in app\test\client_payments_test.dart
   PASS no real service-role assignment in app\test\client_project_ui_test.dart
   PASS no real service-role assignment in app\test\current_account_provider_test.dart
@@ -10453,6 +10604,9 @@ FAILED: 0
   PASS no real service-role assignment in app\lib\src\documents\document_models.dart
   PASS no real service-role assignment in app\lib\src\documents\document_providers.dart
   PASS no real service-role assignment in app\lib\src\documents\document_repository.dart
+  PASS no real service-role assignment in app\lib\src\notifications\notification_models.dart
+  PASS no real service-role assignment in app\lib\src\notifications\notification_providers.dart
+  PASS no real service-role assignment in app\lib\src\notifications\notification_repository.dart
   PASS no real service-role assignment in app\lib\src\payments\payment_models.dart
   PASS no real service-role assignment in app\lib\src\payments\payment_providers.dart
   PASS no real service-role assignment in app\lib\src\payments\payment_repository.dart
@@ -10462,6 +10616,8 @@ FAILED: 0
   PASS no real service-role assignment in app\lib\src\routing\app_router.dart
   PASS no real service-role assignment in app\lib\src\screens\account_loading_screen.dart
   PASS no real service-role assignment in app\lib\src\screens\client_financial_screens.dart
+  PASS no real service-role assignment in app\lib\src\screens\client_notification_detail_screen.dart
+  PASS no real service-role assignment in app\lib\src\screens\client_notification_list_screen.dart
   PASS no real service-role assignment in app\lib\src\screens\client_project_detail_screen.dart
   PASS no real service-role assignment in app\lib\src\screens\client_project_list_screen.dart
   PASS no real service-role assignment in app\lib\src\screens\inactive_account_screen.dart
