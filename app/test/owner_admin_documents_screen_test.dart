@@ -593,7 +593,7 @@ void main() {
     testWidgets('client direct route denied: $route', (tester) async {
       await tester.pumpWidget(appWithAccount(activeClientRow(), route));
       await tester.pumpAndSettle();
-      expect(find.text('Client workspace'), findsOneWidget);
+      expect(find.text('Welcome, Client Person'), findsOneWidget);
       expect(find.text('Owner/Admin Documents'), findsNothing);
       expect(find.text('Upload Document'), findsNothing);
     });
@@ -784,7 +784,7 @@ void main() {
       appWithAccount(activeClientRow(), '/staff/photographs'),
     );
     await pumpGallery(tester);
-    expect(find.text('Client workspace'), findsOneWidget);
+    expect(find.text('Welcome, Client Person'), findsOneWidget);
     expect(find.text('Photograph Gallery'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());

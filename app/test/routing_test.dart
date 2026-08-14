@@ -118,7 +118,7 @@ void main() {
     await tester.pumpWidget(appWithTrustedAccount(activeClientRow()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Client workspace'), findsOneWidget);
+    expect(find.text('Welcome, Client Person'), findsOneWidget);
     expect(find.text('Staff workspace'), findsNothing);
   });
 
