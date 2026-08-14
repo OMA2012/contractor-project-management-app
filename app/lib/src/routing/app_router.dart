@@ -5,6 +5,7 @@ import '../account/current_account.dart';
 import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 import '../screens/account_loading_screen.dart';
+import '../screens/client_dashboard_screen.dart';
 import '../screens/client_financial_screens.dart';
 import '../screens/client_notification_detail_screen.dart';
 import '../screens/client_notification_list_screen.dart';
@@ -79,8 +80,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/client',
-            builder: (context, state) =>
-                const RoleHomeScreen(role: AccountRole.client),
+            builder: (context, state) => const ClientDashboardScreen(),
           ),
           GoRoute(
             path: '/client/projects',
