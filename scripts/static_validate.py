@@ -1794,12 +1794,17 @@ if functions_dir.exists():
     stage_12_5_functions = {
         'document-process-photograph',
     }
+    financial_account_gateway_functions = {
+        'financial-accounts',
+    }
     allowed_shared_files = {
         'auth.ts',
         'client_invitation_handler.ts',
         'client_invitation_handler_test.ts',
         'client_lifecycle_handler.ts',
         'client_lifecycle_handler_test.ts',
+        'financial_account_handler.ts',
+        'financial_account_handler_test.ts',
         'document_image_handler.ts',
         'document_image_handler_test.ts',
         'document_scan_handler.ts',
@@ -1833,6 +1838,8 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_3_functions and relative.name in {'index.ts', 'deno.json'}
             ) or (
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_5_functions and relative.name in {'index.ts', 'deno.json', 'magick.wasm'}
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] in financial_account_gateway_functions and relative.name in {'index.ts', 'deno.json'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in sorted(allowed_shared_files):

@@ -57,3 +57,6 @@ verify_jwt = false
 
 [functions.document-access]
 verify_jwt = false
+
+[functions.financial-accounts]
+verify_jwt = false
