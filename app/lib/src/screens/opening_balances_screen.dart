@@ -384,9 +384,12 @@ class _QueueSection extends StatelessWidget {
 }
 
 String _queueTarget(FinancialApprovalQueueItem item) {
-  return item.eventType == 'CLIENT_PAYMENT'
-      ? '/staff/client-payments/${item.financialEventId}'
-      : '/staff/opening-balances/${item.financialEventId}';
+  return switch (item.eventType) {
+    'OPENING_BALANCE' => '/staff/opening-balances/${item.financialEventId}',
+    'CLIENT_PAYMENT' => '/staff/client-payments/${item.financialEventId}',
+    'PROJECT_EXPENSE' => '/staff/project-expenses/${item.financialEventId}',
+    _ => '/staff/financial-approval-queue',
+  };
 }
 
 class _OpeningBalanceForm extends ConsumerStatefulWidget {

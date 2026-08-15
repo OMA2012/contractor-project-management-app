@@ -46,6 +46,13 @@ BEGIN
   END IF;
 
   RETURN QUERY
+  WITH queue_rows (
+    financial_event_id, event_number, event_type, financial_transaction_id,
+    transaction_number, related_label, amount, currency_code, event_date,
+    event_status, transaction_status, created_by_me,
+    eligible_for_my_approval, submitted_at, approved_at, rejected_at,
+    rejection_reason, version_number
+  ) AS (
   SELECT
     fe.id,
     fe.event_number::text,
@@ -70,13 +77,65 @@ BEGIN
   JOIN app.account_opening_balances ob ON ob.financial_event_id = fe.id
   JOIN app.financial_accounts fa ON fa.id = ob.financial_account_id
   WHERE fe.event_type = 'OPENING_BALANCE'
-    AND (
-      (section = 'eligible' AND fe.status = 'SUBMITTED' AND fe.created_by <> actor_row.actor_user_id)
-      OR (section = 'created_by_me' AND fe.status = 'SUBMITTED' AND fe.created_by = actor_row.actor_user_id)
-      OR (section = 'recent' AND fe.status = 'APPROVED')
-      OR (section = 'rejected' AND fe.status = 'REJECTED')
+  UNION ALL
+  SELECT
+    fe.id,
+    fe.event_number::text,
+    fe.event_type::text,
+    ft.id,
+    ft.transaction_number::text,
+    'Project ' || cp.project_id::text || ' / Client ' || cp.client_id::text,
+    cp.amount,
+    cp.currency_code,
+    fe.event_date,
+    fe.status::text,
+    ft.status::text,
+    fe.created_by = actor_row.actor_user_id,
+    fe.status = 'SUBMITTED' AND fe.created_by <> actor_row.actor_user_id,
+    fe.submitted_at,
+    fe.approved_at,
+    fe.rejected_at,
+    fe.rejection_reason,
+    fe.version_number
+  FROM app.financial_events fe
+  JOIN app.financial_transactions ft ON ft.financial_event_id = fe.id
+  JOIN app.client_payments cp ON cp.financial_event_id = fe.id
+  WHERE fe.event_type = 'CLIENT_PAYMENT'
+  UNION ALL
+  SELECT
+    fe.id,
+    fe.event_number::text,
+    fe.event_type::text,
+    ft.id,
+    ft.transaction_number::text,
+    'Project ' || pe.project_id::text || ' / Account ' || fa.name,
+    pe.amount,
+    pe.currency_code,
+    fe.event_date,
+    fe.status::text,
+    ft.status::text,
+    fe.created_by = actor_row.actor_user_id,
+    fe.status = 'SUBMITTED' AND fe.created_by <> actor_row.actor_user_id,
+    fe.submitted_at,
+    fe.approved_at,
+    fe.rejected_at,
+    fe.rejection_reason,
+    fe.version_number
+  FROM app.financial_events fe
+  JOIN app.financial_transactions ft ON ft.financial_event_id = fe.id
+  JOIN app.project_expenses pe ON pe.financial_event_id = fe.id
+  JOIN app.financial_accounts fa ON fa.id = pe.paid_from_account_id
+  WHERE fe.event_type = 'PROJECT_EXPENSE'
+  )
+  SELECT q.*
+  FROM queue_rows q
+  WHERE (
+      (section = 'eligible' AND q.event_status = 'SUBMITTED' AND q.eligible_for_my_approval)
+      OR (section = 'created_by_me' AND q.event_status = 'SUBMITTED' AND q.created_by_me)
+      OR (section = 'recent' AND q.event_status = 'APPROVED')
+      OR (section = 'rejected' AND q.event_status = 'REJECTED')
     )
-  ORDER BY coalesce(fe.submitted_at, fe.approved_at, fe.rejected_at, fe.created_at) DESC, fe.id DESC
+  ORDER BY coalesce(q.submitted_at, q.approved_at, q.rejected_at) DESC, q.financial_event_id DESC
   LIMIT safe_limit OFFSET safe_offset;
 END
 $function$;
