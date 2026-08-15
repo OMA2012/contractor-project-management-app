@@ -18,6 +18,7 @@ import '../screens/password_reset_request_screen.dart';
 import '../screens/password_update_screen.dart';
 import '../screens/protected_shell_screen.dart';
 import '../screens/owner_admin_documents_screen.dart';
+import '../screens/opening_balances_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
 import '../screens/role_home_screen.dart';
 
@@ -78,6 +79,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => FinancialAccountDetailScreen(
               accountId: state.pathParameters['accountId']!,
             ),
+          ),
+          GoRoute(
+            path: '/staff/opening-balances',
+            builder: (context, state) => const OpeningBalancesScreen(),
+          ),
+          GoRoute(
+            path: '/staff/opening-balances/:eventId',
+            builder: (context, state) => OpeningBalanceDetailScreen(
+              financialEventId: state.pathParameters['eventId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/financial-approval-queue',
+            builder: (context, state) => const FinancialApprovalQueueScreen(),
           ),
           GoRoute(
             path: '/staff/documents/upload',

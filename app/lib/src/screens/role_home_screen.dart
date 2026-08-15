@@ -32,10 +32,28 @@ class RoleHomeScreen extends StatelessWidget {
                   const Text('Protected shell placeholder'),
                   if (role == AccountRole.staff) ...[
                     const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => context.go('/staff/documents'),
-                      icon: const Icon(Icons.description),
-                      label: const Text('Documents'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => context.go('/staff/documents'),
+                          icon: const Icon(Icons.description),
+                          label: const Text('Documents'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () =>
+                              context.go('/staff/opening-balances'),
+                          icon: const Icon(Icons.account_balance_wallet),
+                          label: const Text('Opening balances'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () =>
+                              context.go('/staff/financial-approval-queue'),
+                          icon: const Icon(Icons.verified_user),
+                          label: const Text('Approval queue'),
+                        ),
+                      ],
                     ),
                   ],
                   if (role == AccountRole.client) ...[
