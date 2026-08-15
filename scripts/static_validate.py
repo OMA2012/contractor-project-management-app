@@ -1813,6 +1813,7 @@ if functions_dir.exists():
         'opening_balance_handler.ts',
         'opening_balance_handler_test.ts',
         'project_expense_handler.ts',
+        'project_expense_handler_test.ts',
         'document_image_handler.ts',
         'document_image_handler_test.ts',
         'document_scan_handler.ts',
