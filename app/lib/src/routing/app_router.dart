@@ -11,6 +11,7 @@ import '../screens/client_notification_detail_screen.dart';
 import '../screens/client_notification_list_screen.dart';
 import '../screens/client_project_detail_screen.dart';
 import '../screens/client_project_list_screen.dart';
+import '../screens/financial_accounts_screen.dart';
 import '../screens/inactive_account_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/password_reset_request_screen.dart';
@@ -67,6 +68,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/staff/photographs',
             builder: (context, state) =>
                 const PhotographGalleryScreen.ownerAdmin(),
+          ),
+          GoRoute(
+            path: '/staff/financial-accounts',
+            builder: (context, state) => const FinancialAccountsScreen(),
+          ),
+          GoRoute(
+            path: '/staff/financial-accounts/:accountId',
+            builder: (context, state) => FinancialAccountDetailScreen(
+              accountId: state.pathParameters['accountId']!,
+            ),
           ),
           GoRoute(
             path: '/staff/documents/upload',
