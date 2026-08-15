@@ -108,6 +108,16 @@ function mockAuth(options: {
             error: null,
           });
         }
+        if (name === "server_owner_update_financial_account_metadata") {
+          return Promise.resolve({
+            data: [{
+              financial_account_id: accountId,
+              account_number: "FA-000001",
+              version_number: 2,
+            }],
+            error: null,
+          });
+        }
         if (
           name === "server_owner_activate_financial_account" ||
           name === "server_owner_deactivate_financial_account"
@@ -361,24 +371,58 @@ Deno.test("create passes null encrypted details and derived owner subject", asyn
   assertEquals(rpcArgs[0].p_encrypted_account_details, null);
 });
 
-Deno.test("update is rejected as an unsupported action", async () => {
-  const calls: string[] = [];
+Deno.test("update calls safe metadata RPC and rejects private financial fields", async () => {
+  const rpcArgs: Record<string, unknown>[] = [];
   const handler = createFinancialAccountHandler({
     loadEnv: env,
-    authenticate: mockAuth({ calls }),
+    authenticate: mockAuth({ calls: [], rpcArgs }),
   });
-  const response = await handler(request({
-    action: "update",
-    financial_account_id: accountId,
-    expected_version_number: 1,
-    name: "Bank",
-    account_type: "BANK",
-    currency_code: "USD",
-  }));
-  assertEquals(response.status, 422);
-  const body = await response.json();
-  assertEquals(body.message, "Financial account action is unsupported.");
-  assertEquals(calls, ["authenticate"]);
+  const response = await handler(
+    request({
+      action: "update",
+      financial_account_id: accountId,
+      expected_version_number: 1,
+      name: "Bank",
+      account_type: "BANK",
+      currency_code: "USD",
+      bank_name: "Safe Bank",
+      masked_account_identifier: "****1234",
+      notes: "safe note",
+    }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    rpcArgs[0].name,
+    "server_owner_update_financial_account_metadata",
+  );
+  assertEquals(rpcArgs[0].p_verified_owner_auth_subject, actor);
+  assertEquals(rpcArgs[0].p_encrypted_account_details, undefined);
+
+  for (
+    const field of [
+      "encrypted_account_details",
+      "plaintext_bank_secret",
+      "ciphertext",
+      "balance",
+      "opening_balance",
+      "account_number",
+      "created_by",
+      "owner_auth_subject",
+    ]
+  ) {
+    const rejected = await handler(request({
+      action: "update",
+      financial_account_id: accountId,
+      expected_version_number: 1,
+      name: "Bank",
+      account_type: "BANK",
+      currency_code: "USD",
+      bank_name: "Safe Bank",
+      masked_account_identifier: "****1234",
+      [field]: "not allowed",
+    }));
+    assertEquals(rejected.status, 422);
+  }
 });
 
 Deno.test("activate deactivate and archive call exact lifecycle RPC payloads", async () => {

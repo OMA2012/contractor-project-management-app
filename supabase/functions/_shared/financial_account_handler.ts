@@ -25,6 +25,7 @@ const ACTIONS = [
   "cash_totals_by_currency",
   "bank_totals_by_currency",
   "create",
+  "update",
   "activate",
   "deactivate",
   "archive",
@@ -109,6 +110,8 @@ async function dispatch(
       };
     case "create":
       return { account: await createAccount(body, auth, requestId) };
+    case "update":
+      return { account: await updateAccount(body, auth, requestId) };
     case "activate":
       return {
         account: await lifecycle(
@@ -137,6 +140,47 @@ async function dispatch(
         ),
       };
   }
+}
+
+async function updateAccount(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+  requestId: string,
+) {
+  rejectUnknownFields(body, [
+    "action",
+    "financial_account_id",
+    "expected_version_number",
+    "name",
+    "account_type",
+    "currency_code",
+    "bank_name",
+    "masked_account_identifier",
+    "notes",
+  ]);
+  const result = await rpc(
+    auth,
+    "server_owner_update_financial_account_metadata",
+    {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_financial_account_id: uuidValue(
+        body.financial_account_id,
+        "Financial account ID",
+      ),
+      p_expected_version_number: version(body.expected_version_number),
+      p_name: trimmedNonblank(body.name, "Name"),
+      p_account_type: accountTypeInput(body.account_type),
+      p_currency_code: currencyInput(body.currency_code),
+      p_bank_name: optionalTrimmed(body.bank_name, "Bank name"),
+      p_masked_account_identifier: optionalTrimmed(
+        body.masked_account_identifier,
+        "Masked account identifier",
+      ),
+      p_notes: optionalTrimmed(body.notes, "Notes"),
+      p_request_identifier: requestId,
+    },
+  );
+  return mutationRow(firstRow(result.data));
 }
 
 function actionValue(value: unknown): Action {

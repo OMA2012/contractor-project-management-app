@@ -342,8 +342,9 @@ class _PaymentRequestList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.isLoading) return const _InlineLoading();
-    if (state.error != null)
+    if (state.error != null) {
       return const _SafeMessage('Payment requests failed to load.');
+    }
     if (state.requests.isEmpty) {
       return const _SafeMessage('No payment requests are available.');
     }
@@ -375,8 +376,9 @@ class _PaymentList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.isLoading) return const _InlineLoading();
-    if (state.error != null)
+    if (state.error != null) {
       return const _SafeMessage('Payments failed to load.');
+    }
     final payments = state.payments.where((payment) => payment.isReceived);
     if (payments.isEmpty) {
       return const _SafeMessage('No posted payments are available yet.');
@@ -462,8 +464,9 @@ class _NotificationList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (state.isLoading) return const _InlineLoading();
-    if (state.error != null)
+    if (state.error != null) {
       return const _SafeMessage('Notifications failed to load.');
+    }
     if (state.items.isEmpty) {
       return const _SafeMessage('No notifications are available.');
     }
