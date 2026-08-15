@@ -22,6 +22,7 @@ import '../screens/opening_balances_screen.dart';
 import '../screens/owner_client_payments_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
 import '../screens/owner_payment_requests_screen.dart';
+import '../screens/owner_project_expenses_screen.dart';
 import '../screens/role_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -95,6 +96,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/staff/financial-approval-queue',
             builder: (context, state) => const FinancialApprovalQueueScreen(),
+          ),
+          GoRoute(
+            path: '/staff/project-expenses',
+            builder: (context, state) => const OwnerProjectExpensesScreen(),
+          ),
+          GoRoute(
+            path: '/staff/project-expenses/:expenseId',
+            builder: (context, state) => OwnerProjectExpenseDetailScreen(
+              financialEventId: state.pathParameters['expenseId']!,
+            ),
           ),
           GoRoute(
             path: '/staff/client-payments',
