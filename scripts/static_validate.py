@@ -1797,6 +1797,7 @@ if functions_dir.exists():
     financial_account_gateway_functions = {
         'financial-accounts',
         'opening-balances',
+        'client-payments',
     }
     allowed_shared_files = {
         'auth.ts',
@@ -1804,6 +1805,8 @@ if functions_dir.exists():
         'client_invitation_handler_test.ts',
         'client_lifecycle_handler.ts',
         'client_lifecycle_handler_test.ts',
+        'client_payments_handler.ts',
+        'client_payments_handler_test.ts',
         'financial_account_handler.ts',
         'financial_account_handler_test.ts',
         'opening_balance_handler.ts',
@@ -2424,6 +2427,8 @@ def strip_stage_13_client_payment_ui_terms(text, rel_path):
         'app/lib/src/payments/payment_providers.dart',
         'app/lib/src/payments/payment_repository.dart',
         'app/lib/src/screens/client_financial_screens.dart',
+        'app/lib/src/payments/owner_payment_models.dart',
+        'app/lib/src/screens/owner_payment_requests_screen.dart',
     }:
         return text
     for approved in (

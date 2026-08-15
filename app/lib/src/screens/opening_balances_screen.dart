@@ -375,14 +375,18 @@ class _QueueSection extends StatelessWidget {
                 '${item.eventType} - ${item.relatedLabel} - ${item.eventStatus}',
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.go(
-                '/staff/opening-balances/${item.financialEventId}',
-              ),
+              onTap: () => context.go(_queueTarget(item)),
             ),
           ),
       ],
     ),
   );
+}
+
+String _queueTarget(FinancialApprovalQueueItem item) {
+  return item.eventType == 'CLIENT_PAYMENT'
+      ? '/staff/client-payments/${item.financialEventId}'
+      : '/staff/opening-balances/${item.financialEventId}';
 }
 
 class _OpeningBalanceForm extends ConsumerStatefulWidget {

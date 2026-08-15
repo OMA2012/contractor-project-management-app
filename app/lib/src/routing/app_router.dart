@@ -19,7 +19,9 @@ import '../screens/password_update_screen.dart';
 import '../screens/protected_shell_screen.dart';
 import '../screens/owner_admin_documents_screen.dart';
 import '../screens/opening_balances_screen.dart';
+import '../screens/owner_client_payments_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
+import '../screens/owner_payment_requests_screen.dart';
 import '../screens/role_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -93,6 +95,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/staff/financial-approval-queue',
             builder: (context, state) => const FinancialApprovalQueueScreen(),
+          ),
+          GoRoute(
+            path: '/staff/client-payments',
+            builder: (context, state) => const OwnerClientPaymentsScreen(),
+          ),
+          GoRoute(
+            path: '/staff/client-payments/:paymentId',
+            builder: (context, state) => OwnerClientPaymentDetailScreen(
+              financialEventId: state.pathParameters['paymentId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/payment-requests',
+            builder: (context, state) => const OwnerPaymentRequestsScreen(),
+          ),
+          GoRoute(
+            path: '/staff/payment-requests/:requestId',
+            builder: (context, state) => OwnerPaymentRequestDetailScreen(
+              paymentRequestId: state.pathParameters['requestId']!,
+            ),
           ),
           GoRoute(
             path: '/staff/documents/upload',
