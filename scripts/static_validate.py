@@ -1796,6 +1796,7 @@ if functions_dir.exists():
     }
     financial_account_gateway_functions = {
         'financial-accounts',
+        'opening-balances',
     }
     allowed_shared_files = {
         'auth.ts',
@@ -1805,6 +1806,8 @@ if functions_dir.exists():
         'client_lifecycle_handler_test.ts',
         'financial_account_handler.ts',
         'financial_account_handler_test.ts',
+        'opening_balance_handler.ts',
+        'opening_balance_handler_test.ts',
         'document_image_handler.ts',
         'document_image_handler_test.ts',
         'document_scan_handler.ts',
