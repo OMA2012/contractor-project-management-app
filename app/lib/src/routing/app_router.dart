@@ -18,6 +18,7 @@ import '../screens/password_reset_request_screen.dart';
 import '../screens/password_update_screen.dart';
 import '../screens/protected_shell_screen.dart';
 import '../screens/owner_admin_documents_screen.dart';
+import '../screens/owner_account_transfers_screen.dart';
 import '../screens/opening_balances_screen.dart';
 import '../screens/owner_client_payments_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
@@ -105,6 +106,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/staff/project-expenses/:expenseId',
             builder: (context, state) => OwnerProjectExpenseDetailScreen(
               financialEventId: state.pathParameters['expenseId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/account-transfers',
+            builder: (context, state) => const OwnerAccountTransfersScreen(),
+          ),
+          GoRoute(
+            path: '/staff/account-transfers/:transferId',
+            builder: (context, state) => OwnerAccountTransferDetailScreen(
+              financialEventId: state.pathParameters['transferId']!,
             ),
           ),
           GoRoute(
