@@ -53,6 +53,12 @@ class RoleHomeScreen extends StatelessWidget {
                           icon: const Icon(Icons.swap_horiz),
                           label: const Text('Account transfers'),
                         ),
+                        FilledButton.icon(
+                          onPressed: () =>
+                              context.go('/staff/currency-exchanges'),
+                          icon: const Icon(Icons.currency_exchange),
+                          label: const Text('Currency exchanges'),
+                        ),
                         OutlinedButton.icon(
                           onPressed: () =>
                               context.go('/staff/financial-approval-queue'),

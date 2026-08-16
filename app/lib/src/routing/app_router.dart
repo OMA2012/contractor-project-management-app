@@ -21,6 +21,7 @@ import '../screens/owner_admin_documents_screen.dart';
 import '../screens/owner_account_transfers_screen.dart';
 import '../screens/opening_balances_screen.dart';
 import '../screens/owner_client_payments_screen.dart';
+import '../screens/owner_currency_exchanges_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
 import '../screens/owner_payment_requests_screen.dart';
 import '../screens/owner_project_expenses_screen.dart';
@@ -116,6 +117,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/staff/account-transfers/:transferId',
             builder: (context, state) => OwnerAccountTransferDetailScreen(
               financialEventId: state.pathParameters['transferId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/currency-exchanges',
+            builder: (context, state) => const OwnerCurrencyExchangesScreen(),
+          ),
+          GoRoute(
+            path: '/staff/currency-exchanges/:exchangeId',
+            builder: (context, state) => OwnerCurrencyExchangeDetailScreen(
+              financialEventId: state.pathParameters['exchangeId']!,
             ),
           ),
           GoRoute(
