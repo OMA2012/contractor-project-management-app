@@ -1799,6 +1799,7 @@ if functions_dir.exists():
         'opening-balances',
         'client-payments',
         'project-expenses',
+        'account-transfers',
     }
     allowed_shared_files = {
         'auth.ts',
@@ -1814,6 +1815,8 @@ if functions_dir.exists():
         'opening_balance_handler_test.ts',
         'project_expense_handler.ts',
         'project_expense_handler_test.ts',
+        'account_transfer_handler.ts',
+        'account_transfer_handler_test.ts',
         'document_image_handler.ts',
         'document_image_handler_test.ts',
         'document_scan_handler.ts',
