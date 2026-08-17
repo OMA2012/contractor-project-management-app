@@ -15,7 +15,7 @@ SELECT col_type_is('app','financial_reversals','reason','text','reversal reason 
 SELECT col_type_is('app','financial_reversals','full_reversal','boolean','full reversal boolean');
 SELECT col_type_is('app','financial_reversals','reversal_date','date','reversal date date');
 SELECT has_index('app','financial_reversals','financial_reversals_event_uk','one reversal subtype per event');
-SELECT has_index('app','financial_reversals','financial_reversals_original_transaction_uk','one full reversal per target transaction');
+SELECT ok(NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='financial_reversals_original_transaction_uk') AND (SELECT pg_get_functiondef('app.financial_reversals_trusted_mutation_guard()'::regprocedure)) LIKE '%Original transaction already has a full reversal.%', 'full reversal duplicate prevention is trusted-state aware');
 SELECT fk_ok('app','financial_reversals','financial_event_id','app','financial_events','id','reversal event FK');
 SELECT fk_ok('app','financial_reversals','original_transaction_id','app','financial_transactions','id','reversal original transaction FK');
 SELECT ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conname='financial_reversals_reason_ck'), 'reversal reason nonblank constraint exists');
