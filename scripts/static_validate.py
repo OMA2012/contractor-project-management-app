@@ -1801,6 +1801,7 @@ if functions_dir.exists():
         'project-expenses',
         'account-transfers',
         'currency-exchanges',
+        'financial-corrections',
     }
     allowed_shared_files = {
         'auth.ts',
@@ -1812,6 +1813,8 @@ if functions_dir.exists():
         'client_payments_handler_test.ts',
         'financial_account_handler.ts',
         'financial_account_handler_test.ts',
+        'financial_corrections_handler.ts',
+        'financial_corrections_handler_test.ts',
         'opening_balance_handler.ts',
         'opening_balance_handler_test.ts',
         'project_expense_handler.ts',

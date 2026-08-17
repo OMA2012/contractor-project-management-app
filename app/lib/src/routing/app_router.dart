@@ -12,6 +12,7 @@ import '../screens/client_notification_list_screen.dart';
 import '../screens/client_project_detail_screen.dart';
 import '../screens/client_project_list_screen.dart';
 import '../screens/financial_accounts_screen.dart';
+import '../screens/financial_corrections_screen.dart';
 import '../screens/inactive_account_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/password_reset_request_screen.dart';
@@ -98,6 +99,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/staff/financial-approval-queue',
             builder: (context, state) => const FinancialApprovalQueueScreen(),
+          ),
+          GoRoute(
+            path: '/staff/financial-reversals',
+            builder: (context, state) => const FinancialReversalsScreen(),
+          ),
+          GoRoute(
+            path: '/staff/financial-reversals/:reversalId',
+            builder: (context, state) => FinancialReversalDetailScreen(
+              financialEventId: state.pathParameters['reversalId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/financial-adjustments',
+            builder: (context, state) => const FinancialAdjustmentsScreen(),
+          ),
+          GoRoute(
+            path: '/staff/financial-adjustments/:adjustmentId',
+            builder: (context, state) => FinancialAdjustmentDetailScreen(
+              financialEventId: state.pathParameters['adjustmentId']!,
+            ),
           ),
           GoRoute(
             path: '/staff/project-expenses',
