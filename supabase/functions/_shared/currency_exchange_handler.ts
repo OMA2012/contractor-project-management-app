@@ -19,6 +19,7 @@ import {
 const ACTIONS = [
   "list",
   "detail",
+  "rate_lookup",
   "create",
   "update",
   "submit",
@@ -70,6 +71,8 @@ async function dispatch(
       return { currency_exchanges: await list(body, auth) };
     case "detail":
       return { currency_exchange: await detail(body, auth) };
+    case "rate_lookup":
+      return { exchange_rates: await rateLookup(body, auth) };
     case "create":
       return { currency_exchange: await create(body, auth, requestId) };
     case "update":
@@ -95,6 +98,30 @@ async function dispatch(
     case "reject":
       return { currency_exchange: await rejectExchange(body, auth, requestId) };
   }
+}
+
+async function rateLookup(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+) {
+  rejectUnknownFields(body, [
+    "action",
+    "source_currency_code",
+    "destination_currency_code",
+    "exchange_date",
+    "limit",
+    "offset",
+  ]);
+  return rows(
+    (await rpc(auth, "server_owner_exchange_rate_picker_list", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_source_currency_code: currency(body.source_currency_code),
+      p_destination_currency_code: currency(body.destination_currency_code),
+      p_rate_date: dateValue(body.exchange_date, "Exchange date"),
+      p_limit: bounded(body.limit, 50, 1, 100),
+      p_offset: bounded(body.offset, 0, 0, 1000000),
+    })).data,
+  ).map(rateLookupRow);
 }
 
 function actionValue(value: unknown): Action {
@@ -312,6 +339,14 @@ const detailRow = (r: Record<string, unknown>) => ({
   rejected_at: nullable(r.rejected_at),
   rejection_reason: nullable(r.rejection_reason),
 });
+const rateLookupRow = (r: Record<string, unknown>) => ({
+  exchange_rate_id: str(r, "id"),
+  rate_date: str(r, "rate_date"),
+  base_currency_code: str(r, "base_currency_code"),
+  quote_currency_code: str(r, "quote_currency_code"),
+  rate_value: decOut(r.rate_value),
+  source: str(r, "source"),
+});
 const mutation = (r: Record<string, unknown>) => ({
   financial_event_id: str(r, "financial_event_id"),
   financial_transaction_id: nullable(r.financial_transaction_id),
@@ -367,6 +402,10 @@ function decOut(v: unknown) {
 function dateValue(v: unknown, field: string) {
   if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
   throw validationFailed(`${field} is invalid.`);
+}
+function currency(v: unknown) {
+  if (typeof v === "string" && /^[A-Z]{3}$/.test(v)) return v;
+  throw validationFailed("Currency code is invalid.");
 }
 function optionalUuid(v: unknown, field: string) {
   return v === undefined || v === null || v === "" ? null : uuidValue(v, field);

@@ -118,6 +118,55 @@ class ProjectExpenseDraft {
   };
 }
 
+class ProjectExpenseLookups {
+  const ProjectExpenseLookups({
+    required this.expenseCategories,
+    required this.projects,
+  });
+
+  final List<ExpenseCategoryOption> expenseCategories;
+  final List<ProjectOption> projects;
+}
+
+class ExpenseCategoryOption {
+  const ExpenseCategoryOption({
+    required this.expenseCategoryId,
+    required this.code,
+    required this.name,
+  });
+
+  factory ExpenseCategoryOption.fromJson(Map<String, dynamic> json) =>
+      ExpenseCategoryOption(
+        expenseCategoryId: _string(json['expense_category_id']),
+        code: _string(json['code']),
+        name: _string(json['name']),
+      );
+
+  final String expenseCategoryId;
+  final String code;
+  final String name;
+}
+
+class ProjectOption {
+  const ProjectOption({
+    required this.projectId,
+    required this.projectNumber,
+    required this.name,
+  });
+
+  factory ProjectOption.fromJson(Map<String, dynamic> json) => ProjectOption(
+    projectId: _string(json['project_id']),
+    projectNumber: _string(json['project_number']),
+    name: _string(json['name']),
+  );
+
+  final String projectId;
+  final String projectNumber;
+  final String name;
+
+  String get display => '$projectNumber - $name';
+}
+
 class ProjectExpenseMutationResult {
   const ProjectExpenseMutationResult({
     required this.financialEventId,

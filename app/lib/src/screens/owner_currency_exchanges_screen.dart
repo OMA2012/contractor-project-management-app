@@ -319,7 +319,6 @@ class _ExchangeForm extends ConsumerStatefulWidget {
 class _ExchangeFormState extends ConsumerState<_ExchangeForm> {
   final _key = GlobalKey<FormState>();
   late final _amount = TextEditingController(text: widget.item?.sourceAmount);
-  late final _rateId = TextEditingController(text: widget.item?.exchangeRateId);
   late final _date = TextEditingController(
     text:
         widget.item?.exchangeDate ??
@@ -329,6 +328,11 @@ class _ExchangeFormState extends ConsumerState<_ExchangeForm> {
   late final _reference = TextEditingController(text: widget.item?.reference);
   FinancialAccount? _source;
   FinancialAccount? _destination;
+  ExchangeRateOption? _rate;
+  List<ExchangeRateOption> _rates = const [];
+  bool _ratesLoading = false;
+  String? _rateError;
+  String? _lastRateKey;
 
   @override
   Widget build(BuildContext context) {
@@ -343,6 +347,7 @@ class _ExchangeFormState extends ConsumerState<_ExchangeForm> {
     _destination ??= accounts
         .where((a) => a.id == widget.item?.destinationAccountId)
         .firstOrNull;
+    _syncRateOptions();
     final destinations = accounts
         .where(
           (a) =>
@@ -411,17 +416,42 @@ class _ExchangeFormState extends ConsumerState<_ExchangeForm> {
                 ),
                 validator: _money,
               ),
-              TextFormField(
-                controller: _rateId,
+              DropdownButtonFormField<ExchangeRateOption>(
+                initialValue: _rates.contains(_rate) ? _rate : null,
+                items: [
+                  for (final rate in _rates)
+                    DropdownMenuItem(value: rate, child: Text(rate.display)),
+                ],
+                onChanged: _ratesLoading
+                    ? null
+                    : (value) => setState(() => _rate = value),
                 decoration: const InputDecoration(
-                  labelText: 'Manual transaction-date exchange rate ID',
+                  labelText: 'Transaction-date exchange rate',
                 ),
-                validator: _required,
+                validator: (value) => value == null ? 'Required' : null,
               ),
+              if (_ratesLoading)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('Loading exchange rates...'),
+                )
+              else if (_rateError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(_rateError!),
+                )
+              else if (_source != null &&
+                  _destination != null &&
+                  _rates.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('No matching exchange rates for this date.'),
+                ),
               TextFormField(
                 controller: _date,
                 decoration: const InputDecoration(labelText: 'Exchange date'),
                 validator: _dateValidator,
+                onChanged: (_) => _syncRateOptions(force: true),
               ),
               TextFormField(
                 controller: _fee,
@@ -460,7 +490,8 @@ class _ExchangeFormState extends ConsumerState<_ExchangeForm> {
   void _submit() {
     if (_key.currentState?.validate() != true ||
         _source == null ||
-        _destination == null) {
+        _destination == null ||
+        _rate == null) {
       return;
     }
     Navigator.of(context).pop(
@@ -468,12 +499,56 @@ class _ExchangeFormState extends ConsumerState<_ExchangeForm> {
         sourceAccountId: _source!.id,
         destinationAccountId: _destination!.id,
         sourceAmount: _amount.text.trim(),
-        exchangeRateId: _rateId.text.trim(),
+        exchangeRateId: _rate!.exchangeRateId,
         exchangeDate: _date.text.trim(),
         feeAmount: _optional(_fee.text),
         reference: _optional(_reference.text),
       ),
     );
+  }
+
+  void _syncRateOptions({bool force = false}) {
+    final source = _source;
+    final destination = _destination;
+    final date = _date.text.trim();
+    final validDate = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date);
+    if (source == null || destination == null || !validDate) return;
+    final key = '${source.currencyCode}|${destination.currencyCode}|$date';
+    if (!force && key == _lastRateKey) return;
+    _lastRateKey = key;
+    Future.microtask(() async {
+      if (!mounted) return;
+      setState(() {
+        _ratesLoading = true;
+        _rateError = null;
+      });
+      try {
+        final rates = await ref
+            .read(currencyExchangeRepositoryProvider)
+            .rateOptions(
+              sourceCurrencyCode: source.currencyCode,
+              destinationCurrencyCode: destination.currencyCode,
+              exchangeDate: date,
+            );
+        if (!mounted || _lastRateKey != key) return;
+        setState(() {
+          _rates = rates;
+          _rate = rates
+              .where((r) => r.exchangeRateId == widget.item?.exchangeRateId)
+              .firstOrNull;
+          _rate ??= rates.length == 1 ? rates.single : null;
+          _ratesLoading = false;
+        });
+      } catch (_) {
+        if (!mounted || _lastRateKey != key) return;
+        setState(() {
+          _rates = const [];
+          _rate = null;
+          _rateError = 'Exchange rates could not be loaded.';
+          _ratesLoading = false;
+        });
+      }
+    });
   }
 }
 
@@ -594,6 +669,4 @@ String? _dateValidator(String? value) =>
     RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value?.trim() ?? '')
     ? null
     : 'Use YYYY-MM-DD';
-String? _required(String? value) =>
-    value == null || value.trim().isEmpty ? 'Required' : null;
 String? _optional(String value) => value.trim().isEmpty ? null : value.trim();

@@ -152,6 +152,37 @@ class CurrencyExchangeDraft {
   };
 }
 
+class ExchangeRateOption {
+  const ExchangeRateOption({
+    required this.exchangeRateId,
+    required this.rateDate,
+    required this.baseCurrencyCode,
+    required this.quoteCurrencyCode,
+    required this.rateValue,
+    required this.source,
+  });
+
+  factory ExchangeRateOption.fromJson(Map<String, dynamic> json) =>
+      ExchangeRateOption(
+        exchangeRateId: _string(json['exchange_rate_id']),
+        rateDate: _string(json['rate_date']),
+        baseCurrencyCode: _string(json['base_currency_code']),
+        quoteCurrencyCode: _string(json['quote_currency_code']),
+        rateValue: _string(json['rate_value']),
+        source: _string(json['source']),
+      );
+
+  final String exchangeRateId;
+  final String rateDate;
+  final String baseCurrencyCode;
+  final String quoteCurrencyCode;
+  final String rateValue;
+  final String source;
+
+  String get display =>
+      '$rateDate - 1 $baseCurrencyCode = $rateValue $quoteCurrencyCode';
+}
+
 class CurrencyExchangeMutationResult {
   const CurrencyExchangeMutationResult({
     required this.financialEventId,
