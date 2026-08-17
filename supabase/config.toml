@@ -60,3 +60,6 @@ verify_jwt = false
 
 [functions.financial-accounts]
 verify_jwt = false
+
+[functions.financial-corrections]
+verify_jwt = false
