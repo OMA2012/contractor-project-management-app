@@ -63,3 +63,6 @@ verify_jwt = false
 
 [functions.financial-corrections]
 verify_jwt = false
+
+[functions.client-projects]
+verify_jwt = false

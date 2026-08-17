@@ -37,6 +37,16 @@ class RoleHomeScreen extends StatelessWidget {
                       runSpacing: 8,
                       children: [
                         FilledButton.icon(
+                          onPressed: () => context.go('/staff/clients'),
+                          icon: const Icon(Icons.business),
+                          label: const Text('Clients'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () => context.go('/staff/projects'),
+                          icon: const Icon(Icons.work),
+                          label: const Text('Projects'),
+                        ),
+                        FilledButton.icon(
                           onPressed: () => context.go('/staff/documents'),
                           icon: const Icon(Icons.description),
                           label: const Text('Documents'),
