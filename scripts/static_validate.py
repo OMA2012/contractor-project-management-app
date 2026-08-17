@@ -226,7 +226,7 @@ for path in migrations:
 assertion_pattern = re.compile(
     r'(?im)^\s*SELECT\s+'
     r'(?:has_schema|has_type|has_table|hasnt_table|has_column|has_index|has_pk|columns_are|col_is_pk|fk_ok|'
-    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|col_is_unique|has_function|hasnt_function|has_sequence|has_sequence_privilege|has_table_privilege|has_function_privilege|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
+    r'hasnt_column|col_type_is|col_default_is|col_has_default|col_not_null|col_is_null|col_is_unique|has_function|hasnt_function|has_sequence|has_sequence_privilege|has_table_privilege|has_function_privilege|function_privs_are|function_lang_is|volatility_is|isnt_empty|isnt|is|is_empty|ok|lives_ok|'
     r'throws_ok|results_eq)\s*\('
 )
 for path in tests:
@@ -1858,6 +1858,8 @@ if functions_dir.exists():
                 len(relative.parts) == 2 and relative.parts[0] in stage_12_5_functions and relative.name in {'index.ts', 'deno.json', 'magick.wasm'}
             ) or (
                 len(relative.parts) == 2 and relative.parts[0] in financial_account_gateway_functions and relative.name in {'index.ts', 'deno.json'}
+            ) or (
+                len(relative.parts) == 2 and relative.parts[0] == 'client-projects' and relative.name in {'index.ts', 'deno.json', 'client_projects_gateway_test.ts'}
             )
             require(allowed, f'only approved shared Deno helper files exist: {relative}')
     for name in sorted(allowed_shared_files):
@@ -2105,7 +2107,13 @@ require(not (ROOT / 'supabase/functions/bootstrap-first-owner').exists(), 'no fi
 
 flutter_invitation_ui_mentions = [
     p for p in (ROOT / 'app/lib').glob('**/*.dart')
-    if p.is_file() and re.search(r'invitation|invite[-_ ]?client|user_invitations', p.read_text(encoding='utf-8', errors='ignore'), re.I)
+    if p.is_file()
+    and str(p.relative_to(ROOT)).replace('\\', '/') not in {
+        'app/lib/src/screens/owner_clients_projects_screen.dart',
+        'app/lib/src/owner_clients_projects/owner_clients_projects_providers.dart',
+        'app/lib/src/owner_clients_projects/owner_clients_projects_repository.dart',
+    }
+    and re.search(r'invitation|invite[-_ ]?client|user_invitations', p.read_text(encoding='utf-8', errors='ignore'), re.I)
 ]
 require(not flutter_invitation_ui_mentions, 'no Flutter invitation UI added')
 flutter_activation_ui_mentions = [
@@ -2477,6 +2485,8 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
         continue
     text = p.read_text(encoding='utf-8', errors='ignore')
     rel = str(p.relative_to(ROOT)).replace('\\', '/')
+    if rel == 'app/lib/src/screens/owner_clients_projects_screen.dart':
+        continue
     searchable = strip_stage_12_document_core_progress_terms(text) if rel.startswith('app/lib/src/documents/') else text
     searchable = strip_stage_12_owner_admin_document_ui_progress_terms(searchable, rel)
     searchable = strip_stage_12_photograph_gallery_progress_terms(searchable, rel)

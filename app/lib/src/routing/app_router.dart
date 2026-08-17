@@ -23,6 +23,7 @@ import '../screens/owner_account_transfers_screen.dart';
 import '../screens/opening_balances_screen.dart';
 import '../screens/owner_client_payments_screen.dart';
 import '../screens/owner_currency_exchanges_screen.dart';
+import '../screens/owner_clients_projects_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
 import '../screens/owner_payment_requests_screen.dart';
 import '../screens/owner_project_expenses_screen.dart';
@@ -66,6 +67,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/staff',
             builder: (context, state) =>
                 const RoleHomeScreen(role: AccountRole.staff),
+          ),
+          GoRoute(
+            path: '/staff/clients',
+            builder: (context, state) => const OwnerClientListScreen(),
+          ),
+          GoRoute(
+            path: '/staff/clients/new',
+            builder: (context, state) => const OwnerClientFormScreen(),
+          ),
+          GoRoute(
+            path: '/staff/clients/:clientId',
+            builder: (context, state) => OwnerClientDetailScreen(
+              clientId: state.pathParameters['clientId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/clients/:clientId/edit',
+            builder: (context, state) => OwnerClientFormScreen(
+              clientId: state.pathParameters['clientId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/projects',
+            builder: (context, state) => const OwnerProjectListScreen(),
+          ),
+          GoRoute(
+            path: '/staff/projects/new',
+            builder: (context, state) => OwnerProjectFormScreen(
+              initialClientId: state.uri.queryParameters['clientId'],
+            ),
+          ),
+          GoRoute(
+            path: '/staff/projects/:projectId',
+            builder: (context, state) => OwnerProjectDetailScreen(
+              projectId: state.pathParameters['projectId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/staff/projects/:projectId/edit',
+            builder: (context, state) => OwnerProjectFormScreen(
+              projectId: state.pathParameters['projectId']!,
+            ),
           ),
           GoRoute(
             path: '/staff/documents',
