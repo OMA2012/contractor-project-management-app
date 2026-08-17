@@ -12,6 +12,10 @@ class OwnerClientPayment {
     required this.transactionStatus,
     required this.isClientSubmitted,
     required this.versionNumber,
+    this.projectNumber,
+    this.projectName,
+    this.clientNumber,
+    this.clientName,
     this.financialTransactionId,
     this.transactionNumber,
     this.receivedAccountId,
@@ -35,6 +39,10 @@ class OwnerClientPayment {
         transactionNumber: _nullable(json['transaction_number']),
         projectId: _string(json['project_id']),
         clientId: _string(json['client_id']),
+        projectNumber: _nullable(json['project_number']),
+        projectName: _nullable(json['project_name']),
+        clientNumber: _nullable(json['client_number']),
+        clientName: _nullable(json['client_name']),
         amount: _string(json['amount']),
         currencyCode: _string(json['currency_code']),
         receivedAccountId: _nullable(json['received_account_id']),
@@ -61,6 +69,10 @@ class OwnerClientPayment {
   final String? transactionNumber;
   final String projectId;
   final String clientId;
+  final String? projectNumber;
+  final String? projectName;
+  final String? clientNumber;
+  final String? clientName;
   final String amount;
   final String currencyCode;
   final String? receivedAccountId;
@@ -85,6 +97,10 @@ class OwnerClientPayment {
       eventStatus == 'APPROVED' && transactionStatus == 'POSTED';
   bool get isRejected => eventStatus == 'REJECTED';
   String get moneyDisplay => '$currencyCode $amount';
+  String get projectDisplay =>
+      _businessDisplay(projectNumber, projectName) ?? projectId;
+  String get clientDisplay =>
+      _businessDisplay(clientNumber, clientName) ?? clientId;
   String get verificationLabel => isClientSubmitted && !isPosted
       ? 'Submitted for verification'
       : eventStatus;
@@ -132,6 +148,10 @@ class OwnerPaymentRequest {
     required this.status,
     required this.effectiveStatus,
     required this.versionNumber,
+    this.projectNumber,
+    this.projectName,
+    this.clientNumber,
+    this.clientName,
     this.requestDate,
     this.dueDate,
     this.description,
@@ -148,6 +168,10 @@ class OwnerPaymentRequest {
         requestNumber: _string(json['request_number']),
         projectId: _string(json['project_id']),
         clientId: _string(json['client_id']),
+        projectNumber: _nullable(json['project_number']),
+        projectName: _nullable(json['project_name']),
+        clientNumber: _nullable(json['client_number']),
+        clientName: _nullable(json['client_name']),
         requestedAmount: _string(json['requested_amount']),
         currencyCode: _string(json['currency_code']),
         requestDate: _nullable(json['request_date']),
@@ -167,6 +191,10 @@ class OwnerPaymentRequest {
   final String requestNumber;
   final String projectId;
   final String clientId;
+  final String? projectNumber;
+  final String? projectName;
+  final String? clientNumber;
+  final String? clientName;
   final String requestedAmount;
   final String currencyCode;
   final String? requestDate;
@@ -184,6 +212,41 @@ class OwnerPaymentRequest {
   bool get isDraft => status == 'DRAFT';
   bool get canSend => status == 'DRAFT';
   String get moneyDisplay => '$currencyCode $requestedAmount';
+  String get projectDisplay =>
+      _businessDisplay(projectNumber, projectName) ?? projectId;
+  String get clientDisplay =>
+      _businessDisplay(clientNumber, clientName) ?? clientId;
+}
+
+class OwnerPaymentProjectOption {
+  const OwnerPaymentProjectOption({
+    required this.projectId,
+    required this.projectNumber,
+    required this.name,
+    this.clientNumber,
+    this.clientName,
+  });
+
+  factory OwnerPaymentProjectOption.fromJson(Map<String, dynamic> json) =>
+      OwnerPaymentProjectOption(
+        projectId: _string(json['project_id'] ?? json['id']),
+        projectNumber: _string(json['project_number']),
+        name: _string(json['name'] ?? json['project_name']),
+        clientNumber: _nullable(json['client_number']),
+        clientName: _nullable(json['client_name']),
+      );
+
+  final String projectId;
+  final String projectNumber;
+  final String name;
+  final String? clientNumber;
+  final String? clientName;
+
+  String get display {
+    final project = _businessDisplay(projectNumber, name) ?? projectNumber;
+    final client = _businessDisplay(clientNumber, clientName);
+    return client == null ? project : '$project - $client';
+  }
 }
 
 class OwnerPaymentRequestDraft {
@@ -230,4 +293,12 @@ String _string(Object? value) =>
 String? _nullable(Object? value) {
   final text = value?.toString();
   return text == null || text.isEmpty ? null : text;
+}
+
+String? _businessDisplay(String? number, String? name) {
+  final cleanNumber = number?.trim();
+  final cleanName = name?.trim();
+  if (cleanNumber == null || cleanNumber.isEmpty) return cleanName;
+  if (cleanName == null || cleanName.isEmpty) return cleanNumber;
+  return '$cleanNumber - $cleanName';
 }

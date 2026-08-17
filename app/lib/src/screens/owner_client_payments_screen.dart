@@ -213,8 +213,8 @@ class OwnerClientPaymentDetailScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 16),
           _Meta('Amount', item.moneyDisplay),
-          _Meta('Client', item.clientId),
-          _Meta('Project', item.projectId),
+          _Meta('Client', item.clientDisplay),
+          _Meta('Project', item.projectDisplay),
           _Meta('Payment date', item.receivedDate),
           _Meta('Status', item.isPosted ? 'Posted' : item.eventStatus),
           _Meta('Transaction', item.transactionStatus),
@@ -334,9 +334,12 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
     text: widget.item?.notes,
   );
   FinancialAccount? _account;
+  OwnerPaymentProjectOption? _projectOption;
+  late final Future<List<OwnerPaymentProjectOption>> _projects;
   @override
   void initState() {
     super.initState();
+    _projects = ref.read(ownerPaymentRepositoryProvider).projectLookups();
     Future.microtask(
       () => ref.read(financialAccountListProvider.notifier).load(),
     );
@@ -357,84 +360,105 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
     _account ??= accounts
         .where((a) => a.id == widget.item?.receivedAccountId)
         .firstOrNull;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          MediaQuery.viewInsetsOf(context).bottom + 16,
-        ),
-        child: Form(
-          key: _key,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Text(
-                widget.item == null ? 'Create client payment' : 'Edit draft',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              TextFormField(
-                controller: _project,
-                decoration: const InputDecoration(labelText: 'Project ID'),
-                validator: _required,
-              ),
-              TextFormField(
-                controller: _amount,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: _money,
-              ),
-              TextFormField(
-                controller: _currency,
-                decoration: const InputDecoration(labelText: 'Currency'),
-                validator: _currencyValidator,
-                onChanged: (_) => setState(() => _account = null),
-              ),
-              DropdownButtonFormField<FinancialAccount>(
-                initialValue: _account,
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(
-                      value: a,
-                      child: Text('${a.name} - ${a.currencyCode}'),
+    return FutureBuilder<List<OwnerPaymentProjectOption>>(
+      future: _projects,
+      builder: (context, snapshot) {
+        final projects = snapshot.data ?? const <OwnerPaymentProjectOption>[];
+        _projectOption ??= projects
+            .where((p) => p.projectId == widget.item?.projectId)
+            .firstOrNull;
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              MediaQuery.viewInsetsOf(context).bottom + 16,
+            ),
+            child: Form(
+              key: _key,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Text(
+                    widget.item == null
+                        ? 'Create client payment'
+                        : 'Edit draft',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  DropdownButtonFormField<OwnerPaymentProjectOption>(
+                    initialValue: _projectOption,
+                    items: [
+                      for (final p in projects)
+                        DropdownMenuItem(value: p, child: Text(p.display)),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _projectOption = value;
+                      _project.text = value?.projectId ?? '';
+                    }),
+                    decoration: const InputDecoration(labelText: 'Project'),
+                    validator: (value) => value == null ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    controller: _amount,
+                    decoration: const InputDecoration(labelText: 'Amount'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
+                    validator: _money,
+                  ),
+                  TextFormField(
+                    controller: _currency,
+                    decoration: const InputDecoration(labelText: 'Currency'),
+                    validator: _currencyValidator,
+                    onChanged: (_) => setState(() => _account = null),
+                  ),
+                  DropdownButtonFormField<FinancialAccount>(
+                    initialValue: _account,
+                    items: [
+                      for (final a in accounts)
+                        DropdownMenuItem(
+                          value: a,
+                          child: Text('${a.name} - ${a.currencyCode}'),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() => _account = value),
+                    decoration: const InputDecoration(
+                      labelText: 'Receiving account',
+                    ),
+                  ),
+                  TextFormField(
+                    controller: _date,
+                    decoration: const InputDecoration(
+                      labelText: 'Payment date',
+                    ),
+                    validator: _dateValidator,
+                  ),
+                  TextFormField(
+                    controller: _reference,
+                    decoration: const InputDecoration(labelText: 'Reference'),
+                  ),
+                  TextFormField(
+                    controller: _payer,
+                    decoration: const InputDecoration(labelText: 'Payer'),
+                  ),
+                  TextFormField(
+                    controller: _notes,
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Save Draft'),
+                    onPressed: _submit,
+                  ),
                 ],
-                onChanged: (value) => setState(() => _account = value),
-                decoration: const InputDecoration(
-                  labelText: 'Receiving account',
-                ),
               ),
-              TextFormField(
-                controller: _date,
-                decoration: const InputDecoration(labelText: 'Payment date'),
-                validator: _dateValidator,
-              ),
-              TextFormField(
-                controller: _reference,
-                decoration: const InputDecoration(labelText: 'Reference'),
-              ),
-              TextFormField(
-                controller: _payer,
-                decoration: const InputDecoration(labelText: 'Payer'),
-              ),
-              TextFormField(
-                controller: _notes,
-                decoration: const InputDecoration(labelText: 'Notes'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('Save Draft'),
-                onPressed: _submit,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -563,8 +587,6 @@ class _Meta extends StatelessWidget {
   );
 }
 
-String? _required(String? value) =>
-    value == null || value.trim().isEmpty ? 'Required' : null;
 String? _money(String? value) =>
     RegExp(r'^\d+(\.\d+)?$').hasMatch(value?.trim() ?? '')
     ? null

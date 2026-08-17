@@ -19,6 +19,7 @@ import {
 const ACTIONS = [
   "list",
   "detail",
+  "lookup",
   "create",
   "update",
   "verify_client_submitted",
@@ -77,6 +78,8 @@ async function dispatch(
       return { payments: await list(body, auth) };
     case "detail":
       return { payment: await detail(body, auth) };
+    case "lookup":
+      return { projects: await projectLookup(body, auth) };
     case "create":
       return { payment: await create(body, auth, requestId) };
     case "update":
@@ -123,6 +126,20 @@ async function dispatch(
     case "request_cancel":
       return { request: await requestCancel(body, auth, requestId) };
   }
+}
+
+async function projectLookup(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+) {
+  rejectUnknownFields(body, ["action", "limit", "offset"]);
+  return rows(
+    (await rpc(auth, "server_owner_project_record_list", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_limit: bounded(body.limit, 100, 1, 100),
+      p_offset: bounded(body.offset, 0, 0, 1_000_000),
+    })).data,
+  ).map(projectRow);
 }
 
 function actionValue(value: unknown): Action {
@@ -503,6 +520,10 @@ const paymentSummary = (r: Record<string, unknown>) => ({
   transaction_number: nullable(r.transaction_number),
   project_id: str(r, "project_id"),
   client_id: str(r, "client_id"),
+  project_number: nullable(r.project_number),
+  project_name: nullable(r.project_name ?? r.name),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
   received_date: str(r, "received_date"),
   event_status: str(r, "event_status"),
   transaction_status: str(r, "transaction_status"),
@@ -527,6 +548,10 @@ const requestSummary = (r: Record<string, unknown>) => ({
   request_number: str(r, "request_number"),
   project_id: str(r, "project_id"),
   client_id: str(r, "client_id"),
+  project_number: nullable(r.project_number),
+  project_name: nullable(r.project_name ?? r.name),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
   requested_amount: decOut(r.requested_amount),
   currency_code: str(r, "currency_code"),
   request_date: nullable(r.request_date),
@@ -568,6 +593,13 @@ const requestMutation = (r: Record<string, unknown>) => ({
   request_number: str(r, "request_number"),
   status: str(r, "status"),
   version_number: int(r.version_number),
+});
+const projectRow = (r: Record<string, unknown>) => ({
+  project_id: str(r, "id"),
+  project_number: str(r, "project_number"),
+  name: str(r, "name"),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
 });
 const money = (r: Record<string, unknown>) => ({
   amount: decOut(r.amount),

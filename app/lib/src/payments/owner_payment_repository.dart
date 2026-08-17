@@ -8,6 +8,7 @@ typedef OwnerPaymentFunctionInvoke =
 abstract class OwnerPaymentRepository {
   Future<List<OwnerClientPayment>> listPayments();
   Future<OwnerClientPayment> paymentDetail(String financialEventId);
+  Future<List<OwnerPaymentProjectOption>> projectLookups();
   Future<OwnerPaymentMutationResult> createPayment(
     OwnerClientPaymentDraft draft,
   );
@@ -67,6 +68,13 @@ class SupabaseOwnerPaymentRepository implements OwnerPaymentRepository {
           'financial_event_id': financialEventId,
         }))['payment'],
       );
+
+  @override
+  Future<List<OwnerPaymentProjectOption>> projectLookups() async =>
+      ((await _action({'action': 'lookup'}))['projects'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(OwnerPaymentProjectOption.fromJson)
+          .toList(growable: false);
 
   @override
   Future<OwnerPaymentMutationResult> createPayment(

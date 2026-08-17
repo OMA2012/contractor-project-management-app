@@ -181,8 +181,8 @@ class OwnerPaymentRequestDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           _Meta('Amount', item.moneyDisplay),
-          _Meta('Client', item.clientId),
-          _Meta('Project', item.projectId),
+          _Meta('Client', item.clientDisplay),
+          _Meta('Project', item.projectDisplay),
           _Meta('Status', item.effectiveStatus),
           if (item.requestDate != null)
             _Meta('Request date', item.requestDate!),
@@ -236,14 +236,14 @@ class OwnerPaymentRequestDetailScreen extends ConsumerWidget {
   }
 }
 
-class _RequestForm extends StatefulWidget {
+class _RequestForm extends ConsumerStatefulWidget {
   const _RequestForm({this.item});
   final OwnerPaymentRequest? item;
   @override
-  State<_RequestForm> createState() => _RequestFormState();
+  ConsumerState<_RequestForm> createState() => _RequestFormState();
 }
 
-class _RequestFormState extends State<_RequestForm> {
+class _RequestFormState extends ConsumerState<_RequestForm> {
   final _key = GlobalKey<FormState>();
   late final TextEditingController _project = TextEditingController(
     text: widget.item?.projectId,
@@ -265,66 +265,93 @@ class _RequestFormState extends State<_RequestForm> {
   late final TextEditingController _description = TextEditingController(
     text: widget.item?.description,
   );
+  OwnerPaymentProjectOption? _projectOption;
+  late final Future<List<OwnerPaymentProjectOption>> _projects;
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        MediaQuery.viewInsetsOf(context).bottom + 16,
-      ),
-      child: Form(
-        key: _key,
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Text(
-              widget.item == null ? 'Create payment request' : 'Edit draft',
-              style: Theme.of(context).textTheme.titleLarge,
+  void initState() {
+    super.initState();
+    _projects = ref.read(ownerPaymentRepositoryProvider).projectLookups();
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) => FutureBuilder<List<OwnerPaymentProjectOption>>(
+    future: _projects,
+    builder: (context, snapshot) {
+      final projects = snapshot.data ?? const <OwnerPaymentProjectOption>[];
+      _projectOption ??= projects
+          .where((p) => p.projectId == widget.item?.projectId)
+          .firstOrNull;
+      return SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            MediaQuery.viewInsetsOf(context).bottom + 16,
+          ),
+          child: Form(
+            key: _key,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Text(
+                  widget.item == null ? 'Create payment request' : 'Edit draft',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                DropdownButtonFormField<OwnerPaymentProjectOption>(
+                  initialValue: _projectOption,
+                  items: [
+                    for (final p in projects)
+                      DropdownMenuItem(value: p, child: Text(p.display)),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _projectOption = value;
+                    _project.text = value?.projectId ?? '';
+                  }),
+                  decoration: const InputDecoration(labelText: 'Project'),
+                  validator: (value) => value == null ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _amount,
+                  decoration: const InputDecoration(labelText: 'Amount'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: _money,
+                ),
+                TextFormField(
+                  controller: _currency,
+                  decoration: const InputDecoration(labelText: 'Currency'),
+                  validator: _currencyValidator,
+                ),
+                TextFormField(
+                  controller: _requestDate,
+                  decoration: const InputDecoration(labelText: 'Request date'),
+                  validator: _dateValidator,
+                ),
+                TextFormField(
+                  controller: _dueDate,
+                  decoration: const InputDecoration(labelText: 'Due date'),
+                ),
+                TextFormField(
+                  controller: _description,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text('Save Draft'),
+                  onPressed: _submit,
+                ),
+              ],
             ),
-            TextFormField(
-              controller: _project,
-              decoration: const InputDecoration(labelText: 'Project ID'),
-              validator: _required,
-            ),
-            TextFormField(
-              controller: _amount,
-              decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              validator: _money,
-            ),
-            TextFormField(
-              controller: _currency,
-              decoration: const InputDecoration(labelText: 'Currency'),
-              validator: _currencyValidator,
-            ),
-            TextFormField(
-              controller: _requestDate,
-              decoration: const InputDecoration(labelText: 'Request date'),
-              validator: _dateValidator,
-            ),
-            TextFormField(
-              controller: _dueDate,
-              decoration: const InputDecoration(labelText: 'Due date'),
-            ),
-            TextFormField(
-              controller: _description,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              icon: const Icon(Icons.save),
-              label: const Text('Save Draft'),
-              onPressed: _submit,
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
   void _submit() {
     if (_key.currentState?.validate() != true) return;
@@ -404,8 +431,6 @@ class _Meta extends StatelessWidget {
   );
 }
 
-String? _required(String? value) =>
-    value == null || value.trim().isEmpty ? 'Required' : null;
 String? _money(String? value) =>
     RegExp(r'^\d+(\.\d+)?$').hasMatch(value?.trim() ?? '')
     ? null
