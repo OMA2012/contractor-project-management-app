@@ -273,10 +273,6 @@ class _ExpenseForm extends ConsumerStatefulWidget {
 
 class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   final _key = GlobalKey<FormState>();
-  late final _project = TextEditingController(text: widget.item?.projectId);
-  late final _category = TextEditingController(
-    text: widget.item?.expenseCategoryId,
-  );
   late final _amount = TextEditingController(text: widget.item?.amount);
   late final _currency = TextEditingController(
     text: widget.item?.currencyCode ?? 'USD',
@@ -295,6 +291,15 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   );
   late final _notes = TextEditingController(text: widget.item?.privateNotes);
   FinancialAccount? _account;
+  ProjectOption? _project;
+  ExpenseCategoryOption? _category;
+  late final Future<ProjectExpenseLookups> _lookups;
+
+  @override
+  void initState() {
+    super.initState();
+    _lookups = ref.read(projectExpenseRepositoryProvider).lookups();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,106 +316,171 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     _account ??= accounts
         .where((a) => a.id == widget.item?.paidFromAccountId)
         .firstOrNull;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          16,
-          0,
-          16,
-          MediaQuery.viewInsetsOf(context).bottom + 16,
-        ),
-        child: Form(
-          key: _key,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Text(
-                widget.item == null ? 'Create project expense' : 'Edit draft',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              TextFormField(
-                controller: _project,
-                decoration: const InputDecoration(labelText: 'Project ID'),
-                validator: _required,
-              ),
-              TextFormField(
-                controller: _category,
-                decoration: const InputDecoration(
-                  labelText: 'Expense category ID',
-                ),
-                validator: _required,
-              ),
-              TextFormField(
-                controller: _amount,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: _money,
-              ),
-              TextFormField(
-                controller: _currency,
-                decoration: const InputDecoration(labelText: 'Currency'),
-                validator: _currencyValidator,
-                onChanged: (_) => setState(() => _account = null),
-              ),
-              DropdownButtonFormField<FinancialAccount>(
-                initialValue: _account,
-                items: [
-                  for (final a in accounts)
-                    DropdownMenuItem(
-                      value: a,
-                      child: Text('${a.name} - ${a.currencyCode}'),
+    return FutureBuilder<ProjectExpenseLookups>(
+      future: _lookups,
+      builder: (context, snapshot) {
+        final lookups = snapshot.data;
+        if (lookups != null) {
+          _project ??= lookups.projects
+              .where((p) => p.projectId == widget.item?.projectId)
+              .firstOrNull;
+          _category ??= lookups.expenseCategories
+              .where(
+                (c) => c.expenseCategoryId == widget.item?.expenseCategoryId,
+              )
+              .firstOrNull;
+        }
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              MediaQuery.viewInsetsOf(context).bottom + 16,
+            ),
+            child: Form(
+              key: _key,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  Text(
+                    widget.item == null
+                        ? 'Create project expense'
+                        : 'Edit draft',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  DropdownButtonFormField<ProjectOption>(
+                    initialValue: lookups?.projects.contains(_project) == true
+                        ? _project
+                        : null,
+                    items: [
+                      for (final project
+                          in lookups?.projects ?? const <ProjectOption>[])
+                        DropdownMenuItem(
+                          value: project,
+                          child: Text(project.display),
+                        ),
+                    ],
+                    onChanged: snapshot.hasData
+                        ? (value) => setState(() => _project = value)
+                        : null,
+                    decoration: const InputDecoration(labelText: 'Project'),
+                    validator: (value) => value == null ? 'Required' : null,
+                  ),
+                  DropdownButtonFormField<ExpenseCategoryOption>(
+                    initialValue:
+                        lookups?.expenseCategories.contains(_category) == true
+                        ? _category
+                        : null,
+                    items: [
+                      for (final category
+                          in lookups?.expenseCategories ??
+                              const <ExpenseCategoryOption>[])
+                        DropdownMenuItem(
+                          value: category,
+                          child: Text(category.name),
+                        ),
+                    ],
+                    onChanged: snapshot.hasData
+                        ? (value) => setState(() => _category = value)
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Expense category',
                     ),
+                    validator: (value) => value == null ? 'Required' : null,
+                  ),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text('Loading project lookups...'),
+                    )
+                  else if (snapshot.hasError)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text('Project lookups could not be loaded.'),
+                    ),
+                  TextFormField(
+                    controller: _amount,
+                    decoration: const InputDecoration(labelText: 'Amount'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: _money,
+                  ),
+                  TextFormField(
+                    controller: _currency,
+                    decoration: const InputDecoration(labelText: 'Currency'),
+                    validator: _currencyValidator,
+                    onChanged: (_) => setState(() => _account = null),
+                  ),
+                  DropdownButtonFormField<FinancialAccount>(
+                    initialValue: _account,
+                    items: [
+                      for (final a in accounts)
+                        DropdownMenuItem(
+                          value: a,
+                          child: Text('${a.name} - ${a.currencyCode}'),
+                        ),
+                    ],
+                    onChanged: (value) => setState(() => _account = value),
+                    validator: (value) => value == null ? 'Required' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Paid from account',
+                    ),
+                  ),
+                  TextFormField(
+                    controller: _date,
+                    decoration: const InputDecoration(
+                      labelText: 'Expense date',
+                    ),
+                    validator: _dateValidator,
+                  ),
+                  TextFormField(
+                    controller: _vendor,
+                    decoration: const InputDecoration(labelText: 'Vendor'),
+                  ),
+                  TextFormField(
+                    controller: _reference,
+                    decoration: const InputDecoration(labelText: 'Reference'),
+                  ),
+                  TextFormField(
+                    controller: _description,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    validator: _required,
+                  ),
+                  TextFormField(
+                    controller: _notes,
+                    decoration: const InputDecoration(
+                      labelText: 'Private notes',
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Save Draft'),
+                    onPressed: _submit,
+                  ),
                 ],
-                onChanged: (value) => setState(() => _account = value),
-                validator: (value) => value == null ? 'Required' : null,
-                decoration: const InputDecoration(
-                  labelText: 'Paid from account',
-                ),
               ),
-              TextFormField(
-                controller: _date,
-                decoration: const InputDecoration(labelText: 'Expense date'),
-                validator: _dateValidator,
-              ),
-              TextFormField(
-                controller: _vendor,
-                decoration: const InputDecoration(labelText: 'Vendor'),
-              ),
-              TextFormField(
-                controller: _reference,
-                decoration: const InputDecoration(labelText: 'Reference'),
-              ),
-              TextFormField(
-                controller: _description,
-                decoration: const InputDecoration(labelText: 'Description'),
-                validator: _required,
-              ),
-              TextFormField(
-                controller: _notes,
-                decoration: const InputDecoration(labelText: 'Private notes'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('Save Draft'),
-                onPressed: _submit,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   void _submit() {
-    if (_key.currentState?.validate() != true || _account == null) return;
+    if (_key.currentState?.validate() != true ||
+        _account == null ||
+        _project == null ||
+        _category == null) {
+      return;
+    }
     Navigator.of(context).pop(
       ProjectExpenseDraft(
-        projectId: _project.text.trim(),
-        expenseCategoryId: _category.text.trim(),
+        projectId: _project!.projectId,
+        expenseCategoryId: _category!.expenseCategoryId,
         amount: _amount.text.trim(),
         currencyCode: _currency.text.trim().toUpperCase(),
         paidFromAccountId: _account!.id,

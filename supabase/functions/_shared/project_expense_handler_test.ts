@@ -58,6 +58,15 @@ function mockAuth(calls: Record<string, unknown>[]) {
           if (name === "server_owner_project_expense_detail") {
             return Promise.resolve({ data: [detailRow()], error: null });
           }
+          if (name === "server_owner_expense_category_picker_list") {
+            return Promise.resolve({
+              data: [categoryLookupRow()],
+              error: null,
+            });
+          }
+          if (name === "server_owner_project_record_list") {
+            return Promise.resolve({ data: [projectLookupRow()], error: null });
+          }
           return Promise.resolve({ data: [mutationRow()], error: null });
         },
       },
@@ -84,6 +93,25 @@ Deno.test("project expense gateway handles authenticated Owner list and detail",
   assertEquals(response.status, 200);
   assertEquals(calls[1].name, "server_owner_project_expense_detail");
   assertEquals(json.data.project_expense.private_notes, "private");
+});
+
+Deno.test("project expense lookup returns category names and project labels only", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const handler = createProjectExpenseHandler({
+    loadEnv: env,
+    authenticate: mockAuth(calls),
+  });
+  const response = await handler(request({ action: "lookup" }));
+  const json = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(calls.map((c) => c.name), [
+    "server_owner_expense_category_picker_list",
+    "server_owner_project_record_list",
+  ]);
+  assertEquals(json.data.expense_categories[0].name, "Materials");
+  assertEquals(json.data.projects[0].project_number, "PRJ-1");
+  assert(String(JSON.stringify(json)).includes("internal_notes") === false);
+  assert(String(JSON.stringify(json)).includes("created_by") === false);
 });
 
 Deno.test("project expense create and update preserve exact decimal strings", async () => {
@@ -277,6 +305,22 @@ function detailRow() {
     approved_at: null,
     rejected_at: null,
     rejection_reason: null,
+  };
+}
+function categoryLookupRow() {
+  return {
+    id: categoryId,
+    code: "MATERIALS",
+    name: "Materials",
+    created_by: "should-not-leak",
+  };
+}
+function projectLookupRow() {
+  return {
+    id: projectId,
+    project_number: "PRJ-1",
+    name: "Villa",
+    internal_notes: "should-not-leak",
   };
 }
 function mutationRow() {

@@ -19,6 +19,7 @@ import {
 const ACTIONS = [
   "list",
   "detail",
+  "lookup",
   "create",
   "update",
   "submit",
@@ -70,6 +71,11 @@ async function dispatch(
       return { project_expenses: await list(body, auth) };
     case "detail":
       return { project_expense: await detail(body, auth) };
+    case "lookup":
+      return {
+        expense_categories: await categoryLookup(body, auth),
+        projects: await projectLookup(body, auth),
+      };
     case "create":
       return { project_expense: await create(body, auth, requestId) };
     case "update":
@@ -95,6 +101,33 @@ async function dispatch(
     case "reject":
       return { project_expense: await rejectExpense(body, auth, requestId) };
   }
+}
+
+async function categoryLookup(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+) {
+  rejectUnknownFields(body, ["action", "limit", "offset"]);
+  return rows(
+    (await rpc(auth, "server_owner_expense_category_picker_list", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_limit: bounded(body.limit, 100, 1, 100),
+      p_offset: bounded(body.offset, 0, 0, 1000000),
+    })).data,
+  ).map(categoryRow);
+}
+
+async function projectLookup(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+) {
+  return rows(
+    (await rpc(auth, "server_owner_project_record_list", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_limit: bounded(body.limit, 100, 1, 100),
+      p_offset: bounded(body.offset, 0, 0, 1000000),
+    })).data,
+  ).map(projectRow);
 }
 
 function actionValue(value: unknown): Action {
@@ -310,6 +343,16 @@ const detailRow = (r: Record<string, unknown>) => ({
   approved_at: nullable(r.approved_at),
   rejected_at: nullable(r.rejected_at),
   rejection_reason: nullable(r.rejection_reason),
+});
+const categoryRow = (r: Record<string, unknown>) => ({
+  expense_category_id: str(r, "id"),
+  code: str(r, "code"),
+  name: str(r, "name"),
+});
+const projectRow = (r: Record<string, unknown>) => ({
+  project_id: str(r, "id"),
+  project_number: str(r, "project_number"),
+  name: str(r, "name"),
 });
 const mutation = (r: Record<string, unknown>) => ({
   financial_event_id: str(r, "financial_event_id"),

@@ -26,6 +26,23 @@ class CurrencyExchangeRepository {
     return CurrencyExchange.fromJson(data['currency_exchange']);
   }
 
+  Future<List<ExchangeRateOption>> rateOptions({
+    required String sourceCurrencyCode,
+    required String destinationCurrencyCode,
+    required String exchangeDate,
+  }) async {
+    final data = await _action({
+      'action': 'rate_lookup',
+      'source_currency_code': sourceCurrencyCode,
+      'destination_currency_code': destinationCurrencyCode,
+      'exchange_date': exchangeDate,
+    });
+    return (data['exchange_rates'] as List? ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(ExchangeRateOption.fromJson)
+        .toList(growable: false);
+  }
+
   Future<CurrencyExchangeMutationResult> create(
     CurrencyExchangeDraft draft,
   ) async {

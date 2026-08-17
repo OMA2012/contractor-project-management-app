@@ -81,6 +81,37 @@ void main() {
     },
   );
 
+  test('repository loads project and category selector lookups', () async {
+    final calls = <Map<String, dynamic>>[];
+    final repository = ProjectExpenseRepository(
+      invokeFunction: (name, body) async {
+        calls.add({'function': name, ...body});
+        return {
+          'data': {
+            'expense_categories': [
+              {
+                'expense_category_id': 'category-1',
+                'code': 'MATERIALS',
+                'name': 'Materials',
+              },
+            ],
+            'projects': [
+              {
+                'project_id': 'project-1',
+                'project_number': 'PRJ-1',
+                'name': 'Villa',
+              },
+            ],
+          },
+        };
+      },
+    );
+    final lookups = await repository.lookups();
+    expect(calls.single['action'], 'lookup');
+    expect(lookups.expenseCategories.single.name, 'Materials');
+    expect(lookups.projects.single.display, 'PRJ-1 - Villa');
+  });
+
   testWidgets('list renders loading empty error mobile and laptop states', (
     tester,
   ) async {
@@ -120,7 +151,10 @@ void main() {
 
       await tester.tap(find.text('Edit Draft'));
       await tester.pumpAndSettle();
-      expect(find.text('Project ID'), findsOneWidget);
+      expect(find.text('Project'), findsWidgets);
+      expect(find.text('PRJ-1 - Villa'), findsOneWidget);
+      expect(find.text('Expense category'), findsOneWidget);
+      expect(find.text('Materials'), findsOneWidget);
       expect(find.text('Paid from account'), findsWidgets);
       expect(find.widgetWithText(TextFormField, 'Amount'), findsOneWidget);
       await tester.tapAt(const Offset(10, 10));
@@ -406,6 +440,23 @@ class FakeProjectExpenseRepository extends ProjectExpenseRepository {
 
   @override
   Future<ProjectExpense> detail(String financialEventId) async => current;
+  @override
+  Future<ProjectExpenseLookups> lookups() async => const ProjectExpenseLookups(
+    expenseCategories: [
+      ExpenseCategoryOption(
+        expenseCategoryId: 'category-1',
+        code: 'MATERIALS',
+        name: 'Materials',
+      ),
+    ],
+    projects: [
+      ProjectOption(
+        projectId: 'project-1',
+        projectNumber: 'PRJ-1',
+        name: 'Villa',
+      ),
+    ],
+  );
   @override
   Future<ProjectExpenseMutationResult> create(
     ProjectExpenseDraft draft,

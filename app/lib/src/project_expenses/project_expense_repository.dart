@@ -26,6 +26,20 @@ class ProjectExpenseRepository {
     return ProjectExpense.fromJson(data['project_expense']);
   }
 
+  Future<ProjectExpenseLookups> lookups() async {
+    final data = await _action({'action': 'lookup'});
+    return ProjectExpenseLookups(
+      expenseCategories: (data['expense_categories'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(ExpenseCategoryOption.fromJson)
+          .toList(growable: false),
+      projects: (data['projects'] as List? ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(ProjectOption.fromJson)
+          .toList(growable: false),
+    );
+  }
+
   Future<ProjectExpenseMutationResult> create(ProjectExpenseDraft draft) async {
     final data = await _action({'action': 'create', ...draft.toJson()});
     return ProjectExpenseMutationResult.fromJson(data['project_expense']);

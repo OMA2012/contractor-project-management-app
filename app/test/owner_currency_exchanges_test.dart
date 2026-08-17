@@ -76,6 +76,39 @@ void main() {
     },
   );
 
+  test('repository loads filtered exchange-rate selector options', () async {
+    final calls = <Map<String, dynamic>>[];
+    final repository = CurrencyExchangeRepository(
+      invokeFunction: (name, body) async {
+        calls.add({'function': name, ...body});
+        return {
+          'data': {
+            'exchange_rates': [
+              {
+                'exchange_rate_id': 'rate-1',
+                'rate_date': '2026-08-15',
+                'base_currency_code': 'SAR',
+                'quote_currency_code': 'USD',
+                'rate_value': '0.264600',
+                'source': 'MANUAL',
+              },
+            ],
+          },
+        };
+      },
+    );
+    final rates = await repository.rateOptions(
+      sourceCurrencyCode: 'SAR',
+      destinationCurrencyCode: 'USD',
+      exchangeDate: '2026-08-15',
+    );
+    expect(calls.single['action'], 'rate_lookup');
+    expect(calls.single['source_currency_code'], 'SAR');
+    expect(calls.single['destination_currency_code'], 'USD');
+    expect(calls.single['exchange_date'], '2026-08-15');
+    expect(rates.single.display, '2026-08-15 - 1 SAR = 0.264600 USD');
+  });
+
   testWidgets('list renders mobile and laptop states', (tester) async {
     final repository = FakeCurrencyExchangeRepository();
     await tester.binding.setSurfaceSize(const Size(390, 800));
@@ -287,6 +320,21 @@ class FakeCurrencyExchangeRepository extends CurrencyExchangeRepository {
   Future<List<CurrencyExchange>> list() async => pendingList ?? items;
   @override
   Future<CurrencyExchange> detail(String financialEventId) async => current;
+  @override
+  Future<List<ExchangeRateOption>> rateOptions({
+    required String sourceCurrencyCode,
+    required String destinationCurrencyCode,
+    required String exchangeDate,
+  }) async => const [
+    ExchangeRateOption(
+      exchangeRateId: 'rate-1',
+      rateDate: '2026-08-15',
+      baseCurrencyCode: 'SAR',
+      quoteCurrencyCode: 'USD',
+      rateValue: '0.264600',
+      source: 'MANUAL',
+    ),
+  ];
   @override
   Future<CurrencyExchangeMutationResult> create(
     CurrencyExchangeDraft draft,

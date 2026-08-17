@@ -58,6 +58,9 @@ function mockAuth(calls: Record<string, unknown>[]) {
           if (name === "server_owner_currency_exchange_detail") {
             return Promise.resolve({ data: [detailRow()], error: null });
           }
+          if (name === "server_owner_exchange_rate_picker_list") {
+            return Promise.resolve({ data: [rateLookupRow()], error: null });
+          }
           return Promise.resolve({ data: [mutationRow()], error: null });
         },
       },
@@ -84,6 +87,33 @@ Deno.test("currency exchange gateway handles authenticated Owner list and detail
   assertEquals(response.status, 200);
   assertEquals(calls[1].name, "server_owner_currency_exchange_detail");
   assertEquals(json.data.currency_exchange.rate_value, "0.264600");
+});
+
+Deno.test("currency exchange rate lookup filters by currencies and transaction date", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const handler = createCurrencyExchangeHandler({
+    loadEnv: env,
+    authenticate: mockAuth(calls),
+  });
+  const response = await handler(
+    request({
+      action: "rate_lookup",
+      source_currency_code: "SAR",
+      destination_currency_code: "USD",
+      exchange_date: "2026-08-15",
+    }),
+  );
+  const json = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(calls[0].name, "server_owner_exchange_rate_picker_list");
+  assertEquals(calls[0].p_source_currency_code, "SAR");
+  assertEquals(calls[0].p_destination_currency_code, "USD");
+  assertEquals(calls[0].p_rate_date, "2026-08-15");
+  assertEquals(
+    json.data.exchange_rates[0].base_currency_code,
+    "SAR",
+  );
+  assert(String(JSON.stringify(json)).includes("entered_by") === false);
 });
 
 Deno.test("currency exchange create and update preserve exact decimal and rate strings", async () => {
@@ -272,6 +302,17 @@ function detailRow() {
     approved_at: null,
     rejected_at: null,
     rejection_reason: null,
+  };
+}
+function rateLookupRow() {
+  return {
+    id: rateId,
+    rate_date: "2026-08-15",
+    base_currency_code: "SAR",
+    quote_currency_code: "USD",
+    rate_value: "0.264600",
+    source: "MANUAL",
+    created_at: "2026-08-15T00:00:00Z",
   };
 }
 function mutationRow() {
