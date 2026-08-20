@@ -90,8 +90,9 @@ class ProjectExpense {
       eventStatus == 'APPROVED' || transactionStatus == 'POSTED';
   String get moneyDisplay => '$currencyCode $amount';
   String get projectDisplay =>
-      _businessDisplay(projectNumber, projectName) ?? projectId;
-  String? get clientDisplay => _businessDisplay(clientNumber, clientName);
+      _businessDisplay(projectNumber, projectName) ?? 'Project unavailable';
+  String get clientDisplay =>
+      _businessDisplay(clientNumber, clientName) ?? 'Client unavailable';
 }
 
 class ProjectExpenseDraft {

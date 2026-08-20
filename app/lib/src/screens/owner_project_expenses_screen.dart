@@ -203,7 +203,7 @@ class OwnerProjectExpenseDetailScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           _Meta('Amount', item.moneyDisplay),
           _Meta('Project', item.projectDisplay),
-          if (item.clientDisplay != null) _Meta('Client', item.clientDisplay!),
+          _Meta('Client', item.clientDisplay),
           _Meta('Expense date', item.expenseDate),
           _Meta('Paid from account', item.paidFromAccountId),
           _Meta('Status', item.isPosted ? 'Posted' : item.eventStatus),

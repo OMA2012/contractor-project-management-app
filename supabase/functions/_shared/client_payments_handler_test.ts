@@ -9,6 +9,7 @@ const paymentId = "20000000-0000-4000-8000-000000000001";
 const projectId = "30000000-0000-4000-8000-000000000001";
 const accountId = "40000000-0000-4000-8000-000000000001";
 const requestId = "50000000-0000-4000-8000-000000000001";
+const clientId = "60000000-0000-4000-8000-000000000001";
 
 function assert(
   condition: unknown,
@@ -72,6 +73,12 @@ function mockAuth(calls: Record<string, unknown>[]) {
               data: [paymentRequestSummary()],
               error: null,
             });
+          }
+          if (name === "server_owner_project_record_detail") {
+            return Promise.resolve({ data: [projectDetail()], error: null });
+          }
+          if (name === "server_owner_client_record_detail") {
+            return Promise.resolve({ data: [clientDetail()], error: null });
           }
           if (name.includes("payment_request")) {
             return Promise.resolve({
@@ -187,6 +194,71 @@ Deno.test("payment request gateway uses approved owner RPCs", async () => {
   assert(json.data.request.payment_request_id === requestId);
 });
 
+Deno.test("Owner financial rows expose sanitized Project and Client labels", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const handler = createClientPaymentsHandler({
+    loadEnv: env,
+    authenticate: mockAuth(calls),
+  });
+  const cases = [
+    { action: "list" },
+    { action: "detail", financial_event_id: eventId },
+    { action: "request_list" },
+    { action: "request_detail", payment_request_id: requestId },
+  ];
+  for (const body of cases) {
+    const response = await handler(request(body));
+    const json = await response.json();
+    assertEquals(response.status, 200);
+    const row = json.data.payment ?? json.data.request ??
+      json.data.payments?.[0] ?? json.data.requests?.[0];
+    assertEquals(row.project_number, "PRJ-2026-0001");
+    assertEquals(row.project_name, "Villa Renovation");
+    assertEquals(row.client_number, "CL-000001");
+    assertEquals(row.client_name, "Acme Client");
+    assert(String(JSON.stringify(row)).includes("internal_notes") === false);
+    assert(
+      String(JSON.stringify(row)).includes("private@example.test") === false,
+    );
+  }
+  const lookupCalls = calls.filter((call) =>
+    call.name === "server_owner_project_record_detail" ||
+    call.name === "server_owner_client_record_detail"
+  );
+  assert(lookupCalls.length === 8);
+  assert(
+    lookupCalls.every((call) => call.p_verified_owner_auth_subject === actor),
+  );
+});
+
+Deno.test("Client cannot use Owner financial metadata lookup behavior", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const handler = createClientPaymentsHandler({
+    loadEnv: env,
+    authenticate: () =>
+      Promise.resolve({
+        actorAuthSubject: "70000000-0000-4000-8000-000000000001",
+        serviceClient: {
+          rpc: (name: string, args: Record<string, unknown>) => {
+            calls.push({ name, ...args });
+            if (name === "server_owner_client_payment_list") {
+              return Promise.resolve({ data: [paymentSummary()], error: null });
+            }
+            return Promise.resolve({
+              data: null,
+              error: { code: "42501", message: "Owner role required." },
+            });
+          },
+        },
+      } as unknown as AuthenticatedContext),
+  });
+  const response = await handler(request({ action: "list" }));
+  const json = await response.json();
+  assertEquals(response.status, 401);
+  assertEquals(calls[1].name, "server_owner_project_record_detail");
+  assert(String(JSON.stringify(json)).includes("Owner role") === false);
+});
+
 function paymentSummary() {
   return {
     client_payment_id: paymentId,
@@ -195,7 +267,7 @@ function paymentSummary() {
     financial_transaction_id: null,
     transaction_number: null,
     project_id: projectId,
-    client_id: "60000000-0000-4000-8000-000000000001",
+    client_id: clientId,
     amount: "100.25",
     currency_code: "USD",
     received_date: "2026-08-15",
@@ -227,7 +299,7 @@ function paymentRequestSummary() {
     payment_request_id: requestId,
     request_number: "PR-000001",
     project_id: projectId,
-    client_id: "60000000-0000-4000-8000-000000000001",
+    client_id: clientId,
     requested_amount: "250.00",
     currency_code: "SAR",
     request_date: "2026-08-15",
@@ -253,5 +325,25 @@ function paymentRequestDetail() {
     updated_by: actor,
     paid_amount: "0",
     remaining_amount: "250.00",
+  };
+}
+
+function projectDetail() {
+  return {
+    id: projectId,
+    client_id: clientId,
+    project_number: "PRJ-2026-0001",
+    name: "Villa Renovation",
+    internal_notes: "must not leak",
+  };
+}
+
+function clientDetail() {
+  return {
+    id: clientId,
+    client_number: "CL-000001",
+    display_name: "Acme Client",
+    email: "private@example.test",
+    internal_notes: "must not leak",
   };
 }

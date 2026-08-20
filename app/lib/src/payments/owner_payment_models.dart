@@ -98,9 +98,9 @@ class OwnerClientPayment {
   bool get isRejected => eventStatus == 'REJECTED';
   String get moneyDisplay => '$currencyCode $amount';
   String get projectDisplay =>
-      _businessDisplay(projectNumber, projectName) ?? projectId;
+      _businessDisplay(projectNumber, projectName) ?? 'Project unavailable';
   String get clientDisplay =>
-      _businessDisplay(clientNumber, clientName) ?? clientId;
+      _businessDisplay(clientNumber, clientName) ?? 'Client unavailable';
   String get verificationLabel => isClientSubmitted && !isPosted
       ? 'Submitted for verification'
       : eventStatus;
@@ -213,9 +213,9 @@ class OwnerPaymentRequest {
   bool get canSend => status == 'DRAFT';
   String get moneyDisplay => '$currencyCode $requestedAmount';
   String get projectDisplay =>
-      _businessDisplay(projectNumber, projectName) ?? projectId;
+      _businessDisplay(projectNumber, projectName) ?? 'Project unavailable';
   String get clientDisplay =>
-      _businessDisplay(clientNumber, clientName) ?? clientId;
+      _businessDisplay(clientNumber, clientName) ?? 'Client unavailable';
 }
 
 class OwnerPaymentProjectOption {

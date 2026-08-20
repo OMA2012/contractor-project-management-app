@@ -77,7 +77,7 @@ class _OwnerPaymentRequestsScreenState
                             '${item.requestNumber} - ${item.moneyDisplay}',
                           ),
                           subtitle: Text(
-                            '${item.effectiveStatus} - due ${item.dueDate ?? 'not set'}',
+                            '${item.effectiveStatus} - due ${item.dueDate ?? 'not set'} - ${item.projectDisplay}',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => context.go(
@@ -301,6 +301,7 @@ class _RequestFormState extends ConsumerState<_RequestForm> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 DropdownButtonFormField<OwnerPaymentProjectOption>(
+                  isExpanded: true,
                   initialValue: _projectOption,
                   items: [
                     for (final p in projects)

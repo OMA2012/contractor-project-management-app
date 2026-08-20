@@ -77,7 +77,7 @@ class _OwnerClientPaymentsScreenState
                             '${item.eventNumber} - ${item.moneyDisplay}',
                           ),
                           subtitle: Text(
-                            '${item.receivedDate} - ${item.verificationLabel}',
+                            '${item.receivedDate} - ${item.verificationLabel} - ${item.projectDisplay}',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => context.go(
@@ -387,6 +387,7 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   DropdownButtonFormField<OwnerPaymentProjectOption>(
+                    isExpanded: true,
                     initialValue: _projectOption,
                     items: [
                       for (final p in projects)

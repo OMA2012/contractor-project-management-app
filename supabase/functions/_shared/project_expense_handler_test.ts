@@ -10,6 +10,7 @@ const expenseId = "30000000-0000-4000-8000-000000000011";
 const projectId = "40000000-0000-4000-8000-000000000011";
 const categoryId = "50000000-0000-4000-8000-000000000011";
 const accountId = "60000000-0000-4000-8000-000000000011";
+const clientId = "70000000-0000-4000-8000-000000000011";
 
 function assert(
   condition: unknown,
@@ -67,6 +68,12 @@ function mockAuth(calls: Record<string, unknown>[]) {
           if (name === "server_owner_project_record_list") {
             return Promise.resolve({ data: [projectLookupRow()], error: null });
           }
+          if (name === "server_owner_project_record_detail") {
+            return Promise.resolve({ data: [projectLookupRow()], error: null });
+          }
+          if (name === "server_owner_client_record_detail") {
+            return Promise.resolve({ data: [clientDetailRow()], error: null });
+          }
           return Promise.resolve({ data: [mutationRow()], error: null });
         },
       },
@@ -85,14 +92,22 @@ Deno.test("project expense gateway handles authenticated Owner list and detail",
   assertEquals(calls[0].name, "server_owner_project_expense_list");
   assertEquals(calls[0].p_verified_owner_auth_subject, actor);
   assertEquals(json.data.project_expenses[0].amount, "123.45");
+  assertEquals(json.data.project_expenses[0].project_number, "PRJ-1");
+  assertEquals(json.data.project_expenses[0].project_name, "Villa");
+  assertEquals(json.data.project_expenses[0].client_number, "CL-000011");
+  assertEquals(json.data.project_expenses[0].client_name, "Safe Client");
 
+  calls.length = 0;
   response = await handler(
     request({ action: "detail", financial_event_id: eventId }),
   );
   json = await response.json();
   assertEquals(response.status, 200);
-  assertEquals(calls[1].name, "server_owner_project_expense_detail");
+  assertEquals(calls[0].name, "server_owner_project_expense_detail");
   assertEquals(json.data.project_expense.private_notes, "private");
+  assertEquals(json.data.project_expense.project_number, "PRJ-1");
+  assertEquals(json.data.project_expense.client_number, "CL-000011");
+  assert(calls.every((call) => call.p_verified_owner_auth_subject === actor));
 });
 
 Deno.test("project expense lookup returns category names and project labels only", async () => {
@@ -318,9 +333,18 @@ function categoryLookupRow() {
 function projectLookupRow() {
   return {
     id: projectId,
+    client_id: clientId,
     project_number: "PRJ-1",
     name: "Villa",
     internal_notes: "should-not-leak",
+  };
+}
+function clientDetailRow() {
+  return {
+    id: clientId,
+    client_number: "CL-000011",
+    display_name: "Safe Client",
+    email: "must-not-leak@example.test",
   };
 }
 function mutationRow() {

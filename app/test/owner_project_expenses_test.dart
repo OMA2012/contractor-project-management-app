@@ -69,6 +69,8 @@ void main() {
       await repository.reject('event-1', 4, 'not valid');
       expect(calls[1]['amount'], '123.45');
       expect(calls[1]['currency_code'], 'USD');
+      expect(calls[1]['project_id'], 'project-1');
+      expect(calls[1]['expense_category_id'], 'category-1');
       expect(calls[1].keys, isNot(contains('p_verified_owner_auth_subject')));
       expect(calls.map((c) => c['action']), [
         'list',
@@ -125,6 +127,8 @@ void main() {
     expect(find.text('Project Expenses'), findsOneWidget);
     expect(find.textContaining('FE-000101'), findsOneWidget);
     expect(find.textContaining('USD 123.45'), findsOneWidget);
+    expect(find.textContaining('PRJ-1 - Villa'), findsOneWidget);
+    expect(find.textContaining('project-1'), findsNothing);
 
     await tester.binding.setSurfaceSize(const Size(1000, 800));
     repository.items = [];
@@ -148,11 +152,14 @@ void main() {
       expect(find.text('Delete'), findsNothing);
       expect(find.text('Amount'), findsOneWidget);
       expect(find.text('USD 123.45'), findsOneWidget);
+      expect(find.text('PRJ-1 - Villa'), findsOneWidget);
+      expect(find.text('CL-000001 - Acme Client'), findsOneWidget);
+      expect(find.textContaining('project-1'), findsNothing);
 
       await tester.tap(find.text('Edit Draft'));
       await tester.pumpAndSettle();
       expect(find.text('Project'), findsWidgets);
-      expect(find.text('PRJ-1 - Villa'), findsOneWidget);
+      expect(find.text('PRJ-1 - Villa'), findsWidgets);
       expect(find.text('Expense category'), findsOneWidget);
       expect(find.text('Materials'), findsOneWidget);
       expect(find.text('Paid from account'), findsWidgets);
@@ -196,6 +203,18 @@ void main() {
     );
     expect(find.text('Edit Draft'), findsNothing);
     expect(find.text('Delete'), findsNothing);
+  });
+
+  testWidgets('missing Project Expense metadata uses unavailable labels', (
+    tester,
+  ) async {
+    final repository = FakeProjectExpenseRepository()
+      ..current = expense(metadata: false);
+    await tester.pumpWidget(projectExpenseDetail(repository));
+    await tester.pumpAndSettle();
+    expect(find.text('Project unavailable'), findsOneWidget);
+    expect(find.text('Client unavailable'), findsOneWidget);
+    expect(find.textContaining('project-1'), findsNothing);
   });
 
   testWidgets('eligible second Owner approval posts from submitted detail', (
@@ -387,11 +406,18 @@ ProjectExpense expense({
   String status = 'DRAFT',
   String txStatus = 'DRAFT',
   int version = 2,
+  bool metadata = true,
 }) => ProjectExpense.fromJson({
   ...expenseJson(),
   'event_status': status,
   'transaction_status': txStatus,
   'version_number': version,
+  if (!metadata) ...{
+    'project_number': null,
+    'project_name': null,
+    'client_number': null,
+    'client_name': null,
+  },
 });
 
 Map<String, dynamic> expenseJson() => {
@@ -402,6 +428,10 @@ Map<String, dynamic> expenseJson() => {
   'transaction_number': 'FT-000101',
   'expense_number': 'EXP-000101',
   'project_id': 'project-1',
+  'project_number': 'PRJ-1',
+  'project_name': 'Villa',
+  'client_number': 'CL-000001',
+  'client_name': 'Acme Client',
   'expense_category_id': 'category-1',
   'amount': '123.45',
   'currency_code': 'USD',
