@@ -393,10 +393,12 @@ class OwnerProjectFormScreen extends ConsumerStatefulWidget {
   const OwnerProjectFormScreen({
     this.projectId,
     this.initialClientId,
+    this.contractorDefaultReportingCurrencyCode = 'USD',
     super.key,
   });
   final String? projectId;
   final String? initialClientId;
+  final String? contractorDefaultReportingCurrencyCode;
 
   @override
   ConsumerState<OwnerProjectFormScreen> createState() =>
@@ -405,17 +407,31 @@ class OwnerProjectFormScreen extends ConsumerStatefulWidget {
 
 class _OwnerProjectFormScreenState
     extends ConsumerState<OwnerProjectFormScreen> {
+  static const _reportingCurrencyCodes = ['USD', 'SAR', 'YER'];
+
   final _formKey = GlobalKey<FormState>();
+  final _reportingCurrencyFieldKey = GlobalKey<FormFieldState<String>>();
   final _name = TextEditingController();
-  final _currency = TextEditingController(text: 'SGD');
   final _location = TextEditingController();
   String? _clientId;
+  String? _reportingCurrencyCode;
   int? _version;
 
   @override
   void initState() {
     super.initState();
     _clientId = widget.initialClientId;
+    final contractorDefault = widget.contractorDefaultReportingCurrencyCode;
+    _reportingCurrencyCode = _reportingCurrencyCodes.contains(contractorDefault)
+        ? contractorDefault
+        : 'USD';
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _location.dispose();
+    super.dispose();
   }
 
   @override
@@ -427,10 +443,15 @@ class _OwnerProjectFormScreenState
     detail?.whenData((project) {
       if (_version == null) {
         _name.text = project.name;
-        _currency.text = project.reportingCurrencyCode;
+        _reportingCurrencyCode = project.reportingCurrencyCode;
         _location.text = project.location ?? '';
         _clientId = project.clientId;
         _version = project.versionNumber;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _reportingCurrencyFieldKey.currentState?.didChange(
+            project.reportingCurrencyCode,
+          );
+        });
       }
     });
     return Scaffold(
@@ -467,16 +488,19 @@ class _OwnerProjectFormScreenState
               validator: (value) =>
                   value == null || value.trim().isEmpty ? 'Required' : null,
             ),
-            TextFormField(
-              controller: _currency,
+            DropdownButtonFormField<String>(
+              key: _reportingCurrencyFieldKey,
+              initialValue: _reportingCurrencyCode,
               decoration: const InputDecoration(
                 labelText: 'Reporting currency',
               ),
-              maxLength: 3,
-              textCapitalization: TextCapitalization.characters,
-              validator: (value) => value == null || value.trim().length != 3
-                  ? 'Use 3 letters'
-                  : null,
+              items: [
+                for (final code in _reportingCurrencyCodes)
+                  DropdownMenuItem(value: code, child: Text(code)),
+              ],
+              onChanged: (value) =>
+                  setState(() => _reportingCurrencyCode = value),
+              validator: (value) => value == null ? 'Required' : null,
             ),
             TextFormField(
               controller: _location,
@@ -493,7 +517,7 @@ class _OwnerProjectFormScreenState
                       expectedVersionNumber: _version,
                       clientId: _clientId!,
                       name: _name.text,
-                      reportingCurrencyCode: _currency.text.toUpperCase(),
+                      reportingCurrencyCode: _reportingCurrencyCode!,
                       location: _location.text,
                     );
                 if (context.mounted) context.go('/staff/projects/${saved.id}');
