@@ -77,7 +77,7 @@ class _OwnerProjectExpensesScreenState
                             '${item.eventNumber} - ${item.moneyDisplay}',
                           ),
                           subtitle: Text(
-                            '${item.expenseDate} - ${item.eventStatus} - Project ${item.projectId}',
+                            '${item.expenseDate} - ${item.eventStatus} - ${item.projectDisplay}',
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => context.go(
@@ -202,7 +202,8 @@ class OwnerProjectExpenseDetailScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 16),
           _Meta('Amount', item.moneyDisplay),
-          _Meta('Project', item.projectId),
+          _Meta('Project', item.projectDisplay),
+          _Meta('Client', item.clientDisplay),
           _Meta('Expense date', item.expenseDate),
           _Meta('Paid from account', item.paidFromAccountId),
           _Meta('Status', item.isPosted ? 'Posted' : item.eventStatus),

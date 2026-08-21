@@ -139,10 +139,11 @@ function actionValue(value: unknown): Action {
 
 async function list(body: Record<string, unknown>, auth: AuthenticatedContext) {
   rejectUnknownFields(body, ["action", "limit", "offset"]);
-  return rows(
+  const expenseRows = rows(
     (await rpc(auth, "server_owner_project_expense_list", base(auth, body)))
       .data,
-  ).map(summary);
+  );
+  return (await enrichBusinessMetadata(expenseRows, auth)).map(summary);
 }
 
 async function detail(
@@ -150,17 +151,17 @@ async function detail(
   auth: AuthenticatedContext,
 ) {
   rejectUnknownFields(body, ["action", "financial_event_id"]);
-  return detailRow(
-    firstRow(
-      (await rpc(auth, "server_owner_project_expense_detail", {
-        p_verified_owner_auth_subject: auth.actorAuthSubject,
-        p_financial_event_id: uuidValue(
-          body.financial_event_id,
-          "Financial event ID",
-        ),
-      })).data,
-    ),
+  const expenseRow = firstRow(
+    (await rpc(auth, "server_owner_project_expense_detail", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_financial_event_id: uuidValue(
+        body.financial_event_id,
+        "Financial event ID",
+      ),
+    })).data,
   );
+  const [enriched] = await enrichBusinessMetadata([expenseRow], auth);
+  return detailRow(enriched);
 }
 
 async function create(
@@ -298,6 +299,53 @@ function draftArgs(
     p_request_identifier: requestId,
   };
 }
+async function enrichBusinessMetadata(
+  sourceRows: Record<string, unknown>[],
+  auth: AuthenticatedContext,
+) {
+  const projectIds = [
+    ...new Set(sourceRows.map((row) => str(row, "project_id"))),
+  ];
+  const projectEntries = await Promise.all(projectIds.map(async (projectId) => {
+    const projectRows = rows(
+      (await rpc(auth, "server_owner_project_record_detail", {
+        p_verified_owner_auth_subject: auth.actorAuthSubject,
+        p_project_id: projectId,
+      })).data,
+    );
+    return [projectId, projectRows[0]] as const;
+  }));
+  const projects = new Map(projectEntries);
+  const clientIds = [
+    ...new Set(
+      projectEntries.flatMap(([, project]) =>
+        project ? [str(project, "client_id")] : []
+      ),
+    ),
+  ];
+  const clientEntries = await Promise.all(clientIds.map(async (clientId) => {
+    const clientRows = rows(
+      (await rpc(auth, "server_owner_client_record_detail", {
+        p_verified_owner_auth_subject: auth.actorAuthSubject,
+        p_client_id: clientId,
+      })).data,
+    );
+    return [clientId, clientRows[0]] as const;
+  }));
+  const clients = new Map(clientEntries);
+  return sourceRows.map((row) => {
+    const project = projects.get(str(row, "project_id"));
+    const projectClientId = project ? str(project, "client_id") : null;
+    const client = projectClientId ? clients.get(projectClientId) : undefined;
+    return {
+      ...row,
+      project_number: project?.project_number ?? null,
+      project_name: project?.name ?? null,
+      client_number: client?.client_number ?? null,
+      client_name: client?.display_name ?? null,
+    };
+  });
+}
 async function rpc(
   auth: AuthenticatedContext,
   name: string,
@@ -323,6 +371,10 @@ const summary = (r: Record<string, unknown>) => ({
   transaction_number: str(r, "transaction_number"),
   expense_number: str(r, "expense_number"),
   project_id: str(r, "project_id"),
+  project_number: nullable(r.project_number),
+  project_name: nullable(r.project_name ?? r.name),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
   expense_category_id: str(r, "expense_category_id"),
   amount: decOut(r.amount),
   currency_code: str(r, "currency_code"),

@@ -19,6 +19,7 @@ import {
 const ACTIONS = [
   "list",
   "detail",
+  "lookup",
   "create",
   "update",
   "verify_client_submitted",
@@ -77,6 +78,8 @@ async function dispatch(
       return { payments: await list(body, auth) };
     case "detail":
       return { payment: await detail(body, auth) };
+    case "lookup":
+      return { projects: await projectLookup(body, auth) };
     case "create":
       return { payment: await create(body, auth, requestId) };
     case "update":
@@ -125,6 +128,20 @@ async function dispatch(
   }
 }
 
+async function projectLookup(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+) {
+  rejectUnknownFields(body, ["action", "limit", "offset"]);
+  return rows(
+    (await rpc(auth, "server_owner_project_record_list", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_limit: bounded(body.limit, 100, 1, 100),
+      p_offset: bounded(body.offset, 0, 0, 1_000_000),
+    })).data,
+  ).map(projectRow);
+}
+
 function actionValue(value: unknown): Action {
   if (
     typeof value === "string" && (ACTIONS as readonly string[]).includes(value)
@@ -136,11 +153,11 @@ function actionValue(value: unknown): Action {
 
 async function list(body: Record<string, unknown>, auth: AuthenticatedContext) {
   rejectUnknownFields(body, ["action", "limit", "offset"]);
-  return rows(
+  const paymentRows = rows(
     (await rpc(auth, "server_owner_client_payment_list", base(auth, body)))
       .data,
-  )
-    .map(paymentSummary);
+  );
+  return (await enrichBusinessMetadata(paymentRows, auth)).map(paymentSummary);
 }
 
 async function detail(
@@ -148,17 +165,17 @@ async function detail(
   auth: AuthenticatedContext,
 ) {
   rejectUnknownFields(body, ["action", "financial_event_id"]);
-  return paymentDetail(
-    firstRow(
-      (await rpc(auth, "server_owner_client_payment_detail", {
-        p_verified_owner_auth_subject: auth.actorAuthSubject,
-        p_financial_event_id: uuidValue(
-          body.financial_event_id,
-          "Financial event ID",
-        ),
-      })).data,
-    ),
+  const paymentRow = firstRow(
+    (await rpc(auth, "server_owner_client_payment_detail", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_financial_event_id: uuidValue(
+        body.financial_event_id,
+        "Financial event ID",
+      ),
+    })).data,
   );
+  const [enriched] = await enrichBusinessMetadata([paymentRow], auth);
+  return paymentDetail(enriched);
 }
 
 async function create(
@@ -294,10 +311,11 @@ async function requestList(
   auth: AuthenticatedContext,
 ) {
   rejectUnknownFields(body, ["action", "limit", "offset"]);
-  return rows(
+  const requestRows = rows(
     (await rpc(auth, "server_owner_payment_request_list", base(auth, body)))
       .data,
-  ).map(requestSummary);
+  );
+  return (await enrichBusinessMetadata(requestRows, auth)).map(requestSummary);
 }
 
 async function requestDetail(
@@ -305,17 +323,17 @@ async function requestDetail(
   auth: AuthenticatedContext,
 ) {
   rejectUnknownFields(body, ["action", "payment_request_id"]);
-  return requestDetailRow(
-    firstRow(
-      (await rpc(auth, "server_owner_payment_request_detail", {
-        p_verified_owner_auth_subject: auth.actorAuthSubject,
-        p_payment_request_id: uuidValue(
-          body.payment_request_id,
-          "Payment request ID",
-        ),
-      })).data,
-    ),
+  const requestRow = firstRow(
+    (await rpc(auth, "server_owner_payment_request_detail", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_payment_request_id: uuidValue(
+        body.payment_request_id,
+        "Payment request ID",
+      ),
+    })).data,
   );
+  const [enriched] = await enrichBusinessMetadata([requestRow], auth);
+  return requestDetailRow(enriched);
 }
 
 async function requestCreate(
@@ -477,6 +495,55 @@ function requestDraftArgs(
     p_request_identifier: requestId,
   };
 }
+async function enrichBusinessMetadata(
+  sourceRows: Record<string, unknown>[],
+  auth: AuthenticatedContext,
+) {
+  const projectIds = [
+    ...new Set(sourceRows.map((row) => str(row, "project_id"))),
+  ];
+  const projectEntries = await Promise.all(projectIds.map(async (projectId) => {
+    const projectRows = rows(
+      (await rpc(auth, "server_owner_project_record_detail", {
+        p_verified_owner_auth_subject: auth.actorAuthSubject,
+        p_project_id: projectId,
+      })).data,
+    );
+    return [projectId, projectRows[0]] as const;
+  }));
+  const projects = new Map(projectEntries);
+  const clientIds = [
+    ...new Set(
+      projectEntries.flatMap(([, project]) =>
+        project ? [str(project, "client_id")] : []
+      ),
+    ),
+  ];
+  const clientEntries = await Promise.all(clientIds.map(async (clientId) => {
+    const clientRows = rows(
+      (await rpc(auth, "server_owner_client_record_detail", {
+        p_verified_owner_auth_subject: auth.actorAuthSubject,
+        p_client_id: clientId,
+      })).data,
+    );
+    return [clientId, clientRows[0]] as const;
+  }));
+  const clients = new Map(clientEntries);
+  return sourceRows.map((row) => {
+    const project = projects.get(str(row, "project_id"));
+    const projectClientId = project ? str(project, "client_id") : null;
+    const client = projectClientId === str(row, "client_id")
+      ? clients.get(projectClientId)
+      : undefined;
+    return {
+      ...row,
+      project_number: project?.project_number ?? null,
+      project_name: project?.name ?? null,
+      client_number: client?.client_number ?? null,
+      client_name: client?.display_name ?? null,
+    };
+  });
+}
 async function rpc(
   auth: AuthenticatedContext,
   name: string,
@@ -503,6 +570,10 @@ const paymentSummary = (r: Record<string, unknown>) => ({
   transaction_number: nullable(r.transaction_number),
   project_id: str(r, "project_id"),
   client_id: str(r, "client_id"),
+  project_number: nullable(r.project_number),
+  project_name: nullable(r.project_name ?? r.name),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
   received_date: str(r, "received_date"),
   event_status: str(r, "event_status"),
   transaction_status: str(r, "transaction_status"),
@@ -527,6 +598,10 @@ const requestSummary = (r: Record<string, unknown>) => ({
   request_number: str(r, "request_number"),
   project_id: str(r, "project_id"),
   client_id: str(r, "client_id"),
+  project_number: nullable(r.project_number),
+  project_name: nullable(r.project_name ?? r.name),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
   requested_amount: decOut(r.requested_amount),
   currency_code: str(r, "currency_code"),
   request_date: nullable(r.request_date),
@@ -568,6 +643,13 @@ const requestMutation = (r: Record<string, unknown>) => ({
   request_number: str(r, "request_number"),
   status: str(r, "status"),
   version_number: int(r.version_number),
+});
+const projectRow = (r: Record<string, unknown>) => ({
+  project_id: str(r, "id"),
+  project_number: str(r, "project_number"),
+  name: str(r, "name"),
+  client_number: nullable(r.client_number),
+  client_name: nullable(r.client_name),
 });
 const money = (r: Record<string, unknown>) => ({
   amount: decOut(r.amount),

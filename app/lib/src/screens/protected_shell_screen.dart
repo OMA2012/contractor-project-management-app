@@ -44,6 +44,20 @@ class ProtectedShellScreen extends ConsumerWidget {
                   ),
                 ),
                 PopupMenuItem(
+                  value: '/client/payments',
+                  child: ListTile(
+                    leading: Icon(Icons.payments),
+                    title: Text('Payments'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: '/client/payment-requests',
+                  child: ListTile(
+                    leading: Icon(Icons.request_quote),
+                    title: Text('Payment Requests'),
+                  ),
+                ),
+                PopupMenuItem(
                   value: '/client/photographs',
                   child: ListTile(
                     leading: Icon(Icons.photo_library),

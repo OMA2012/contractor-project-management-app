@@ -13,6 +13,10 @@ class ProjectExpense {
     required this.eventStatus,
     required this.transactionStatus,
     required this.versionNumber,
+    this.projectNumber,
+    this.projectName,
+    this.clientNumber,
+    this.clientName,
     this.vendorName,
     this.vendorReference,
     this.description,
@@ -38,6 +42,10 @@ class ProjectExpense {
     eventStatus: _string(json['event_status']),
     transactionStatus: _string(json['transaction_status']),
     versionNumber: json['version_number'] as int? ?? 1,
+    projectNumber: json['project_number'] as String?,
+    projectName: json['project_name'] as String?,
+    clientNumber: json['client_number'] as String?,
+    clientName: json['client_name'] as String?,
     vendorName: json['vendor_name'] as String?,
     vendorReference: json['vendor_reference'] as String?,
     description: json['description'] as String?,
@@ -62,6 +70,10 @@ class ProjectExpense {
   final String eventStatus;
   final String transactionStatus;
   final int versionNumber;
+  final String? projectNumber;
+  final String? projectName;
+  final String? clientNumber;
+  final String? clientName;
   final String? vendorName;
   final String? vendorReference;
   final String? description;
@@ -77,6 +89,10 @@ class ProjectExpense {
   bool get isPosted =>
       eventStatus == 'APPROVED' || transactionStatus == 'POSTED';
   String get moneyDisplay => '$currencyCode $amount';
+  String get projectDisplay =>
+      _businessDisplay(projectNumber, projectName) ?? 'Project unavailable';
+  String get clientDisplay =>
+      _businessDisplay(clientNumber, clientName) ?? 'Client unavailable';
 }
 
 class ProjectExpenseDraft {
@@ -183,3 +199,11 @@ class ProjectExpenseMutationResult {
 
 String _string(Object? value) =>
     value is String ? value : value?.toString() ?? '';
+
+String? _businessDisplay(String? number, String? name) {
+  final cleanNumber = number?.trim();
+  final cleanName = name?.trim();
+  if (cleanNumber == null || cleanNumber.isEmpty) return cleanName;
+  if (cleanName == null || cleanName.isEmpty) return cleanNumber;
+  return '$cleanNumber - $cleanName';
+}
