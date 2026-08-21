@@ -2,7 +2,7 @@ import { forbidden } from "./errors.ts";
 
 export const allowedMethods = "POST, OPTIONS";
 export const allowedHeaders =
-  "authorization, apikey, content-type, x-request-id";
+  "authorization, x-client-info, apikey, content-type, x-request-id";
 
 export function corsHeaders(appOrigin: string): Headers {
   return new Headers({
