@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,6 +7,7 @@ import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 import '../screens/account_loading_screen.dart';
 import '../screens/client_dashboard_screen.dart';
+import '../screens/client_invitation_acceptance_screen.dart';
 import '../screens/client_financial_screens.dart';
 import '../screens/client_notification_detail_screen.dart';
 import '../screens/client_notification_list_screen.dart';
@@ -27,20 +29,47 @@ import '../screens/owner_clients_projects_screen.dart';
 import '../screens/photograph_gallery_screen.dart';
 import '../screens/owner_payment_requests_screen.dart';
 import '../screens/owner_project_expenses_screen.dart';
+import '../screens/owner_activation_screen.dart';
 import '../screens/role_home_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final session = ref.watch(authSessionProvider);
-  final account = ref.watch(currentAccountProvider);
   final initialLocation = ref.watch(routerInitialLocationProvider);
+  final refresh = _RouterRefreshNotifier(ref);
+  String? pendingLocation;
+  ref.onDispose(refresh.dispose);
 
   return GoRouter(
     initialLocation: initialLocation,
-    redirect: (context, state) => authRedirect(session, account, state.uri),
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final account = ref.read(currentAccountProvider);
+      final redirect = authRedirect(
+        ref.read(authSessionProvider),
+        account,
+        state.uri,
+      );
+      if (redirect == '/account-loading' &&
+          state.uri.path != '/account-loading') {
+        pendingLocation = state.uri.toString();
+      } else if (state.uri.path == '/account-loading' &&
+          redirect == null &&
+          account.routeTarget != TrustedAccountRouteTarget.loading &&
+          account.routeTarget != TrustedAccountRouteTarget.failure) {
+        final target = pendingLocation;
+        pendingLocation = null;
+        if (target != null) return target;
+      } else if (redirect != null && redirect != '/account-loading') {
+        pendingLocation = null;
+      }
+      return redirect;
+    },
     routes: [
       GoRoute(
         path: '/',
-        redirect: (context, state) => rootRedirect(session, account),
+        redirect: (context, state) => rootRedirect(
+          ref.read(authSessionProvider),
+          ref.read(currentAccountProvider),
+        ),
         builder: (context, state) => const AccountLoadingScreen(),
       ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
@@ -51,6 +80,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/update-password',
         builder: (context, state) => const PasswordUpdateScreen(),
+      ),
+      GoRoute(
+        path: '/accept-invitation',
+        builder: (context, state) => ClientInvitationAcceptanceScreen(
+          token: state.uri.queryParameters['token'],
+        ),
+      ),
+      GoRoute(
+        path: '/owner/activate',
+        builder: (context, state) => const OwnerActivationScreen(),
       ),
       GoRoute(
         path: '/inactive-account',
@@ -281,6 +320,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(Ref ref) {
+    ref.listen(authSessionProvider, (_, _) => notifyListeners());
+    ref.listen(currentAccountProvider, (_, _) => notifyListeners());
+  }
+}
+
 final routerInitialLocationProvider = Provider<String>((ref) => '/');
 
 String? authRedirect(
@@ -292,9 +338,17 @@ String? authRedirect(
   final isLogin = path == '/login';
   final isPasswordReset = path == '/reset-password';
   final isPasswordUpdate = path == '/update-password';
+  final isClientInvitation = path == '/accept-invitation';
+  final isOwnerActivation = path == '/owner/activate';
   final isInactive = path == '/inactive-account';
   final isAccountLoading = path == '/account-loading';
-  final isPublic = isLogin || isPasswordReset || isPasswordUpdate || isInactive;
+  final isActivation = isClientInvitation || isOwnerActivation;
+  final isPublic =
+      isLogin ||
+      isPasswordReset ||
+      isPasswordUpdate ||
+      isInactive ||
+      isActivation;
 
   if (session.isInitializing) {
     return null;
@@ -311,6 +365,10 @@ String? authRedirect(
     return '/login';
   }
 
+  if (isActivation) {
+    return null;
+  }
+
   final target = account.routeTarget;
   if (target == TrustedAccountRouteTarget.loading ||
       target == TrustedAccountRouteTarget.failure) {
@@ -325,7 +383,7 @@ String? authRedirect(
     return isInactive ? null : '/inactive-account';
   }
 
-  if (isPublic) {
+  if (isPublic && !isActivation) {
     return defaultHomeFor(account);
   }
 

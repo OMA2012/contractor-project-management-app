@@ -120,6 +120,8 @@ abstract class DocumentRepository {
 
   Future<DocumentUploadResult> completeUpload(String uploadId);
 
+  Future<DocumentScanResult> finalizeScan(String uploadId);
+
   Future<PhotographSummary> processPhotograph(String documentId);
 
   Future<DocumentUploadSession> authorizeClientTransferEvidenceUpload(
@@ -422,6 +424,14 @@ class SupabaseDocumentRepository implements DocumentRepository {
       'upload_id': uploadId,
     });
     return DocumentUploadResult.fromJson(_data(envelope));
+  }
+
+  @override
+  Future<DocumentScanResult> finalizeScan(String uploadId) async {
+    final envelope = await _function('document-scan-finalize', {
+      'upload_id': uploadId,
+    });
+    return DocumentScanResult.fromJson(_data(envelope));
   }
 
   @override

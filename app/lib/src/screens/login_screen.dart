@@ -13,11 +13,15 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final emailController = TextEditingController(text: 'staff@example.com');
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  var _isSubmitting = false;
+  String? _error;
 
   @override
   void dispose() {
     emailController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
@@ -35,34 +39,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             decoration: const InputDecoration(labelText: 'Email'),
           ),
           const SizedBox(height: 12),
-          const TextField(
+          TextField(
+            controller: passwordController,
             obscureText: true,
-            decoration: InputDecoration(labelText: 'Password'),
+            decoration: const InputDecoration(labelText: 'Password'),
+            onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: () {
-              ref
-                  .read(authSessionProvider.notifier)
-                  .signInAsStaff(emailController.text);
-            },
-            child: const Text('Sign in as staff'),
+            onPressed: _isSubmitting ? null : _submit,
+            child: _isSubmitting
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Continue'),
           ),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () {
-              ref
-                  .read(authSessionProvider.notifier)
-                  .signInAsClient(emailController.text);
-            },
-            child: const Text('Sign in as client'),
-          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           TextButton(
-            onPressed: () => context.go('/reset-password'),
+            onPressed: _isSubmitting
+                ? null
+                : () => context.go('/reset-password'),
             child: const Text('Reset password'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting) return;
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Enter your email and password.');
+      return;
+    }
+    setState(() {
+      _isSubmitting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authSessionProvider.notifier).signIn(email, password);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Sign in failed. Check your credentials.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 }

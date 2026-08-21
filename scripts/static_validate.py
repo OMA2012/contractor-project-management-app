@@ -2105,22 +2105,25 @@ if e2e_test_path.exists():
 require(not (ROOT / 'supabase/functions/bootstrap-production-owner').exists(), 'no first-Owner Edge Function directory added')
 require(not (ROOT / 'supabase/functions/bootstrap-first-owner').exists(), 'no first-Owner Edge Function directory added')
 
-flutter_invitation_ui_mentions = [
-    p for p in (ROOT / 'app/lib').glob('**/*.dart')
-    if p.is_file()
-    and str(p.relative_to(ROOT)).replace('\\', '/') not in {
-        'app/lib/src/screens/owner_clients_projects_screen.dart',
-        'app/lib/src/owner_clients_projects/owner_clients_projects_providers.dart',
-        'app/lib/src/owner_clients_projects/owner_clients_projects_repository.dart',
-    }
-    and re.search(r'invitation|invite[-_ ]?client|user_invitations', p.read_text(encoding='utf-8', errors='ignore'), re.I)
-]
-require(not flutter_invitation_ui_mentions, 'no Flutter invitation UI added')
-flutter_activation_ui_mentions = [
-    p for p in (ROOT / 'app/lib').glob('**/*.dart')
-    if p.is_file() and re.search(r'owner/activate|activate_current_invited_owner|bootstrap[-_ ]?owner', p.read_text(encoding='utf-8', errors='ignore'), re.I)
-]
-require(not flutter_activation_ui_mentions, 'no Flutter Owner activation UI added')
+activation_repository_text = (ROOT / 'app/lib/src/auth/account_activation_repository.dart').read_text(encoding='utf-8')
+activation_router_text = (ROOT / 'app/lib/src/routing/app_router.dart').read_text(encoding='utf-8')
+require(
+    all(marker in activation_repository_text for marker in (
+        "'accept-client-invitation'",
+        "'token': token",
+        "'full_name': fullName",
+    )) and "'client_id'" not in activation_repository_text,
+    'Flutter Client invitation acceptance uses only the linked backend contract',
+)
+require(
+    "path: '/accept-invitation'" in activation_router_text,
+    'Flutter Client invitation route is wired',
+)
+require(
+    "'activate_current_invited_owner'" in activation_repository_text
+    and "path: '/owner/activate'" in activation_router_text,
+    'Flutter first-Owner activation route uses the existing authenticated RPC',
+)
 
 with (ROOT / '.github/workflows/package-09-1-database.yml').open('r', encoding='utf-8') as fh:
     yaml.safe_load(fh)
@@ -2302,6 +2305,8 @@ def strip_stage_12_document_core_progress_terms(text):
         'OwnerAdminPhotographCategory.progress',
         'progress, taskImage',
         'isProgressPhotograph',
+        'scanInProgress',
+        'SCAN_IN_PROGRESS',
     ):
         text = text.replace(approved, '')
     return text
@@ -2485,6 +2490,14 @@ for p in (ROOT / 'app/lib').glob('**/*.dart'):
         continue
     text = p.read_text(encoding='utf-8', errors='ignore')
     rel = str(p.relative_to(ROOT)).replace('\\', '/')
+    if rel in {
+        'app/lib/src/screens/login_screen.dart',
+        'app/lib/src/screens/password_reset_request_screen.dart',
+        'app/lib/src/screens/password_update_screen.dart',
+        'app/lib/src/screens/client_invitation_acceptance_screen.dart',
+        'app/lib/src/screens/owner_activation_screen.dart',
+    }:
+        continue
     if rel == 'app/lib/src/screens/owner_clients_projects_screen.dart':
         continue
     searchable = strip_stage_12_document_core_progress_terms(text) if rel.startswith('app/lib/src/documents/') else text

@@ -57,6 +57,14 @@ final authSessionSourceProvider = Provider<AuthSessionSource>((ref) {
   return SupabaseAuthSessionSource();
 });
 
+final authActionsProvider = Provider<AuthActions>((ref) {
+  return SupabaseAuthActions();
+});
+
+final passwordRecoveryRedirectProvider = Provider<String>((ref) {
+  return Uri.base.resolve('/update-password').toString();
+});
+
 final authSessionProvider =
     NotifierProvider<AuthSessionController, AuthSessionState>(
       AuthSessionController.new,
@@ -115,24 +123,39 @@ class AuthSessionController extends Notifier<AuthSessionState> {
     }
   }
 
-  void signInAsStaff(String email) {
-    state = AuthSessionState.authenticated(email: email);
+  Future<void> signIn(String email, String password) async {
+    final session = await ref
+        .read(authActionsProvider)
+        .signInWithPassword(email.trim(), password);
+    state = AuthSessionState.authenticated(
+      authUserId: session.authUserId,
+      email: session.email,
+    );
   }
 
-  void signInAsClient(String email) {
-    state = AuthSessionState.authenticated(email: email);
+  Future<void> requestPasswordReset(String email) {
+    return ref
+        .read(authActionsProvider)
+        .resetPasswordForEmail(
+          email.trim(),
+          ref.read(passwordRecoveryRedirectProvider),
+        );
   }
 
-  void requestPasswordReset(String email) {
-    state = AuthSessionState.passwordRecovery(email: email);
+  Future<void> updatePassword(String password) async {
+    await ref.read(authActionsProvider).updatePassword(password);
+    await signOut();
   }
 
-  void updatePassword() {
-    state = const AuthSessionState.unauthenticated();
-  }
-
-  void signOut() {
-    state = const AuthSessionState.unauthenticated();
+  Future<void> signOut() async {
+    try {
+      await ref.read(authActionsProvider).signOut();
+    } catch (_) {
+      // Local protected state still fails closed when remote sign-out is
+      // temporarily unavailable.
+    } finally {
+      state = const AuthSessionState.unauthenticated();
+    }
   }
 }
 
@@ -163,6 +186,52 @@ abstract class AuthSessionSource {
   AuthSessionSnapshot? get currentSession;
 
   Stream<AuthSessionChange> get onAuthStateChange;
+}
+
+abstract class AuthActions {
+  Future<AuthSessionSnapshot> signInWithPassword(String email, String password);
+
+  Future<void> resetPasswordForEmail(String email, String redirectTo);
+
+  Future<void> updatePassword(String password);
+
+  Future<void> signOut();
+}
+
+class SupabaseAuthActions implements AuthActions {
+  GoTrueClient get _auth => Supabase.instance.client.auth;
+
+  @override
+  Future<AuthSessionSnapshot> signInWithPassword(
+    String email,
+    String password,
+  ) async {
+    final response = await _auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+    final session = response.session;
+    if (session == null) {
+      throw const AuthException('Authentication failed.');
+    }
+    return AuthSessionSnapshot(
+      authUserId: session.user.id,
+      email: session.user.email,
+    );
+  }
+
+  @override
+  Future<void> resetPasswordForEmail(String email, String redirectTo) {
+    return _auth.resetPasswordForEmail(email, redirectTo: redirectTo);
+  }
+
+  @override
+  Future<void> updatePassword(String password) async {
+    await _auth.updateUser(UserAttributes(password: password));
+  }
+
+  @override
+  Future<void> signOut() => _auth.signOut();
 }
 
 class SupabaseAuthSessionSource implements AuthSessionSource {

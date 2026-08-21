@@ -766,12 +766,51 @@ void main() {
     );
   });
 
-  test('upload state stops at awaiting scan after completion result', () async {
+  test(
+    'AWAITING_SCAN invokes scan finalization and completes clean upload',
+    () async {
+      final repository = FakeDocumentRepository(
+        completion: const DocumentUploadResult(
+          uploadId: 'upload-1',
+          status: 'AWAITING_SCAN',
+          reservedDocumentId: 'doc-1',
+        ),
+      );
+      final container = containerWith(repository: repository);
+      addTearDown(container.dispose);
+      final documentSubscription = container.listen(
+        ownerAdminDocumentListProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(documentSubscription.close);
+      await container.read(ownerAdminDocumentListProvider.notifier).load();
+      repository.ownerAdminOffsets.clear();
+
+      await container
+          .read(documentUploadProvider.notifier)
+          .start(uploadRequest());
+
+      expect(
+        container.read(documentUploadProvider).phase,
+        DocumentUploadPhase.complete,
+      );
+      expect(repository.finalizeScanCalls, ['upload-1']);
+      expect(repository.ownerAdminOffsets, [0]);
+      expect(repository.uploaded, isTrue);
+    },
+  );
+
+  test('malicious scan quarantines without publishing', () async {
     final repository = FakeDocumentRepository(
       completion: const DocumentUploadResult(
         uploadId: 'upload-1',
         status: 'AWAITING_SCAN',
         reservedDocumentId: 'doc-1',
+      ),
+      scanResult: const DocumentScanResult(
+        uploadId: 'upload-1',
+        status: 'QUARANTINED',
       ),
     );
     final container = containerWith(repository: repository);
@@ -781,12 +820,125 @@ void main() {
         .read(documentUploadProvider.notifier)
         .start(uploadRequest());
 
+    final state = container.read(documentUploadProvider);
+    expect(state.phase, DocumentUploadPhase.quarantined);
+    expect(state.documentId, isNull);
+    expect(repository.ownerAdminOffsets, isEmpty);
+  });
+
+  test('finalized photograph refreshes photograph provider', () async {
+    final repository = FakeDocumentRepository(
+      completion: const DocumentUploadResult(
+        uploadId: 'upload-1',
+        status: 'AWAITING_SCAN',
+        reservedDocumentId: 'doc-1',
+      ),
+    );
+    final container = containerWith(repository: repository);
+    addTearDown(container.dispose);
+    final photographSubscription = container.listen(
+      ownerAdminPhotographGalleryProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    addTearDown(photographSubscription.close);
+    await container.read(ownerAdminPhotographGalleryProvider.notifier).load();
+    repository.ownerAdminPhotographCategories.clear();
+
+    await container
+        .read(documentUploadProvider.notifier)
+        .start(
+          DocumentUploadRequest(
+            originalFileName: 'photo.jpg',
+            mimeType: 'image/jpeg',
+            bytes: Uint8List.fromList([1, 2, 3]),
+            documentTypeCode: 'PROGRESS_PHOTOGRAPH',
+            projectId: 'project-1',
+            processPhotograph: true,
+          ),
+        );
+
+    expect(repository.ownerAdminPhotographCategories, [
+      OwnerAdminPhotographCategory.progress,
+    ]);
     expect(
       container.read(documentUploadProvider).phase,
-      DocumentUploadPhase.awaitingScan,
+      DocumentUploadPhase.complete,
     );
-    expect(repository.uploaded, isTrue);
   });
+
+  test('scanner failure fails closed without publishing', () async {
+    final repository = FakeDocumentRepository(
+      completion: const DocumentUploadResult(
+        uploadId: 'upload-1',
+        status: 'AWAITING_SCAN',
+        reservedDocumentId: 'doc-1',
+      ),
+      scanResult: const DocumentScanResult(
+        uploadId: 'upload-1',
+        status: 'SCAN_FAILED',
+      ),
+    );
+    final container = containerWith(repository: repository);
+    addTearDown(container.dispose);
+
+    await container
+        .read(documentUploadProvider.notifier)
+        .start(uploadRequest());
+
+    final state = container.read(documentUploadProvider);
+    expect(state.phase, DocumentUploadPhase.scanFailed);
+    expect(state.documentId, isNull);
+    expect(repository.ownerAdminOffsets, isEmpty);
+  });
+
+  test('scanner unavailable error is safe and does not publish', () async {
+    final repository = FakeDocumentRepository(
+      completion: const DocumentUploadResult(
+        uploadId: 'upload-1',
+        status: 'AWAITING_SCAN',
+        reservedDocumentId: 'doc-1',
+      ),
+      scanError: StateError('scanner transport detail'),
+    );
+    final container = containerWith(repository: repository);
+    addTearDown(container.dispose);
+
+    await container
+        .read(documentUploadProvider.notifier)
+        .start(uploadRequest());
+
+    final state = container.read(documentUploadProvider);
+    expect(state.phase, DocumentUploadPhase.failed);
+    expect(state.documentId, isNull);
+    expect(repository.ownerAdminOffsets, isEmpty);
+  });
+
+  test(
+    'scan repository passes only upload_id to finalization function',
+    () async {
+      final calls = <Map<String, dynamic>>[];
+      final repository = SupabaseDocumentRepository(
+        invokeFunction: (functionName, body) async {
+          calls.add({'function': functionName, ...body});
+          return {
+            'data': {
+              'upload_id': 'upload-1',
+              'document_id': 'doc-1',
+              'status': 'FINALIZED',
+            },
+          };
+        },
+      );
+
+      final result = await repository.finalizeScan('upload-1');
+
+      expect(result.finalized, isTrue);
+      expect(calls, [
+        {'function': 'document-scan-finalize', 'upload_id': 'upload-1'},
+      ]);
+    },
+  );
 
   test(
     'upload complete is reached only after finalized backend result',
@@ -1433,6 +1585,12 @@ class FakeDocumentRepository implements DocumentRepository {
       status: 'FINALIZED',
       reservedDocumentId: 'doc-1',
     ),
+    this.scanResult = const DocumentScanResult(
+      uploadId: 'upload-1',
+      status: 'FINALIZED',
+      documentId: 'doc-1',
+    ),
+    this.scanError,
     this.failUpload = false,
     this.failList = false,
     this.uploadCompleters = const [],
@@ -1447,6 +1605,8 @@ class FakeDocumentRepository implements DocumentRepository {
   });
 
   final DocumentUploadResult completion;
+  final DocumentScanResult scanResult;
+  final Object? scanError;
   final bool failUpload;
   final bool failList;
   final List<Completer<void>> uploadCompleters;
@@ -1463,6 +1623,7 @@ class FakeDocumentRepository implements DocumentRepository {
   final ownerAdminPhotographCategories = <OwnerAdminPhotographCategory>[];
   final clientPhotographOffsets = <int>[];
   bool uploaded = false;
+  final finalizeScanCalls = <String>[];
   var _uploadCall = 0;
   var _listCall = 0;
   var _ownerAdminListCall = 0;
@@ -1654,6 +1815,17 @@ class FakeDocumentRepository implements DocumentRepository {
       uploadId: uploadId,
       status: completion.status,
       reservedDocumentId: completion.reservedDocumentId,
+    );
+  }
+
+  @override
+  Future<DocumentScanResult> finalizeScan(String uploadId) async {
+    finalizeScanCalls.add(uploadId);
+    if (scanError != null) throw scanError!;
+    return DocumentScanResult(
+      uploadId: uploadId,
+      status: scanResult.status,
+      documentId: scanResult.documentId,
     );
   }
 

@@ -1813,6 +1813,11 @@ class FakeProjectDocumentRepository implements DocumentRepository {
   }
 
   @override
+  Future<DocumentScanResult> finalizeScan(String uploadId) {
+    throw const DocumentFailure('Upload is unavailable.');
+  }
+
+  @override
   Future<PhotographSummary> processPhotograph(String documentId) async {
     return const PhotographSummary(
       processingState: 'READY',

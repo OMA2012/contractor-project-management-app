@@ -390,7 +390,7 @@ void main() {
     expect(repository.replaceCalls.single, ('doc-1', 'doc-page-2'));
   });
 
-  testWidgets('upload selects real bytes and shows awaiting scan', (
+  testWidgets('upload selects real bytes and finalizes security scan', (
     tester,
   ) async {
     final repository = FakeOwnerAdminRepository(
@@ -451,10 +451,7 @@ void main() {
     expect(repository.lastUploadedBytes, Uint8List.fromList([7, 8, 9, 10]));
     expect(repository.lastUploadRequest?.projectId, isNull);
     expect(repository.lastUploadRequest?.clientVisible, isTrue);
-    expect(
-      find.text('Uploaded - awaiting security verification'),
-      findsOneWidget,
-    );
+    expect(find.text('Complete'), findsOneWidget);
   });
 
   testWidgets('upload clears selected file when replacement picker cancels', (
@@ -499,6 +496,60 @@ void main() {
     await tester.tap(find.text('Upload'));
     await tester.pumpAndSettle();
     expect(repository.uploadRequests, isEmpty);
+  });
+
+  testWidgets('upload shows safe quarantine and scan-failure messages', (
+    tester,
+  ) async {
+    for (final scenario in [
+      (
+        'QUARANTINED',
+        'Security verification found unsafe content. The file was quarantined and is not accessible.',
+      ),
+      (
+        'SCAN_FAILED',
+        'Security verification could not verify the file. The document was not published.',
+      ),
+    ]) {
+      final repository = FakeOwnerAdminRepository(
+        completion: const DocumentUploadResult(
+          uploadId: 'upload-1',
+          status: 'AWAITING_SCAN',
+        ),
+        scanResult: DocumentScanResult(
+          uploadId: 'upload-1',
+          status: scenario.$1,
+        ),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            documentRepositoryProvider.overrideWithValue(repository),
+            ownerAdminDocumentAccessProvider.overrideWithValue(true),
+            documentFilePickerProvider.overrideWithValue(
+              FakeDocumentFilePicker(
+                SelectedDocumentFile(
+                  safeFileName: 'plan.pdf',
+                  mimeType: 'application/pdf',
+                  bytes: Uint8List.fromList([1, 2, 3]),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: OwnerAdminDocumentUploadScreen()),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Choose file'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Upload'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(scenario.$2), findsOneWidget);
+      expect(repository.listLoads, 0);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
   testWidgets('upload uses B after A then cancel then B selection', (
@@ -992,6 +1043,11 @@ class FakeOwnerAdminRepository implements DocumentRepository {
       status: 'FINALIZED',
       reservedDocumentId: 'doc-1',
     ),
+    this.scanResult = const DocumentScanResult(
+      uploadId: 'upload-1',
+      status: 'FINALIZED',
+      documentId: 'doc-1',
+    ),
   }) : rows = rows ?? [document(isSuperseded: true)],
        ownerAdminPages = ownerAdminPages ?? const [],
        ownerAdminPhotographPages = ownerAdminPhotographPages ?? const [],
@@ -1004,12 +1060,14 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   final bool failList;
   final bool failPhotographList;
   final DocumentUploadResult completion;
+  final DocumentScanResult scanResult;
   final presenter = FakeDocumentContentPresenter();
   var failAccess = false;
   var lastFilters = const OwnerAdminDocumentFilters();
   DocumentUploadRequest? lastUploadRequest;
   Uint8List? lastUploadedBytes;
   final uploadRequests = <DocumentUploadRequest>[];
+  final finalizeScanCalls = <String>[];
 
   Object? archiveError;
   Object? restoreError;
@@ -1189,6 +1247,16 @@ class FakeOwnerAdminRepository implements DocumentRepository {
   @override
   Future<DocumentUploadResult> completeUpload(String uploadId) async =>
       completion;
+
+  @override
+  Future<DocumentScanResult> finalizeScan(String uploadId) async {
+    finalizeScanCalls.add(uploadId);
+    return DocumentScanResult(
+      uploadId: uploadId,
+      status: scanResult.status,
+      documentId: scanResult.documentId,
+    );
+  }
 
   @override
   Future<DocumentUploadSession> authorizeClientTransferEvidenceUpload(

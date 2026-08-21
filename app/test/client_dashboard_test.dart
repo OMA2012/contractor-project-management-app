@@ -244,6 +244,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
     expect(find.text('Welcome, Client Person'), findsOneWidget);
     expect(find.text('Loading...'), findsWidgets);
     loading.complete([projectSummary()]);
