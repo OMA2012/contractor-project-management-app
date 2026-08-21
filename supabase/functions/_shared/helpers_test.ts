@@ -154,38 +154,63 @@ Deno.test("required environment validation keeps secret values out of errors", (
 });
 
 Deno.test("origin and CORS helpers use exact origin and no wildcard", () => {
-  const headers = corsHeaders("https://app.example.test");
+  const approvedOrigin =
+    "https://contractor-project-management-app-staging.pages.dev";
+  const headers = corsHeaders(approvedOrigin);
   assertEquals(
     headers.get("Access-Control-Allow-Origin"),
-    "https://app.example.test",
+    approvedOrigin,
   );
   assertEquals(headers.get("Access-Control-Allow-Methods"), "POST, OPTIONS");
-  assertEquals(
-    headers.get("Access-Control-Allow-Headers"),
-    "authorization, apikey, content-type, x-request-id",
-  );
+  const allowedRequestHeaders =
+    headers.get("Access-Control-Allow-Headers")?.split(",").map((header) =>
+      header.trim()
+    ) ?? [];
+  for (
+    const header of [
+      "authorization",
+      "x-client-info",
+      "apikey",
+      "content-type",
+    ]
+  ) {
+    assert(
+      allowedRequestHeaders.includes(header),
+      `${header} must be allowed by CORS`,
+    );
+  }
   assertEquals(headers.get("Vary"), "Origin");
   assert(!Array.from(headers.values()).includes("*"));
 
   const allowed = new Request("https://edge.test", {
-    headers: { Origin: "https://app.example.test" },
+    headers: {
+      Origin: approvedOrigin,
+      "Access-Control-Request-Headers":
+        "authorization, x-client-info, apikey, content-type",
+    },
   });
   assertEquals(
-    requireAllowedOrigin(allowed, "https://app.example.test"),
-    "https://app.example.test",
+    requireAllowedOrigin(allowed, approvedOrigin),
+    approvedOrigin,
   );
-  const response = optionsResponse(allowed, "https://app.example.test");
+  const response = optionsResponse(allowed, approvedOrigin);
   assertEquals(response.status, 204);
   assertEquals(
     response.headers.get("Access-Control-Allow-Origin"),
-    "https://app.example.test",
+    approvedOrigin,
+  );
+  assert(
+    response.headers.get("Access-Control-Allow-Headers")?.includes(
+      "x-client-info",
+    ),
+    "OPTIONS must allow the Supabase client-info header",
   );
 
   assertThrows(
     () =>
       requireAllowedOrigin(
         new Request("https://edge.test"),
-        "https://app.example.test",
+        approvedOrigin,
       ),
     "Origin",
   );
@@ -195,7 +220,18 @@ Deno.test("origin and CORS helpers use exact origin and no wildcard", () => {
         new Request("https://edge.test", {
           headers: { Origin: "https://evil.test" },
         }),
-        "https://app.example.test",
+        approvedOrigin,
+      ),
+    "Origin",
+  );
+  assertThrows(
+    () =>
+      optionsResponse(
+        new Request("https://edge.test", {
+          method: "OPTIONS",
+          headers: { Origin: "https://evil.test" },
+        }),
+        approvedOrigin,
       ),
     "Origin",
   );
