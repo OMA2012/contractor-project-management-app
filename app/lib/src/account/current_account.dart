@@ -50,11 +50,7 @@ class CurrentAccount {
   final String? jobTitle;
   final List<String> activeRoleCodes;
 
-  bool get hasStaffRole =>
-      activeRoleCodes.contains('owner_admin') ||
-      activeRoleCodes.contains('project_manager') ||
-      activeRoleCodes.contains('accountant') ||
-      activeRoleCodes.contains('site_supervisor');
+  bool get hasStaffRole => activeRoleCodes.contains('owner_admin');
 
   bool get hasClientRole => activeRoleCodes.contains('client');
 }

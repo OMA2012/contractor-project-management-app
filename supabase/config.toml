@@ -66,3 +66,24 @@ verify_jwt = false
 
 [functions.client-projects]
 verify_jwt = false
+
+[functions.account-transfers]
+verify_jwt = false
+
+[functions.client-payments]
+verify_jwt = false
+
+[functions.currency-exchanges]
+verify_jwt = false
+
+[functions.document-process-photograph]
+verify_jwt = false
+
+[functions.document-scan-finalize]
+verify_jwt = false
+
+[functions.opening-balances]
+verify_jwt = false
+
+[functions.project-expenses]
+verify_jwt = false

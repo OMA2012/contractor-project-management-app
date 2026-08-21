@@ -389,7 +389,7 @@ class DocumentUploadController extends Notifier<DocumentUploadState> {
         phase: DocumentUploadPhase.validatingCompleting,
         uploadId: authorization.uploadId,
       );
-      final result = await repository.completeUpload(authorization.uploadId);
+      var result = await repository.completeUpload(authorization.uploadId);
       if (!_canApplyResult(generation)) return;
       if (result.awaitingScan) {
         state = DocumentUploadState(
@@ -397,7 +397,39 @@ class DocumentUploadController extends Notifier<DocumentUploadState> {
           uploadId: result.uploadId,
           documentId: result.reservedDocumentId,
         );
-        return;
+        final scan = await repository.finalizeScan(result.uploadId);
+        if (!_canApplyResult(generation)) return;
+        if (scan.quarantined) {
+          state = DocumentUploadState(
+            phase: DocumentUploadPhase.quarantined,
+            uploadId: scan.uploadId,
+          );
+          return;
+        }
+        if (scan.scanFailed) {
+          state = DocumentUploadState(
+            phase: DocumentUploadPhase.scanFailed,
+            uploadId: scan.uploadId,
+          );
+          return;
+        }
+        if (scan.scanInProgress) {
+          state = DocumentUploadState(
+            phase: DocumentUploadPhase.awaitingScan,
+            uploadId: scan.uploadId,
+          );
+          return;
+        }
+        if (!scan.finalized) {
+          throw const DocumentFailure(
+            'Security verification did not finalize the document.',
+          );
+        }
+        result = DocumentUploadResult(
+          uploadId: scan.uploadId,
+          status: scan.status,
+          reservedDocumentId: scan.documentId,
+        );
       }
       if (!result.finalized) {
         throw const DocumentFailure(
@@ -418,12 +450,18 @@ class DocumentUploadController extends Notifier<DocumentUploadState> {
         uploadId: result.uploadId,
         documentId: result.reservedDocumentId,
       );
+      if (ref.exists(ownerAdminDocumentListProvider)) {
+        await ref.read(ownerAdminDocumentListProvider.notifier).refresh();
+      }
+      if (request.processPhotograph &&
+          ref.exists(ownerAdminPhotographGalleryProvider)) {
+        await ref.read(ownerAdminPhotographGalleryProvider.notifier).load();
+      }
     } catch (error) {
       if (!_canApplyResult(generation)) return;
       state = DocumentUploadState(
         phase: DocumentUploadPhase.failed,
         uploadId: state.uploadId,
-        documentId: state.documentId,
         error: error,
       );
     }

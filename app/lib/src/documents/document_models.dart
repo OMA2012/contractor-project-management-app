@@ -12,6 +12,8 @@ enum DocumentUploadPhase {
   uploading,
   validatingCompleting,
   awaitingScan,
+  quarantined,
+  scanFailed,
   processingPhotograph,
   complete,
   failed,
@@ -613,6 +615,31 @@ class DocumentUploadResult {
   bool get finalized => status == 'FINALIZED';
 }
 
+class DocumentScanResult {
+  const DocumentScanResult({
+    required this.uploadId,
+    required this.status,
+    this.documentId,
+  });
+
+  factory DocumentScanResult.fromJson(Map<String, dynamic> json) {
+    return DocumentScanResult(
+      uploadId: _requiredString(json, 'upload_id'),
+      status: _requiredUploadStatus(json, 'status'),
+      documentId: _string(json, 'document_id'),
+    );
+  }
+
+  final String uploadId;
+  final String status;
+  final String? documentId;
+
+  bool get finalized => status == 'FINALIZED' && documentId != null;
+  bool get quarantined => status == 'QUARANTINED';
+  bool get scanFailed => status == 'SCAN_FAILED';
+  bool get scanInProgress => status == 'SCAN_IN_PROGRESS';
+}
+
 class DocumentUploadState {
   const DocumentUploadState({
     required this.phase,
@@ -721,7 +748,13 @@ String _requiredDocumentStatus(Map<String, dynamic> json, String key) {
 
 String _requiredUploadStatus(Map<String, dynamic> json, String key) {
   final value = _requiredString(json, key);
-  if (!{'AWAITING_SCAN', 'FINALIZED'}.contains(value)) {
+  if (!{
+    'AWAITING_SCAN',
+    'SCAN_IN_PROGRESS',
+    'QUARANTINED',
+    'SCAN_FAILED',
+    'FINALIZED',
+  }.contains(value)) {
     throw DocumentParseFailure('Upload status is not recognized.');
   }
   return value;

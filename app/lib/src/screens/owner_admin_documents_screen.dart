@@ -494,8 +494,22 @@ class _OwnerAdminDocumentUploadScreenState
         Text(_uploadPhaseLabel(state.phase)),
         if (state.error != null)
           Text(
-            'Upload failed.',
+            'Upload failed safely. The document was not published.',
             style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (state.phase == DocumentUploadPhase.quarantined)
+          Text(
+            'Security verification found unsafe content. The file was quarantined and is not accessible.',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (state.phase == DocumentUploadPhase.scanFailed)
+          Text(
+            'Security verification could not verify the file. The document was not published.',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (state.phase == DocumentUploadPhase.awaitingScan)
+          const Text(
+            'Security verification is still in progress. The document is not yet available.',
           ),
       ],
     );
@@ -547,6 +561,7 @@ class _OwnerAdminDocumentUploadScreenState
     return state.phase == DocumentUploadPhase.authorizing ||
         state.phase == DocumentUploadPhase.uploading ||
         state.phase == DocumentUploadPhase.validatingCompleting ||
+        state.phase == DocumentUploadPhase.awaitingScan ||
         state.phase == DocumentUploadPhase.processingPhotograph;
   }
 }
@@ -994,8 +1009,9 @@ String _uploadPhaseLabel(DocumentUploadPhase phase) {
     DocumentUploadPhase.authorizing => 'Authorizing upload',
     DocumentUploadPhase.uploading => 'Uploading',
     DocumentUploadPhase.validatingCompleting => 'Completing upload',
-    DocumentUploadPhase.awaitingScan =>
-      'Uploaded - awaiting security verification',
+    DocumentUploadPhase.awaitingScan => 'Running security verification',
+    DocumentUploadPhase.quarantined => 'Quarantined',
+    DocumentUploadPhase.scanFailed => 'Security verification failed',
     DocumentUploadPhase.processingPhotograph => 'Processing photograph',
     DocumentUploadPhase.complete => 'Complete',
     DocumentUploadPhase.failed => 'Failed',
