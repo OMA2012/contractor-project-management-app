@@ -71,6 +71,25 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('project save submits the selected reporting currency code', () async {
+    Map<String, dynamic>? submittedBody;
+    final repository = OwnerClientsProjectsRepository(
+      invokeFunction: (functionName, body) async {
+        submittedBody = body;
+        return envelope({'project': projectRow(reportingCurrencyCode: 'SAR')});
+      },
+    );
+
+    await repository.saveProject(
+      clientId: clientId,
+      name: 'School Build',
+      reportingCurrencyCode: 'SAR',
+    );
+
+    expect(submittedBody?['action'], 'project_create');
+    expect(submittedBody?['reporting_currency_code'], 'SAR');
+  });
 }
 
 const clientId = '10000000-0000-4000-8000-000000000001';
@@ -93,7 +112,10 @@ Map<String, dynamic> clientRow() => {
   'project_count': 1,
 };
 
-Map<String, dynamic> projectRow({String status = 'APPROVED'}) => {
+Map<String, dynamic> projectRow({
+  String status = 'APPROVED',
+  String reportingCurrencyCode = 'SGD',
+}) => {
   'id': projectId,
   'client_id': clientId,
   'client_number': 'CL-000001',
@@ -101,6 +123,6 @@ Map<String, dynamic> projectRow({String status = 'APPROVED'}) => {
   'project_number': 'PRJ-2026-0001',
   'name': 'Villa Build',
   'status': status,
-  'reporting_currency_code': 'SGD',
+  'reporting_currency_code': reportingCurrencyCode,
   'version_number': 1,
 };
