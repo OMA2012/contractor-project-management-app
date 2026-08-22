@@ -113,6 +113,11 @@ class _FinancialAccountsScreenState
       if (!context.mounted) {
         return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Financial account created successfully.'),
+        ),
+      );
       context.go('/staff/financial-accounts/${result.financialAccountId}');
     } catch (_) {
       if (!context.mounted) {

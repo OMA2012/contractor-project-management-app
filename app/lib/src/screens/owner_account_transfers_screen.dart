@@ -108,6 +108,9 @@ class _OwnerAccountTransfersScreenState
           .create(draft);
       await ref.read(accountTransferListProvider.notifier).refresh();
       if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account transfer saved successfully.')),
+        );
         context.go('/staff/account-transfers/${result.financialEventId}');
       }
     } catch (_) {

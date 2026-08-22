@@ -74,6 +74,7 @@ class _FinancialReversalsScreenState
           .createReversal(draft);
       await ref.read(reversalListProvider.notifier).load();
       if (context.mounted) {
+        _snack(context, 'Reversal saved successfully.');
         context.go('/staff/financial-reversals/${result.financialEventId}');
       }
     } catch (_) {
@@ -197,6 +198,7 @@ class _FinancialAdjustmentsScreenState
           .createAdjustment(draft);
       await ref.read(adjustmentListProvider.notifier).load();
       if (context.mounted) {
+        _snack(context, 'Adjustment saved successfully.');
         context.go('/staff/financial-adjustments/${result.financialEventId}');
       }
     } catch (_) {

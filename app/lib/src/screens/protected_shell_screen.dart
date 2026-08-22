@@ -7,8 +7,13 @@ import '../account/current_account_provider.dart';
 import '../auth/auth_session.dart';
 
 class ProtectedShellScreen extends ConsumerWidget {
-  const ProtectedShellScreen({required this.child, super.key});
+  const ProtectedShellScreen({
+    required this.location,
+    required this.child,
+    super.key,
+  });
 
+  final Uri location;
   final Widget child;
 
   @override
@@ -19,9 +24,18 @@ class ProtectedShellScreen extends ConsumerWidget {
       CurrentAccountLoaded(:final account) => account.fullName,
       _ => null,
     };
+    final backDestination = protectedBackDestination(location);
+    final childOwnsAppBar =
+        location.path.startsWith('/staff/clients') ||
+        location.path.startsWith('/staff/projects');
 
     return Scaffold(
       appBar: AppBar(
+        leading: backDestination == null || childOwnsAppBar
+            ? null
+            : BackButton(
+                onPressed: () => navigateBack(context, backDestination),
+              ),
         title: const Text('Contractor Projects'),
         actions: [
           if (account.routeTarget == TrustedAccountRouteTarget.staff)
@@ -89,4 +103,48 @@ class ProtectedShellScreen extends ConsumerWidget {
       body: child,
     );
   }
+}
+
+void navigateBack(BuildContext context, String fallbackLocation) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.go(fallbackLocation);
+  }
+}
+
+String? protectedBackDestination(Uri location) {
+  final path = location.path;
+  if (path == '/staff' || path == '/client') return null;
+
+  final segments = location.pathSegments;
+  if (segments.isEmpty) return null;
+
+  if (segments.first == 'client') {
+    if (segments.length == 1) return null;
+    if (segments.length == 2) return '/client';
+    return '/client/${segments[1]}';
+  }
+
+  if (segments.first != 'staff' || segments.length == 1) return null;
+
+  if (segments.length == 2) return '/staff';
+  if (segments[1] == 'clients') {
+    if (segments[2] == 'new') return '/staff/clients';
+    if (segments.length >= 4 && segments[3] == 'edit') {
+      return '/staff/clients/${segments[2]}';
+    }
+    return '/staff/clients';
+  }
+  if (segments[1] == 'projects') {
+    if (segments[2] == 'new') {
+      final clientId = location.queryParameters['clientId'];
+      return clientId == null ? '/staff/projects' : '/staff/clients/$clientId';
+    }
+    if (segments.length >= 4 && segments[3] == 'edit') {
+      return '/staff/projects/${segments[2]}';
+    }
+    return '/staff/projects';
+  }
+  return '/staff/${segments[1]}';
 }

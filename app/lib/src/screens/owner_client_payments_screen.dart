@@ -109,6 +109,9 @@ class _OwnerClientPaymentsScreenState
           .createPayment(draft);
       await ref.read(ownerClientPaymentListProvider.notifier).refresh();
       if (context.mounted && result.financialEventId != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment saved successfully.')),
+        );
         context.go('/staff/client-payments/${result.financialEventId}');
       }
     } catch (_) {

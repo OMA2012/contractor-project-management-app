@@ -187,6 +187,118 @@ void main() {
     expect(save.onPressed, isNull);
   });
 
+  testWidgets(
+    'expense currency and paid-from account stay constrained, filtered, and readable',
+    (tester) async {
+      final repository = FakeProjectExpenseRepository();
+      final accounts = FakeFinancialAccounts(
+        accounts: const [
+          FinancialAccount(
+            id: '11111111-1111-4111-8111-111111111111',
+            accountNumber: 'FA-USD',
+            name: 'Site Cash',
+            type: FinancialAccountType.cash,
+            currencyCode: 'USD',
+            isActive: true,
+            versionNumber: 1,
+          ),
+          FinancialAccount(
+            id: '22222222-2222-4222-8222-222222222222',
+            accountNumber: 'FA-SAR',
+            name: 'Operations',
+            type: FinancialAccountType.bank,
+            currencyCode: 'SAR',
+            bankName: 'Safe Bank',
+            maskedAccountIdentifier: '****4321',
+            isActive: true,
+            versionNumber: 1,
+          ),
+          FinancialAccount(
+            id: '33333333-3333-4333-8333-333333333333',
+            accountNumber: 'FA-INACTIVE',
+            name: 'Old Cash',
+            type: FinancialAccountType.cash,
+            currencyCode: 'SAR',
+            isActive: false,
+            versionNumber: 1,
+          ),
+        ],
+      );
+      await tester.binding.setSurfaceSize(const Size(900, 1000));
+      await tester.pumpWidget(
+        projectExpenseList(repository, accountsRepository: accounts),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('expense-project-dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('PRJ-1 - Villa').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('expense-category-dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Materials').last);
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Amount'),
+        '10.00',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Description'),
+        'Supplies',
+      );
+
+      expect(find.widgetWithText(TextFormField, 'Currency'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('expense-currency-dropdown')));
+      await tester.pumpAndSettle();
+      expect(find.text('USD'), findsWidgets);
+      expect(find.text('SAR'), findsOneWidget);
+      expect(find.text('YER'), findsOneWidget);
+      expect(find.text('EUR'), findsNothing);
+      await tester.tap(find.text('USD').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('paid-from-USD')));
+      await tester.pumpAndSettle();
+      expect(find.text('Site Cash · Cash · USD'), findsOneWidget);
+      expect(find.textContaining('11111111-1111'), findsNothing);
+      expect(
+        find.text('Operations · Bank · SAR · Safe Bank · ****4321'),
+        findsNothing,
+      );
+      await tester.tap(find.text('Site Cash · Cash · USD'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('expense-currency-dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('SAR').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Site Cash · Cash · USD'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('paid-from-SAR')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Operations · Bank · SAR · Safe Bank · ****4321'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('22222222-2222'), findsNothing);
+      expect(find.textContaining('Old Cash'), findsNothing);
+      await tester.tap(
+        find.text('Operations · Bank · SAR · Safe Bank · ****4321'),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('expense-currency-dropdown')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('YER').last);
+      await tester.pumpAndSettle();
+      expect(find.text('No active YER accounts available.'), findsOneWidget);
+      final save = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save Draft'),
+      );
+      expect(save.onPressed, isNull);
+    },
+  );
+
   testWidgets('list renders loading empty error mobile and laptop states', (
     tester,
   ) async {
@@ -423,6 +535,7 @@ void main() {
 Widget projectExpenseList(
   FakeProjectExpenseRepository repository, {
   String? clientId,
+  FinancialAccountRepository? accountsRepository,
 }) => ProviderScope(
   overrides: [
     initialAuthSessionProvider.overrideWithValue(
@@ -435,7 +548,7 @@ Widget projectExpenseList(
     ownerFinancialAccountAccessProvider.overrideWithValue(true),
     projectExpenseRepositoryProvider.overrideWithValue(repository),
     financialAccountRepositoryProvider.overrideWithValue(
-      FakeFinancialAccounts(),
+      accountsRepository ?? FakeFinancialAccounts(),
     ),
   ],
   child: MaterialApp(
@@ -643,18 +756,24 @@ class FakeProjectExpenseRepository extends ProjectExpenseRepository {
 }
 
 class FakeFinancialAccounts implements FinancialAccountRepository {
+  FakeFinancialAccounts({
+    this.accounts = const [
+      FinancialAccount(
+        id: 'account-1',
+        accountNumber: 'FA-1',
+        name: 'Cash',
+        type: FinancialAccountType.cash,
+        currencyCode: 'USD',
+        isActive: true,
+        versionNumber: 1,
+      ),
+    ],
+  });
+
+  final List<FinancialAccount> accounts;
+
   @override
-  Future<List<FinancialAccount>> listAccounts() async => [
-    const FinancialAccount(
-      id: 'account-1',
-      accountNumber: 'FA-1',
-      name: 'Cash',
-      type: FinancialAccountType.cash,
-      currencyCode: 'USD',
-      isActive: true,
-      versionNumber: 1,
-    ),
-  ];
+  Future<List<FinancialAccount>> listAccounts() async => accounts;
   @override
   Future<List<ExactMoney>> bankTotalsByCurrency() async => const [];
   @override

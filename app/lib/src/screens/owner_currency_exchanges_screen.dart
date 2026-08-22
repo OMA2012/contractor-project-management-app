@@ -110,6 +110,11 @@ class _OwnerCurrencyExchangesScreenState
           .create(draft);
       await ref.read(currencyExchangeListProvider.notifier).refresh();
       if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Currency exchange saved successfully.'),
+          ),
+        );
         context.go('/staff/currency-exchanges/${result.financialEventId}');
       }
     } catch (_) {
