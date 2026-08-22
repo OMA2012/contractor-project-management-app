@@ -100,7 +100,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AccountLoadingScreen(),
       ),
       ShellRoute(
-        builder: (context, state, child) => ProtectedShellScreen(child: child),
+        builder: (context, state, child) =>
+            ProtectedShellScreen(location: state.uri, child: child),
         routes: [
           GoRoute(
             path: '/staff',

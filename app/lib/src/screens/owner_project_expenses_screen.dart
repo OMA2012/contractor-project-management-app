@@ -7,6 +7,8 @@ import '../financial_accounts/financial_account_providers.dart';
 import '../project_expenses/project_expense_models.dart';
 import '../project_expenses/project_expense_providers.dart';
 
+const _expenseCurrencyCodes = ['USD', 'SAR', 'YER'];
+
 class OwnerProjectExpensesScreen extends ConsumerStatefulWidget {
   const OwnerProjectExpensesScreen({this.clientId, super.key});
 
@@ -18,6 +20,8 @@ class OwnerProjectExpensesScreen extends ConsumerStatefulWidget {
 
 class _OwnerProjectExpensesScreenState
     extends ConsumerState<OwnerProjectExpensesScreen> {
+  bool _isCreating = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,9 +54,11 @@ class _OwnerProjectExpensesScreenState
                     ref.read(projectExpenseListProvider.notifier).refresh(),
               ),
               FilledButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Create'),
-                onPressed: () => _create(context),
+                icon: _isCreating
+                    ? const Icon(Icons.hourglass_top)
+                    : const Icon(Icons.add),
+                label: Text(_isCreating ? 'Saving' : 'Create'),
+                onPressed: _isCreating ? null : () => _create(context),
               ),
             ],
           ),
@@ -96,6 +102,7 @@ class _OwnerProjectExpensesScreenState
   }
 
   Future<void> _create(BuildContext context) async {
+    if (_isCreating) return;
     final draft = await showModalBottomSheet<ProjectExpenseDraft>(
       context: context,
       isScrollControlled: true,
@@ -103,22 +110,28 @@ class _OwnerProjectExpensesScreenState
       builder: (context) => _ExpenseForm(clientId: widget.clientId),
     );
     if (draft == null) return;
+    setState(() => _isCreating = true);
     try {
       final result = await ref
           .read(projectExpenseRepositoryProvider)
           .create(draft);
       await ref.read(projectExpenseListProvider.notifier).refresh();
       if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense saved successfully.')),
+        );
         context.go('/staff/project-expenses/${result.financialEventId}');
       }
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Project expense could not be created.'),
+            content: Text('Expense could not be saved. Please try again.'),
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isCreating = false);
     }
   }
 }
@@ -246,7 +259,7 @@ class OwnerProjectExpenseDetailScreen extends ConsumerWidget {
     await _run(
       context,
       ref,
-      'Draft updated.',
+      'Expense saved successfully.',
       () => ref
           .read(projectExpenseDetailProvider(financialEventId).notifier)
           .createOrUpdate(draft),
@@ -278,9 +291,10 @@ class _ExpenseForm extends ConsumerStatefulWidget {
 class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   final _key = GlobalKey<FormState>();
   late final _amount = TextEditingController(text: widget.item?.amount);
-  late final _currency = TextEditingController(
-    text: widget.item?.currencyCode ?? 'USD',
-  );
+  late String _currencyCode =
+      _expenseCurrencyCodes.contains(widget.item?.currencyCode)
+      ? widget.item!.currencyCode
+      : 'USD';
   late final _date = TextEditingController(
     text:
         widget.item?.expenseDate ??
@@ -297,6 +311,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   FinancialAccount? _account;
   ProjectOption? _project;
   ExpenseCategoryOption? _category;
+  bool _accountInitialized = false;
   late final Future<ProjectExpenseLookups> _lookups;
 
   @override
@@ -305,23 +320,27 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     _lookups = ref
         .read(projectExpenseRepositoryProvider)
         .lookups(clientId: widget.clientId);
+    if (ref.read(financialAccountListProvider).isLoading) {
+      Future.microtask(
+        () => ref.read(financialAccountListProvider.notifier).load(),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final accounts = ref
-        .watch(financialAccountListProvider)
-        .accounts
+    final accountState = ref.watch(financialAccountListProvider);
+    final accounts = accountState.accounts
         .where(
-          (a) =>
-              a.isActive &&
-              !a.isArchived &&
-              a.currencyCode == _currency.text.trim().toUpperCase(),
+          (a) => a.isActive && !a.isArchived && a.currencyCode == _currencyCode,
         )
         .toList();
-    _account ??= accounts
-        .where((a) => a.id == widget.item?.paidFromAccountId)
-        .firstOrNull;
+    if (!_accountInitialized && !accountState.isLoading) {
+      _account = accounts
+          .where((a) => a.id == widget.item?.paidFromAccountId)
+          .firstOrNull;
+      _accountInitialized = true;
+    }
     return FutureBuilder<ProjectExpenseLookups>(
       future: _lookups,
       builder: (context, snapshot) {
@@ -368,6 +387,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   DropdownButtonFormField<ProjectOption>(
+                    key: const ValueKey('expense-project-dropdown'),
                     initialValue: lookups?.projects.contains(_project) == true
                         ? _project
                         : null,
@@ -393,6 +413,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                       child: Text('No projects available for this client.'),
                     ),
                   DropdownButtonFormField<ExpenseCategoryOption>(
+                    key: const ValueKey('expense-category-dropdown'),
                     initialValue:
                         lookups?.expenseCategories.contains(_category) == true
                         ? _category
@@ -432,27 +453,57 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                     ),
                     validator: _money,
                   ),
-                  TextFormField(
-                    controller: _currency,
+                  DropdownButtonFormField<String>(
+                    key: const ValueKey('expense-currency-dropdown'),
+                    initialValue: _currencyCode,
+                    items: [
+                      for (final code in _expenseCurrencyCodes)
+                        DropdownMenuItem(value: code, child: Text(code)),
+                    ],
                     decoration: const InputDecoration(labelText: 'Currency'),
-                    validator: _currencyValidator,
-                    onChanged: (_) => setState(() => _account = null),
+                    validator: (value) => value == null ? 'Required' : null,
+                    onChanged: (value) {
+                      if (value == null || value == _currencyCode) return;
+                      setState(() {
+                        _currencyCode = value;
+                        if (_account?.currencyCode != value) _account = null;
+                      });
+                    },
                   ),
                   DropdownButtonFormField<FinancialAccount>(
+                    key: ValueKey('paid-from-$_currencyCode'),
+                    isExpanded: true,
                     initialValue: _account,
                     items: [
                       for (final a in accounts)
                         DropdownMenuItem(
                           value: a,
-                          child: Text('${a.name} - ${a.currencyCode}'),
+                          child: Text(
+                            _accountDisplay(a),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
-                    onChanged: (value) => setState(() => _account = value),
+                    onChanged: accounts.isEmpty
+                        ? null
+                        : (value) => setState(() => _account = value),
                     validator: (value) => value == null ? 'Required' : null,
                     decoration: const InputDecoration(
                       labelText: 'Paid from account',
                     ),
                   ),
+                  if (accountState.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text('Loading financial accounts...'),
+                    )
+                  else if (accounts.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'No active $_currencyCode accounts available.',
+                      ),
+                    ),
                   TextFormField(
                     controller: _date,
                     decoration: const InputDecoration(
@@ -484,7 +535,10 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                   FilledButton.icon(
                     icon: const Icon(Icons.save),
                     label: const Text('Save Draft'),
-                    onPressed: snapshot.hasData && lookups!.projects.isNotEmpty
+                    onPressed:
+                        snapshot.hasData &&
+                            lookups!.projects.isNotEmpty &&
+                            accounts.contains(_account)
                         ? _submit
                         : null,
                   ),
@@ -500,6 +554,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   void _submit() {
     if (_key.currentState?.validate() != true ||
         _account == null ||
+        _account!.currencyCode != _currencyCode ||
+        !_account!.isActive ||
+        _account!.isArchived ||
         _project == null ||
         (widget.clientId != null && _project!.clientId != widget.clientId) ||
         _category == null) {
@@ -511,7 +568,7 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
         clientId: widget.clientId,
         expenseCategoryId: _category!.expenseCategoryId,
         amount: _amount.text.trim(),
-        currencyCode: _currency.text.trim().toUpperCase(),
+        currencyCode: _currencyCode,
         paidFromAccountId: _account!.id,
         expenseDate: _date.text.trim(),
         vendorName: _optional(_vendor.text),
@@ -603,8 +660,18 @@ String? _dateValidator(String? value) =>
     RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value?.trim() ?? '')
     ? null
     : 'Use YYYY-MM-DD';
-String? _currencyValidator(String? value) =>
-    RegExp(r'^[A-Za-z]{3}$').hasMatch(value?.trim() ?? '')
-    ? null
-    : 'Use a 3-letter currency';
 String? _optional(String value) => value.trim().isEmpty ? null : value.trim();
+
+String _accountDisplay(FinancialAccount account) {
+  if (!account.isBank) {
+    return '${account.name} · Cash · ${account.currencyCode}';
+  }
+  return [
+    account.name,
+    'Bank',
+    account.currencyCode,
+    if (account.bankName?.trim().isNotEmpty == true) account.bankName!.trim(),
+    if (account.maskedAccountIdentifier?.trim().isNotEmpty == true)
+      account.maskedAccountIdentifier!.trim(),
+  ].join(' · ');
+}

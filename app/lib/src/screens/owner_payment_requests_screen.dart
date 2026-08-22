@@ -107,6 +107,9 @@ class _OwnerPaymentRequestsScreenState
           .createRequest(draft);
       await ref.read(ownerPaymentRequestListProvider.notifier).refresh();
       if (context.mounted && result.paymentRequestId != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment request saved successfully.')),
+        );
         context.go('/staff/payment-requests/${result.paymentRequestId}');
       }
     } catch (_) {

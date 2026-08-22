@@ -105,6 +105,9 @@ class _OpeningBalancesScreenState extends ConsumerState<OpeningBalancesScreen> {
           .create(draft);
       await ref.read(openingBalanceListProvider.notifier).refresh();
       if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening balance saved successfully.')),
+        );
         context.go('/staff/opening-balances/${result.financialEventId}');
       }
     } catch (_) {

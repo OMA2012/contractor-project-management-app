@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../owner_clients_projects/owner_clients_projects_providers.dart';
+import 'protected_shell_screen.dart';
 
 class OwnerClientListScreen extends ConsumerWidget {
   const OwnerClientListScreen({super.key});
@@ -12,6 +13,7 @@ class OwnerClientListScreen extends ConsumerWidget {
     final clients = ref.watch(ownerClientListProvider);
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(onPressed: () => navigateBack(context, '/staff')),
         title: const Text('Clients'),
         actions: [
           IconButton(
@@ -67,7 +69,12 @@ class OwnerClientDetailScreen extends ConsumerWidget {
     final projects = ref.watch(ownerClientProjectsProvider(clientId));
     final invitation = ref.watch(ownerClientInvitationStatusProvider(clientId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Client')),
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => navigateBack(context, '/staff/clients'),
+        ),
+        title: const Text('Client'),
+      ),
       body: client.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) =>
@@ -181,6 +188,7 @@ class OwnerProjectListScreen extends ConsumerWidget {
     final projects = ref.watch(ownerProjectListProvider);
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(onPressed: () => navigateBack(context, '/staff')),
         title: const Text('Projects'),
         actions: [
           IconButton(
@@ -234,7 +242,12 @@ class OwnerProjectDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final project = ref.watch(ownerProjectDetailProvider(projectId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Project')),
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => navigateBack(context, '/staff/projects'),
+        ),
+        title: const Text('Project'),
+      ),
       body: project.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) =>
@@ -340,6 +353,15 @@ class _OwnerClientFormScreenState extends ConsumerState<OwnerClientFormScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   int? _version;
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -356,6 +378,14 @@ class _OwnerClientFormScreenState extends ConsumerState<OwnerClientFormScreen> {
     });
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => navigateBack(
+            context,
+            widget.clientId == null
+                ? '/staff/clients'
+                : '/staff/clients/${widget.clientId}',
+          ),
+        ),
         title: Text(widget.clientId == null ? 'New Client' : 'Edit Client'),
       ),
       body: Form(
@@ -380,26 +410,55 @@ class _OwnerClientFormScreenState extends ConsumerState<OwnerClientFormScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () async {
-                if (!_formKey.currentState!.validate()) return;
-                final saved = await ref
-                    .read(ownerClientsProjectsRepositoryProvider)
-                    .saveClient(
-                      clientId: widget.clientId,
-                      expectedVersionNumber: _version,
-                      displayName: _name.text,
-                      email: _email.text,
-                      phone: _phone.text,
-                    );
-                if (context.mounted) context.go('/staff/clients/${saved.id}');
-              },
-              icon: const Icon(Icons.save),
-              label: const Text('Save'),
+              onPressed: _isSaving ? null : _save,
+              icon: _isSaving
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(_isSaving ? 'Saving' : 'Save'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _save() async {
+    if (_isSaving || !_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref
+          .read(ownerClientsProjectsRepositoryProvider)
+          .saveClient(
+            clientId: widget.clientId,
+            expectedVersionNumber: _version,
+            displayName: _name.text,
+            email: _email.text,
+            phone: _phone.text,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.clientId == null
+                ? 'Client created successfully.'
+                : 'Client updated successfully.',
+          ),
+        ),
+      );
+      context.go('/staff/clients/${saved.id}');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Client could not be saved. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 }
 
@@ -430,6 +489,7 @@ class _OwnerProjectFormScreenState
   String? _clientId;
   String? _reportingCurrencyCode;
   int? _version;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -470,6 +530,16 @@ class _OwnerProjectFormScreenState
     });
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => navigateBack(
+            context,
+            widget.projectId == null
+                ? widget.initialClientId == null
+                      ? '/staff/projects'
+                      : '/staff/clients/${widget.initialClientId}'
+                : '/staff/projects/${widget.projectId}',
+          ),
+        ),
         title: Text(widget.projectId == null ? 'New Project' : 'Edit Project'),
       ),
       body: Form(
@@ -522,27 +592,56 @@ class _OwnerProjectFormScreenState
             ),
             const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: () async {
-                if (!_formKey.currentState!.validate()) return;
-                final saved = await ref
-                    .read(ownerClientsProjectsRepositoryProvider)
-                    .saveProject(
-                      projectId: widget.projectId,
-                      expectedVersionNumber: _version,
-                      clientId: _clientId!,
-                      name: _name.text,
-                      reportingCurrencyCode: _reportingCurrencyCode!,
-                      location: _location.text,
-                    );
-                if (context.mounted) context.go('/staff/projects/${saved.id}');
-              },
-              icon: const Icon(Icons.save),
-              label: const Text('Save'),
+              onPressed: _isSaving ? null : _save,
+              icon: _isSaving
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(_isSaving ? 'Saving' : 'Save'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _save() async {
+    if (_isSaving || !_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref
+          .read(ownerClientsProjectsRepositoryProvider)
+          .saveProject(
+            projectId: widget.projectId,
+            expectedVersionNumber: _version,
+            clientId: _clientId!,
+            name: _name.text,
+            reportingCurrencyCode: _reportingCurrencyCode!,
+            location: _location.text,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.projectId == null
+                ? 'Project created successfully.'
+                : 'Project updated successfully.',
+          ),
+        ),
+      );
+      context.go('/staff/projects/${saved.id}');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Project could not be saved. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 }
 
