@@ -8,7 +8,9 @@ import '../payments/owner_payment_models.dart';
 import '../payments/owner_payment_providers.dart';
 
 class OwnerClientPaymentsScreen extends ConsumerStatefulWidget {
-  const OwnerClientPaymentsScreen({super.key});
+  const OwnerClientPaymentsScreen({this.clientId, super.key});
+
+  final String? clientId;
   @override
   ConsumerState<OwnerClientPaymentsScreen> createState() =>
       _OwnerClientPaymentsScreenState();
@@ -98,7 +100,7 @@ class _OwnerClientPaymentsScreenState
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => const _PaymentForm(),
+      builder: (context) => _PaymentForm(clientId: widget.clientId),
     );
     if (draft == null) return;
     try {
@@ -302,8 +304,9 @@ class OwnerClientPaymentDetailScreen extends ConsumerWidget {
 }
 
 class _PaymentForm extends ConsumerStatefulWidget {
-  const _PaymentForm({this.item});
+  const _PaymentForm({this.item, this.clientId});
   final OwnerClientPayment? item;
+  final String? clientId;
   @override
   ConsumerState<_PaymentForm> createState() => _PaymentFormState();
 }
@@ -339,7 +342,9 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   @override
   void initState() {
     super.initState();
-    _projects = ref.read(ownerPaymentRepositoryProvider).projectLookups();
+    _projects = ref
+        .read(ownerPaymentRepositoryProvider)
+        .projectLookups(clientId: widget.clientId);
     Future.microtask(
       () => ref.read(financialAccountListProvider.notifier).load(),
     );
@@ -363,7 +368,13 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
     return FutureBuilder<List<OwnerPaymentProjectOption>>(
       future: _projects,
       builder: (context, snapshot) {
-        final projects = snapshot.data ?? const <OwnerPaymentProjectOption>[];
+        final projects = (snapshot.data ?? const <OwnerPaymentProjectOption>[])
+            .where(
+              (project) =>
+                  widget.clientId == null ||
+                  project.clientId == widget.clientId,
+            )
+            .toList(growable: false);
         _projectOption ??= projects
             .where((p) => p.projectId == widget.item?.projectId)
             .firstOrNull;
@@ -400,6 +411,13 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                     decoration: const InputDecoration(labelText: 'Project'),
                     validator: (value) => value == null ? 'Required' : null,
                   ),
+                  if (widget.clientId != null &&
+                      snapshot.hasData &&
+                      projects.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text('No projects available for this client.'),
+                    ),
                   TextFormField(
                     controller: _amount,
                     decoration: const InputDecoration(labelText: 'Amount'),
@@ -452,7 +470,9 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
                   FilledButton.icon(
                     icon: const Icon(Icons.save),
                     label: const Text('Save Draft'),
-                    onPressed: _submit,
+                    onPressed: snapshot.hasData && projects.isNotEmpty
+                        ? _submit
+                        : null,
                   ),
                 ],
               ),
@@ -464,10 +484,16 @@ class _PaymentFormState extends ConsumerState<_PaymentForm> {
   }
 
   void _submit() {
-    if (_key.currentState?.validate() != true) return;
+    if (_key.currentState?.validate() != true ||
+        _projectOption == null ||
+        (widget.clientId != null &&
+            _projectOption!.clientId != widget.clientId)) {
+      return;
+    }
     Navigator.of(context).pop(
       OwnerClientPaymentDraft(
         projectId: _project.text.trim(),
+        clientId: widget.clientId,
         amount: _amount.text.trim(),
         currencyCode: _currency.text.trim().toUpperCase(),
         receivedDate: _date.text.trim(),

@@ -1,6 +1,12 @@
+import 'package:contractor_project_management/src/auth/auth_session.dart';
 import 'package:contractor_project_management/src/owner_clients_projects/owner_clients_projects_models.dart';
+import 'package:contractor_project_management/src/owner_clients_projects/owner_clients_projects_providers.dart';
 import 'package:contractor_project_management/src/owner_clients_projects/owner_clients_projects_repository.dart';
+import 'package:contractor_project_management/src/screens/owner_clients_projects_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
   test(
@@ -89,6 +95,74 @@ void main() {
 
     expect(submittedBody?['action'], 'project_create');
     expect(submittedBody?['reporting_currency_code'], 'SAR');
+  });
+
+  testWidgets('Client detail financial actions preserve immutable Client ID', (
+    tester,
+  ) async {
+    final repository = OwnerClientsProjectsRepository(
+      invokeFunction: (_, body) async => switch (body['action']) {
+        'client_detail' => envelope({'client': clientRow()}),
+        'client_projects' => envelope({
+          'projects': [projectRow()],
+        }),
+        'invitation_status' => envelope({
+          'invitation': {'status': 'PENDING'},
+        }),
+        _ => envelope({}),
+      },
+    );
+    final router = GoRouter(
+      initialLocation: '/staff/clients/$clientId',
+      routes: [
+        GoRoute(
+          path: '/staff/clients/:clientId',
+          builder: (_, state) => OwnerClientDetailScreen(
+            clientId: state.pathParameters['clientId']!,
+          ),
+        ),
+        GoRoute(
+          path: '/staff/client-payments',
+          builder: (_, state) => Scaffold(body: Text(state.uri.toString())),
+        ),
+        GoRoute(
+          path: '/staff/project-expenses',
+          builder: (_, state) => Scaffold(body: Text(state.uri.toString())),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          initialAuthSessionProvider.overrideWithValue(
+            const AuthSessionState.authenticated(authUserId: 'owner-1'),
+          ),
+          ownerClientProjectAccessProvider.overrideWithValue(true),
+          ownerClientsProjectsRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Create Client Payment'));
+    await tester.tap(find.text('Create Client Payment'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('/staff/client-payments?clientId=$clientId'),
+      findsOneWidget,
+    );
+
+    router.go('/staff/clients/$clientId');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Create Project Expense'));
+    await tester.tap(find.text('Create Project Expense'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('/staff/project-expenses?clientId=$clientId'),
+      findsOneWidget,
+    );
   });
 }
 

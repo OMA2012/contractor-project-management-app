@@ -107,7 +107,7 @@ async function categoryLookup(
   body: Record<string, unknown>,
   auth: AuthenticatedContext,
 ) {
-  rejectUnknownFields(body, ["action", "limit", "offset"]);
+  rejectUnknownFields(body, ["action", "limit", "offset", "client_id"]);
   return rows(
     (await rpc(auth, "server_owner_expense_category_picker_list", {
       p_verified_owner_auth_subject: auth.actorAuthSubject,
@@ -121,13 +121,16 @@ async function projectLookup(
   body: Record<string, unknown>,
   auth: AuthenticatedContext,
 ) {
+  const clientId = optionalContextClientId(body.client_id);
   return rows(
     (await rpc(auth, "server_owner_project_record_list", {
       p_verified_owner_auth_subject: auth.actorAuthSubject,
       p_limit: bounded(body.limit, 100, 1, 100),
       p_offset: bounded(body.offset, 0, 0, 1000000),
     })).data,
-  ).map(projectRow);
+  )
+    .filter((project) => !clientId || project.client_id === clientId)
+    .map(projectRow);
 }
 
 function actionValue(value: unknown): Action {
@@ -170,6 +173,7 @@ async function create(
   requestId: string,
 ) {
   rejectUnknownFields(body, draftFields("action"));
+  await requireContextualProject(body, auth);
   return mutation(
     firstRow(
       (await rpc(
@@ -190,6 +194,7 @@ async function update(
     body,
     draftFields("action", "financial_event_id", "expected_version_number"),
   );
+  await requireContextualProject(body, auth);
   return mutation(
     firstRow(
       (await rpc(auth, "server_owner_update_project_expense", {
@@ -262,6 +267,7 @@ function draftFields(...extra: string[]) {
   return [
     ...extra,
     "project_id",
+    "client_id",
     "expense_category_id",
     "amount",
     "currency_code",
@@ -403,6 +409,7 @@ const categoryRow = (r: Record<string, unknown>) => ({
 });
 const projectRow = (r: Record<string, unknown>) => ({
   project_id: str(r, "id"),
+  client_id: str(r, "client_id"),
   project_number: str(r, "project_number"),
   name: str(r, "name"),
 });
@@ -463,6 +470,28 @@ function optional(v: unknown, field: string) {
   return v === undefined || v === null || v === ""
     ? null
     : trimmedNonblank(v, field);
+}
+function optionalContextClientId(v: unknown) {
+  return v === undefined || v === null || v === ""
+    ? null
+    : uuidValue(v, "Client ID");
+}
+async function requireContextualProject(
+  body: Record<string, unknown>,
+  auth: AuthenticatedContext,
+) {
+  const clientId = optionalContextClientId(body.client_id);
+  if (!clientId) return;
+  const projectId = uuidValue(body.project_id, "Project ID");
+  const project = firstRow(
+    (await rpc(auth, "server_owner_project_record_detail", {
+      p_verified_owner_auth_subject: auth.actorAuthSubject,
+      p_project_id: projectId,
+    })).data,
+  );
+  if (str(project, "client_id") !== clientId) {
+    throw validationFailed("Project is not available for this client.");
+  }
 }
 function bounded(v: unknown, fallback: number, min: number, max: number) {
   const x = v ?? fallback;

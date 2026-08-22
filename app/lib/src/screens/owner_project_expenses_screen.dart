@@ -8,7 +8,9 @@ import '../project_expenses/project_expense_models.dart';
 import '../project_expenses/project_expense_providers.dart';
 
 class OwnerProjectExpensesScreen extends ConsumerStatefulWidget {
-  const OwnerProjectExpensesScreen({super.key});
+  const OwnerProjectExpensesScreen({this.clientId, super.key});
+
+  final String? clientId;
   @override
   ConsumerState<OwnerProjectExpensesScreen> createState() =>
       _OwnerProjectExpensesScreenState();
@@ -98,7 +100,7 @@ class _OwnerProjectExpensesScreenState
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => const _ExpenseForm(),
+      builder: (context) => _ExpenseForm(clientId: widget.clientId),
     );
     if (draft == null) return;
     try {
@@ -266,8 +268,9 @@ class OwnerProjectExpenseDetailScreen extends ConsumerWidget {
 }
 
 class _ExpenseForm extends ConsumerStatefulWidget {
-  const _ExpenseForm({this.item});
+  const _ExpenseForm({this.item, this.clientId});
   final ProjectExpense? item;
+  final String? clientId;
   @override
   ConsumerState<_ExpenseForm> createState() => _ExpenseFormState();
 }
@@ -299,7 +302,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
   @override
   void initState() {
     super.initState();
-    _lookups = ref.read(projectExpenseRepositoryProvider).lookups();
+    _lookups = ref
+        .read(projectExpenseRepositoryProvider)
+        .lookups(clientId: widget.clientId);
   }
 
   @override
@@ -320,7 +325,19 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     return FutureBuilder<ProjectExpenseLookups>(
       future: _lookups,
       builder: (context, snapshot) {
-        final lookups = snapshot.data;
+        final sourceLookups = snapshot.data;
+        final lookups = sourceLookups == null
+            ? null
+            : ProjectExpenseLookups(
+                expenseCategories: sourceLookups.expenseCategories,
+                projects: sourceLookups.projects
+                    .where(
+                      (project) =>
+                          widget.clientId == null ||
+                          project.clientId == widget.clientId,
+                    )
+                    .toList(growable: false),
+              );
         if (lookups != null) {
           _project ??= lookups.projects
               .where((p) => p.projectId == widget.item?.projectId)
@@ -368,6 +385,13 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                     decoration: const InputDecoration(labelText: 'Project'),
                     validator: (value) => value == null ? 'Required' : null,
                   ),
+                  if (widget.clientId != null &&
+                      snapshot.hasData &&
+                      lookups!.projects.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text('No projects available for this client.'),
+                    ),
                   DropdownButtonFormField<ExpenseCategoryOption>(
                     initialValue:
                         lookups?.expenseCategories.contains(_category) == true
@@ -460,7 +484,9 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
                   FilledButton.icon(
                     icon: const Icon(Icons.save),
                     label: const Text('Save Draft'),
-                    onPressed: _submit,
+                    onPressed: snapshot.hasData && lookups!.projects.isNotEmpty
+                        ? _submit
+                        : null,
                   ),
                 ],
               ),
@@ -475,12 +501,14 @@ class _ExpenseFormState extends ConsumerState<_ExpenseForm> {
     if (_key.currentState?.validate() != true ||
         _account == null ||
         _project == null ||
+        (widget.clientId != null && _project!.clientId != widget.clientId) ||
         _category == null) {
       return;
     }
     Navigator.of(context).pop(
       ProjectExpenseDraft(
         projectId: _project!.projectId,
+        clientId: widget.clientId,
         expenseCategoryId: _category!.expenseCategoryId,
         amount: _amount.text.trim(),
         currencyCode: _currency.text.trim().toUpperCase(),

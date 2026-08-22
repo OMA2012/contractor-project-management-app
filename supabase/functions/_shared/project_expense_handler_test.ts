@@ -11,6 +11,8 @@ const projectId = "40000000-0000-4000-8000-000000000011";
 const categoryId = "50000000-0000-4000-8000-000000000011";
 const accountId = "60000000-0000-4000-8000-000000000011";
 const clientId = "70000000-0000-4000-8000-000000000011";
+const otherProjectId = "40000000-0000-4000-8000-000000000012";
+const otherClientId = "70000000-0000-4000-8000-000000000012";
 
 function assert(
   condition: unknown,
@@ -66,7 +68,19 @@ function mockAuth(calls: Record<string, unknown>[]) {
             });
           }
           if (name === "server_owner_project_record_list") {
-            return Promise.resolve({ data: [projectLookupRow()], error: null });
+            return Promise.resolve({
+              data: [
+                projectLookupRow(),
+                {
+                  ...projectLookupRow(),
+                  id: otherProjectId,
+                  client_id: otherClientId,
+                  project_number: "PRJ-2",
+                  name: "Other Client Project",
+                },
+              ],
+              error: null,
+            });
           }
           if (name === "server_owner_project_record_detail") {
             return Promise.resolve({ data: [projectLookupRow()], error: null });
@@ -127,6 +141,40 @@ Deno.test("project expense lookup returns category names and project labels only
   assertEquals(json.data.projects[0].project_number, "PRJ-1");
   assert(String(JSON.stringify(json)).includes("internal_notes") === false);
   assert(String(JSON.stringify(json)).includes("created_by") === false);
+});
+
+Deno.test("project expense lookup filters by immutable Client ID and keeps global lookup", async () => {
+  const handler = createProjectExpenseHandler({
+    loadEnv: env,
+    authenticate: mockAuth([]),
+  });
+  let response = await handler(request({ action: "lookup" }));
+  let json = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(json.data.projects.length, 2);
+
+  response = await handler(request({ action: "lookup", client_id: clientId }));
+  json = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(json.data.projects.length, 1);
+  assertEquals(json.data.projects[0].project_id, projectId);
+  assertEquals(json.data.projects[0].client_id, clientId);
+});
+
+Deno.test("project expense rejects a project outside contextual Client", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const handler = createProjectExpenseHandler({
+    loadEnv: env,
+    authenticate: mockAuth(calls),
+  });
+  const response = await handler(request({
+    ...draftBody("create"),
+    client_id: otherClientId,
+  }));
+  assertEquals(response.status, 422);
+  assertEquals(calls.map((call) => call.name), [
+    "server_owner_project_record_detail",
+  ]);
 });
 
 Deno.test("project expense create and update preserve exact decimal strings", async () => {

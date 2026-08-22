@@ -10,6 +10,8 @@ const projectId = "30000000-0000-4000-8000-000000000001";
 const accountId = "40000000-0000-4000-8000-000000000001";
 const requestId = "50000000-0000-4000-8000-000000000001";
 const clientId = "60000000-0000-4000-8000-000000000001";
+const otherProjectId = "30000000-0000-4000-8000-000000000002";
+const otherClientId = "60000000-0000-4000-8000-000000000002";
 
 function assert(
   condition: unknown,
@@ -77,6 +79,21 @@ function mockAuth(calls: Record<string, unknown>[]) {
           if (name === "server_owner_project_record_detail") {
             return Promise.resolve({ data: [projectDetail()], error: null });
           }
+          if (name === "server_owner_project_record_list") {
+            return Promise.resolve({
+              data: [
+                projectDetail(),
+                {
+                  ...projectDetail(),
+                  id: otherProjectId,
+                  client_id: otherClientId,
+                  project_number: "PRJ-2026-0002",
+                  name: "Other Client Project",
+                },
+              ],
+              error: null,
+            });
+          }
           if (name === "server_owner_client_record_detail") {
             return Promise.resolve({ data: [clientDetail()], error: null });
           }
@@ -125,6 +142,44 @@ Deno.test("client payment gateway derives owner subject and preserves exact mone
   assertEquals(calls[0].p_verified_owner_auth_subject, actor);
   assertEquals(calls[0].p_amount, "100.25");
   assert(json.data.payment.financial_event_id === eventId);
+});
+
+Deno.test("client payment lookup filters by immutable Client ID and keeps global lookup", async () => {
+  const handler = createClientPaymentsHandler({
+    loadEnv: env,
+    authenticate: mockAuth([]),
+  });
+  let response = await handler(request({ action: "lookup" }));
+  let json = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(json.data.projects.length, 2);
+
+  response = await handler(request({ action: "lookup", client_id: clientId }));
+  json = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(json.data.projects.length, 1);
+  assertEquals(json.data.projects[0].project_id, projectId);
+  assertEquals(json.data.projects[0].client_id, clientId);
+});
+
+Deno.test("client payment rejects a project outside contextual Client", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const handler = createClientPaymentsHandler({
+    loadEnv: env,
+    authenticate: mockAuth(calls),
+  });
+  const response = await handler(request({
+    action: "create",
+    project_id: projectId,
+    client_id: otherClientId,
+    amount: "100.25",
+    currency_code: "USD",
+    received_date: "2026-08-15",
+  }));
+  assertEquals(response.status, 422);
+  assertEquals(calls.map((call) => call.name), [
+    "server_owner_project_record_detail",
+  ]);
 });
 
 Deno.test("client payment gateway rejects spoofed owner fields and numeric money", async () => {

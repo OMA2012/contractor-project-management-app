@@ -114,10 +114,84 @@ void main() {
     expect(repository.createdRequest?.projectId, 'project-uuid-1');
     expect(find.textContaining('project-uuid-1'), findsNothing);
   });
+
+  testWidgets('client-context payment picker isolates Client A and Client B', (
+    tester,
+  ) async {
+    final repository = FakeOwnerPaymentRepository();
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+
+    await tester.pumpWidget(paymentList(repository, clientId: 'client-a'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byType(DropdownButtonFormField<OwnerPaymentProjectOption>),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('PRJ-A - Client A Project'), findsWidgets);
+    expect(find.textContaining('PRJ-B - Client B Project'), findsNothing);
+    expect(find.textContaining('project-a-uuid'), findsNothing);
+    expect(repository.lookupClientIds.last, 'client-a');
+    await tester.tap(find.textContaining('PRJ-A - Client A Project').last);
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('Create client payment'))).pop();
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(paymentList(repository, clientId: 'client-b'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byType(DropdownButtonFormField<OwnerPaymentProjectOption>),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('PRJ-B - Client B Project'), findsWidgets);
+    expect(find.textContaining('PRJ-A - Client A Project'), findsNothing);
+    expect(find.textContaining('project-b-uuid'), findsNothing);
+    expect(repository.lookupClientIds.last, 'client-b');
+  });
+
+  testWidgets('global payment picker retains projects across clients', (
+    tester,
+  ) async {
+    final repository = FakeOwnerPaymentRepository();
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    await tester.pumpWidget(paymentList(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byType(DropdownButtonFormField<OwnerPaymentProjectOption>),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('PRJ-A - Client A Project'), findsWidgets);
+    expect(find.textContaining('PRJ-B - Client B Project'), findsWidgets);
+    expect(repository.lookupClientIds.last, isNull);
+  });
+
+  testWidgets('client payment shows an empty state and disables save', (
+    tester,
+  ) async {
+    final repository = FakeOwnerPaymentRepository()..projectOptions = const [];
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    await tester.pumpWidget(paymentList(repository, clientId: 'client-empty'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    expect(find.text('No projects available for this client.'), findsOneWidget);
+    final save = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Save Draft'),
+    );
+    expect(save.onPressed, isNull);
+  });
 }
 
-Widget paymentList(FakeOwnerPaymentRepository repository) =>
-    scoped(repository, const Scaffold(body: OwnerClientPaymentsScreen()));
+Widget paymentList(FakeOwnerPaymentRepository repository, {String? clientId}) =>
+    scoped(
+      repository,
+      Scaffold(body: OwnerClientPaymentsScreen(clientId: clientId)),
+    );
 
 Widget paymentDetail(FakeOwnerPaymentRepository repository) => scoped(
   repository,
@@ -198,6 +272,29 @@ class FakeOwnerPaymentRepository implements OwnerPaymentRepository {
   OwnerPaymentRequest currentRequest = request();
   OwnerClientPaymentDraft? createdPayment;
   OwnerPaymentRequestDraft? createdRequest;
+  List<String?> lookupClientIds = [];
+  List<OwnerPaymentProjectOption> projectOptions = const [
+    OwnerPaymentProjectOption(
+      projectId: 'project-uuid-1',
+      clientId: 'client-uuid-1',
+      projectNumber: 'PRJ-2026-0001',
+      name: 'Villa',
+      clientNumber: 'CL-000001',
+      clientName: 'Acme Client',
+    ),
+    OwnerPaymentProjectOption(
+      projectId: 'project-a-uuid',
+      clientId: 'client-a',
+      projectNumber: 'PRJ-A',
+      name: 'Client A Project',
+    ),
+    OwnerPaymentProjectOption(
+      projectId: 'project-b-uuid',
+      clientId: 'client-b',
+      projectNumber: 'PRJ-B',
+      name: 'Client B Project',
+    ),
+  ];
 
   @override
   Future<List<OwnerClientPayment>> listPayments() async => [currentPayment];
@@ -214,15 +311,12 @@ class FakeOwnerPaymentRepository implements OwnerPaymentRepository {
       currentRequest;
 
   @override
-  Future<List<OwnerPaymentProjectOption>> projectLookups() async => const [
-    OwnerPaymentProjectOption(
-      projectId: 'project-uuid-1',
-      projectNumber: 'PRJ-2026-0001',
-      name: 'Villa',
-      clientNumber: 'CL-000001',
-      clientName: 'Acme Client',
-    ),
-  ];
+  Future<List<OwnerPaymentProjectOption>> projectLookups({
+    String? clientId,
+  }) async {
+    lookupClientIds.add(clientId);
+    return projectOptions;
+  }
 
   @override
   Future<OwnerPaymentMutationResult> createPayment(

@@ -125,6 +125,20 @@ class OwnerClientDetailScreen extends ConsumerWidget {
                       icon: const Icon(Icons.work),
                       label: const Text('New Project'),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go(
+                        '/staff/client-payments?clientId=$clientId',
+                      ),
+                      icon: const Icon(Icons.payments),
+                      label: const Text('Create Client Payment'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go(
+                        '/staff/project-expenses?clientId=$clientId',
+                      ),
+                      icon: const Icon(Icons.receipt_long),
+                      label: const Text('Create Project Expense'),
+                    ),
                   ],
                 ),
               ],
