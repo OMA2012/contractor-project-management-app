@@ -26,8 +26,8 @@ class ProjectExpenseRepository {
     return ProjectExpense.fromJson(data['project_expense']);
   }
 
-  Future<ProjectExpenseLookups> lookups() async {
-    final data = await _action({'action': 'lookup'});
+  Future<ProjectExpenseLookups> lookups({String? clientId}) async {
+    final data = await _action({'action': 'lookup', 'client_id': ?clientId});
     return ProjectExpenseLookups(
       expenseCategories: (data['expense_categories'] as List? ?? const [])
           .cast<Map<String, dynamic>>()

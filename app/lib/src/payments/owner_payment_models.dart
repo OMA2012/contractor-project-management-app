@@ -116,6 +116,7 @@ class OwnerClientPaymentDraft {
     this.paymentReference,
     this.payerName,
     this.notes,
+    this.clientId,
   });
   final String projectId;
   final String amount;
@@ -125,8 +126,10 @@ class OwnerClientPaymentDraft {
   final String? paymentReference;
   final String? payerName;
   final String? notes;
+  final String? clientId;
   Map<String, dynamic> toJson() => {
     'project_id': projectId,
+    if (clientId != null) 'client_id': clientId,
     'amount': amount,
     'currency_code': currencyCode,
     'received_date': receivedDate,
@@ -221,6 +224,7 @@ class OwnerPaymentRequest {
 class OwnerPaymentProjectOption {
   const OwnerPaymentProjectOption({
     required this.projectId,
+    required this.clientId,
     required this.projectNumber,
     required this.name,
     this.clientNumber,
@@ -230,6 +234,7 @@ class OwnerPaymentProjectOption {
   factory OwnerPaymentProjectOption.fromJson(Map<String, dynamic> json) =>
       OwnerPaymentProjectOption(
         projectId: _string(json['project_id'] ?? json['id']),
+        clientId: _string(json['client_id']),
         projectNumber: _string(json['project_number']),
         name: _string(json['name'] ?? json['project_name']),
         clientNumber: _nullable(json['client_number']),
@@ -237,6 +242,7 @@ class OwnerPaymentProjectOption {
       );
 
   final String projectId;
+  final String clientId;
   final String projectNumber;
   final String name;
   final String? clientNumber;

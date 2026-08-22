@@ -100,6 +100,7 @@ void main() {
             'projects': [
               {
                 'project_id': 'project-1',
+                'client_id': 'client-1',
                 'project_number': 'PRJ-1',
                 'name': 'Villa',
               },
@@ -112,6 +113,78 @@ void main() {
     expect(calls.single['action'], 'lookup');
     expect(lookups.expenseCategories.single.name, 'Materials');
     expect(lookups.projects.single.display, 'PRJ-1 - Villa');
+  });
+
+  testWidgets('client-context expense picker isolates Client A and Client B', (
+    tester,
+  ) async {
+    final repository = FakeProjectExpenseRepository();
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+
+    await tester.pumpWidget(
+      projectExpenseList(repository, clientId: 'client-a'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<ProjectOption>));
+    await tester.pumpAndSettle();
+    expect(find.text('PRJ-A - Client A Project'), findsWidgets);
+    expect(find.text('PRJ-B - Client B Project'), findsNothing);
+    expect(find.textContaining('project-a-uuid'), findsNothing);
+    expect(repository.lookupClientIds.last, 'client-a');
+    await tester.tap(find.text('PRJ-A - Client A Project').last);
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('Create project expense'))).pop();
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(
+      projectExpenseList(repository, clientId: 'client-b'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<ProjectOption>));
+    await tester.pumpAndSettle();
+    expect(find.text('PRJ-B - Client B Project'), findsWidgets);
+    expect(find.text('PRJ-A - Client A Project'), findsNothing);
+    expect(find.textContaining('project-b-uuid'), findsNothing);
+    expect(repository.lookupClientIds.last, 'client-b');
+  });
+
+  testWidgets('global expense picker retains projects across clients', (
+    tester,
+  ) async {
+    final repository = FakeProjectExpenseRepository();
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    await tester.pumpWidget(projectExpenseList(repository));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButtonFormField<ProjectOption>));
+    await tester.pumpAndSettle();
+    expect(find.text('PRJ-A - Client A Project'), findsWidgets);
+    expect(find.text('PRJ-B - Client B Project'), findsWidgets);
+    expect(repository.lookupClientIds.last, isNull);
+  });
+
+  testWidgets('client expense shows an empty state and disables save', (
+    tester,
+  ) async {
+    final repository = FakeProjectExpenseRepository()
+      ..projectOptions = const [];
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    await tester.pumpWidget(
+      projectExpenseList(repository, clientId: 'client-empty'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+    expect(find.text('No projects available for this client.'), findsOneWidget);
+    final save = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Save Draft'),
+    );
+    expect(save.onPressed, isNull);
   });
 
   testWidgets('list renders loading empty error mobile and laptop states', (
@@ -347,25 +420,28 @@ void main() {
   );
 }
 
-Widget projectExpenseList(FakeProjectExpenseRepository repository) =>
-    ProviderScope(
-      overrides: [
-        initialAuthSessionProvider.overrideWithValue(
-          const AuthSessionState.authenticated(authUserId: 'auth-1'),
-        ),
-        currentAccountRepositoryProvider.overrideWithValue(
-          CurrentAccountRepository(rpc: (_) async => [staffAccountJson()]),
-        ),
-        ownerProjectExpenseAccessProvider.overrideWithValue(true),
-        projectExpenseRepositoryProvider.overrideWithValue(repository),
-        financialAccountRepositoryProvider.overrideWithValue(
-          FakeFinancialAccounts(),
-        ),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(body: OwnerProjectExpensesScreen()),
-      ),
-    );
+Widget projectExpenseList(
+  FakeProjectExpenseRepository repository, {
+  String? clientId,
+}) => ProviderScope(
+  overrides: [
+    initialAuthSessionProvider.overrideWithValue(
+      const AuthSessionState.authenticated(authUserId: 'auth-1'),
+    ),
+    currentAccountRepositoryProvider.overrideWithValue(
+      CurrentAccountRepository(rpc: (_) async => [staffAccountJson()]),
+    ),
+    ownerProjectExpenseAccessProvider.overrideWithValue(true),
+    ownerFinancialAccountAccessProvider.overrideWithValue(true),
+    projectExpenseRepositoryProvider.overrideWithValue(repository),
+    financialAccountRepositoryProvider.overrideWithValue(
+      FakeFinancialAccounts(),
+    ),
+  ],
+  child: MaterialApp(
+    home: Scaffold(body: OwnerProjectExpensesScreen(clientId: clientId)),
+  ),
+);
 
 Widget projectExpenseDetail(FakeProjectExpenseRepository repository) =>
     ProviderScope(
@@ -377,6 +453,7 @@ Widget projectExpenseDetail(FakeProjectExpenseRepository repository) =>
           CurrentAccountRepository(rpc: (_) async => [staffAccountJson()]),
         ),
         ownerProjectExpenseAccessProvider.overrideWithValue(true),
+        ownerFinancialAccountAccessProvider.overrideWithValue(true),
         projectExpenseRepositoryProvider.overrideWithValue(repository),
         financialAccountRepositoryProvider.overrideWithValue(
           FakeFinancialAccounts(),
@@ -460,6 +537,27 @@ class FakeProjectExpenseRepository extends ProjectExpenseRepository {
   Future<List<ProjectExpense>>? pendingList;
   final actions = <String>[];
   final updatedAmounts = <String>[];
+  final lookupClientIds = <String?>[];
+  List<ProjectOption> projectOptions = const [
+    ProjectOption(
+      projectId: 'project-1',
+      clientId: 'client-1',
+      projectNumber: 'PRJ-1',
+      name: 'Villa',
+    ),
+    ProjectOption(
+      projectId: 'project-a-uuid',
+      clientId: 'client-a',
+      projectNumber: 'PRJ-A',
+      name: 'Client A Project',
+    ),
+    ProjectOption(
+      projectId: 'project-b-uuid',
+      clientId: 'client-b',
+      projectNumber: 'PRJ-B',
+      name: 'Client B Project',
+    ),
+  ];
 
   @override
   Future<List<ProjectExpense>> list() async {
@@ -471,22 +569,20 @@ class FakeProjectExpenseRepository extends ProjectExpenseRepository {
   @override
   Future<ProjectExpense> detail(String financialEventId) async => current;
   @override
-  Future<ProjectExpenseLookups> lookups() async => const ProjectExpenseLookups(
-    expenseCategories: [
-      ExpenseCategoryOption(
-        expenseCategoryId: 'category-1',
-        code: 'MATERIALS',
-        name: 'Materials',
-      ),
-    ],
-    projects: [
-      ProjectOption(
-        projectId: 'project-1',
-        projectNumber: 'PRJ-1',
-        name: 'Villa',
-      ),
-    ],
-  );
+  Future<ProjectExpenseLookups> lookups({String? clientId}) async {
+    lookupClientIds.add(clientId);
+    return ProjectExpenseLookups(
+      expenseCategories: const [
+        ExpenseCategoryOption(
+          expenseCategoryId: 'category-1',
+          code: 'MATERIALS',
+          name: 'Materials',
+        ),
+      ],
+      projects: projectOptions,
+    );
+  }
+
   @override
   Future<ProjectExpenseMutationResult> create(
     ProjectExpenseDraft draft,

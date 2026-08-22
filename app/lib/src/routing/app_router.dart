@@ -204,7 +204,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/staff/project-expenses',
-            builder: (context, state) => const OwnerProjectExpensesScreen(),
+            builder: (context, state) => OwnerProjectExpensesScreen(
+              clientId: state.uri.queryParameters['clientId'],
+            ),
           ),
           GoRoute(
             path: '/staff/project-expenses/:expenseId',
@@ -234,7 +236,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/staff/client-payments',
-            builder: (context, state) => const OwnerClientPaymentsScreen(),
+            builder: (context, state) => OwnerClientPaymentsScreen(
+              clientId: state.uri.queryParameters['clientId'],
+            ),
           ),
           GoRoute(
             path: '/staff/client-payments/:paymentId',

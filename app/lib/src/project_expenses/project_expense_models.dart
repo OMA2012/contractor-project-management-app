@@ -107,6 +107,7 @@ class ProjectExpenseDraft {
     this.vendorName,
     this.vendorReference,
     this.privateNotes,
+    this.clientId,
   });
 
   final String projectId;
@@ -119,9 +120,11 @@ class ProjectExpenseDraft {
   final String? vendorName;
   final String? vendorReference;
   final String? privateNotes;
+  final String? clientId;
 
   Map<String, dynamic> toJson() => {
     'project_id': projectId,
+    if (clientId != null) 'client_id': clientId,
     'expense_category_id': expenseCategoryId,
     'amount': amount,
     'currency_code': currencyCode,
@@ -166,17 +169,20 @@ class ExpenseCategoryOption {
 class ProjectOption {
   const ProjectOption({
     required this.projectId,
+    required this.clientId,
     required this.projectNumber,
     required this.name,
   });
 
   factory ProjectOption.fromJson(Map<String, dynamic> json) => ProjectOption(
     projectId: _string(json['project_id']),
+    clientId: _string(json['client_id']),
     projectNumber: _string(json['project_number']),
     name: _string(json['name']),
   );
 
   final String projectId;
+  final String clientId;
   final String projectNumber;
   final String name;
 
